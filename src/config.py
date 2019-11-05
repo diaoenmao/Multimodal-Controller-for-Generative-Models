@@ -1,0 +1,31 @@
+def init():
+    global PARAM
+    PARAM = {
+        'data_name': 'MNIST',
+        'model_name': 'LeNet',
+        'control_name': '',
+        'optimizer_name': 'SGD',
+        'lr': 5e-2,
+        'momentum': 0.9,
+        'weight_decay': 1e-6,
+        'scheduler_name': 'MultiStepLR',
+        'step_size': 1,
+        'milestones': [50, 150],
+        'patience': 5,
+        'threshold': 1e-3,
+        'factor': 0.1,
+        'batch_size': {'train': 256, 'test': 512},
+        'shuffle': {'train': True, 'test': False},
+        'num_workers': 0,
+        'device': 'cuda',
+        'num_epochs': 20,
+        'save_mode': 0,
+        'world_size': 1,
+        'metric_names': {'train':['Loss', 'Accuracy'],'test':['Loss','Accuracy']},
+        'init_seed': 0,
+        'num_Experiments': 1,
+        'log_interval': 0.25,
+        'normalization': 'none',
+        'activation': 'relu',
+        'resume_mode': 1
+    }
