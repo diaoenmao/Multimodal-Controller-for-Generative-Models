@@ -93,7 +93,7 @@ def process_control_name():
     config.PARAM['scale_factor'] = 2
     config.PARAM['depth'] = int(control_name[1])
     config.PARAM['num_embedding'] = 2 ** int(control_name[2])
-    config.PARAM['embedding_dim'] = int(control_name[0])
+    config.PARAM['embedding_dim'] = 1
     return
 
 

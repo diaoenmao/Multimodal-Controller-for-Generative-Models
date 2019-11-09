@@ -2,8 +2,8 @@ def init():
     global PARAM
     PARAM = {
         'data_name': 'MNIST',
-        'model_name': 'cae4',
-        'control_name': '32_2_2',
+        'model_name': 'ae',
+        'control_name': '32_2_8',
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0.9,

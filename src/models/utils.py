@@ -32,22 +32,20 @@ def make_model(model):
 
 
 def normalize(input):
-    with torch.no_grad():
-        broadcast_size = [1] * input.dim()
-        broadcast_size[1] = input.size(1)
-        m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
-        s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
-        input = input.sub(m).div(s)
+    broadcast_size = [1] * input.dim()
+    broadcast_size[1] = input.size(1)
+    m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
+    s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
+    input = input.sub(m).div(s)
     return input
 
 
 def denormalize(input):
-    with torch.no_grad():
-        broadcast_size = [1] * input.dim()
-        broadcast_size[1] = input.size(1)
-        m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
-        s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
-        input = input.mul(s).add(m)
+    broadcast_size = [1] * input.dim()
+    broadcast_size[1] = input.size(1)
+    m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
+    s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
+    input = input.mul(s).add(m)
     return input
 
 

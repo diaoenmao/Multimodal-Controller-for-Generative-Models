@@ -18,7 +18,8 @@ class Quantization(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, input):
-        x = input.transpose(1, -1)
+        permutation = [0] + [2 + i for i in range(input.dim() - 2)] + [1]
+        x = input.permute(permutation)
         flat_x = x.reshape(-1, self.embedding_dim)
         distances = (torch.sum(flat_x ** 2, dim=1, keepdim=True)
                      + torch.sum(self.embedding.weight ** 2, dim=1)
@@ -36,7 +37,8 @@ class Quantization(nn.Module):
                 self.embedding.weight = nn.Parameter(self.ema_w / self.N.unsqueeze(1))
         encoding = encoding.reshape(x.size()[:-1])
         quantized = self.embedding(encoding)
-        quantized = quantized.transpose(1, -1)
+        unpermutation = [0, input.dim()-1] + [1 + i for i in range(input.dim() - 2)]
+        quantized = quantized.permute(unpermutation)
         e_latent_loss = F.mse_loss(quantized.detach(), input)
         if self.ema:
             loss = self.commitment * e_latent_loss

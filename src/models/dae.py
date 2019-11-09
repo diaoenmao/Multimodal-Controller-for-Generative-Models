@@ -16,23 +16,18 @@ class Model(nn.Module):
         x = input['img']
         x = normalize(x)
         encoded = self.model['encoder'](x)
-        encoded = encoded.unsqueeze(1)
-        quantized, encoding, distances, quantization_loss = self.model['quantizer'](encoded)
-        quantized = quantized.squeeze(1)
-        decoded = self.model['decoder'](quantized)
+        decoded = self.model['decoder'](encoded)
         decoded = denormalize(decoded)
         output['img'] = decoded
-        output['loss'] = F.mse_loss(output['img'], input['img']) / torch.var(input['img']) + quantization_loss
+        output['loss'] = F.mse_loss(output['img'], input['img'])
         return output
 
 
-def cae():
+def ae():
     num_channel = config.PARAM['num_channel']
     num_hidden = config.PARAM['num_hidden']
     scale_factor = config.PARAM['scale_factor']
     depth = config.PARAM['depth']
-    num_embedding = config.PARAM['num_embedding']
-    embedding_dim = config.PARAM['embedding_dim']
     config.PARAM['model'] = {}
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append({'cell': 'ConvCell', 'input_size': num_channel, 'output_size': num_hidden,
@@ -45,13 +40,11 @@ def cae():
 
     config.PARAM['model']['encoder'].append(
         {'cell': 'ConvCell', 'input_size': num_hidden * ((2 * scale_factor) ** depth),
-         'output_size': embedding_dim, 'kernel_size': 1, 'stride': 1, 'padding': 0})
+         'output_size': num_hidden, 'kernel_size': 1, 'stride': 1, 'padding': 0})
 
-    config.PARAM['model']['quantizer'] = {'cell': 'QuantizationCell', 'num_embedding': num_embedding,
-                                          'embedding_dim': embedding_dim}
     config.PARAM['model']['decoder'] = []
     config.PARAM['model']['decoder'].append(
-        {'cell': 'ConvCell', 'input_size': embedding_dim, 'output_size': num_hidden * ((2 * scale_factor) ** depth),
+        {'cell': 'ConvCell', 'input_size': num_hidden, 'output_size': num_hidden * ((2 * scale_factor) ** depth),
          'kernel_size': 1, 'stride': 1, 'padding': 0})
     for i in range(depth):
         config.PARAM['model']['decoder'].append({'cell': 'ShuffleCell', 'mode': 'up', 'scale_factor': scale_factor})
@@ -68,13 +61,11 @@ def cae():
     return model
 
 
-def caes():
+def aes():
     num_channel = config.PARAM['num_channel']
     num_hidden = config.PARAM['num_hidden']
     scale_factor = config.PARAM['scale_factor']
     depth = config.PARAM['depth']
-    num_embedding = config.PARAM['num_embedding']
-    embedding_dim = config.PARAM['embedding_dim']
     config.PARAM['model'] = {}
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append({'cell': 'ConvCell', 'input_size': num_channel, 'output_size': num_hidden,
@@ -86,8 +77,6 @@ def caes():
         {'cell': 'ConvCell', 'input_size': num_hidden * ((2 * scale_factor) ** depth),
          'output_size': num_hidden, 'kernel_size': 3, 'stride': 1, 'padding': 1})
 
-    config.PARAM['model']['quantizer'] = {'cell': 'QuantizationCell', 'num_embedding': num_embedding,
-                                          'embedding_dim': embedding_dim}
     config.PARAM['model']['decoder'] = []
     config.PARAM['model']['decoder'].append(
         {'cell': 'ConvCell', 'input_size': num_hidden, 'output_size': num_hidden * ((2 * scale_factor) ** depth),
