@@ -38,7 +38,7 @@ def runExperiment(model_tag):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'])
-    process_dataset(dataset)
+    process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'

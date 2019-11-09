@@ -1,4 +1,5 @@
 import config
+import torch
 import torch.nn as nn
 from modules import Cell
 
@@ -28,3 +29,25 @@ def make_model(model):
     else:
         raise ValueError('wrong model info format')
     return
+
+
+def normalize(input):
+    with torch.no_grad():
+        broadcast_size = [1] * input.dim()
+        broadcast_size[1] = input.size(1)
+        m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
+        s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
+        input = input.sub(m).div(s)
+    return input
+
+
+def denormalize(input):
+    with torch.no_grad():
+        broadcast_size = [1] * input.dim()
+        broadcast_size[1] = input.size(1)
+        m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
+        s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
+        input = input.mul(s).add(m)
+    return input
+
+

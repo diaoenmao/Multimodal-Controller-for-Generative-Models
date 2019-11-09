@@ -31,7 +31,7 @@ def main():
 
 def runExperiment():
     dataset = fetch_dataset(data_name=config.PARAM['data_name'])
-    data_loader = make_data_loader(dataset, config.PARAM['window_length'])
+    data_loader = make_data_loader(dataset)
     print(config.PARAM)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     summary = summarize(data_loader['train'], model)

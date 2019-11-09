@@ -2,12 +2,12 @@ def init():
     global PARAM
     PARAM = {
         'data_name': 'MNIST',
-        'model_name': 'LeNet',
-        'control_name': '',
-        'optimizer_name': 'SGD',
-        'lr': 5e-2,
+        'model_name': 'cae',
+        'control_name': '32_2_2',
+        'optimizer_name': 'Adam',
+        'lr': 1e-3,
         'momentum': 0.9,
-        'weight_decay': 1e-6,
+        'weight_decay': 0,
         'scheduler_name': 'MultiStepLR',
         'step_size': 1,
         'milestones': [50, 150],
@@ -21,11 +21,11 @@ def init():
         'num_epochs': 20,
         'save_mode': 0,
         'world_size': 1,
-        'metric_names': {'train':['Loss', 'Accuracy'],'test':['Loss','Accuracy']},
+        'metric_names': {'train':['Loss', 'PSNR'],'test':['Loss','PSNR']},
         'init_seed': 0,
         'num_Experiments': 1,
         'log_interval': 0.25,
         'normalization': 'none',
         'activation': 'relu',
-        'resume_mode': 1
+        'resume_mode': 0
     }

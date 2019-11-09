@@ -15,7 +15,6 @@ class MNIST(Dataset):
             'http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz',
             'http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz']
     classes = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-    feature_dim = {'img': 1}
 
     def __init__(self, root, split, transform=None, download=False):
         self.root = os.path.expanduser(root)
@@ -88,7 +87,6 @@ class EMNIST(MNIST):
                              's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
     merged_classes = ['c', 'i', 'j', 'k', 'l', 'm', 'o', 'p', 's', 'u', 'v', 'w', 'x', 'y', 'z']
     unmerged_classes = list(set(lower_letters_classes) - set(merged_classes))
-    feature_dim = {'img': 1}
 
     def __init__(self, root, split, **kwargs):
         split_list = split.split('_')
@@ -131,7 +129,6 @@ class FashionMNIST(MNIST):
             'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/t10k-images-idx3-ubyte.gz',
             'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/t10k-labels-idx1-ubyte.gz', ]
     classes = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
-    feature_dim = {'img': 1}
 
     @property
     def data_path(self):
