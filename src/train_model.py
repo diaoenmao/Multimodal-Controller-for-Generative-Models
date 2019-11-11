@@ -92,8 +92,8 @@ def train(data_loader, model, optimizer, logger, epoch):
     model.train(True)
     for i, input in enumerate(data_loader):
         start_time = time.time()
-        input_size = len(input)
         input = collate(input)
+        input_size = len(input['img'])
         input = to_device(input, config.PARAM['device'])
         model.zero_grad()
         output = model(input)
@@ -109,9 +109,9 @@ def train(data_loader, model, optimizer, logger, epoch):
             info = {'info': ['Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
                              'Learning rate: {}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
-            logger.append(info, 'train')
+            logger.append(info, 'train', mean=False)
             evaluation = metric.evaluate(config.PARAM['metric_names']['train'], input, output)
-            logger.append(evaluation, 'train', input_size)
+            logger.append(evaluation, 'train', n=input_size)
             logger.write('train', config.PARAM['metric_names']['train'])
     return
 
@@ -121,15 +121,15 @@ def test(data_loader, model, logger, epoch):
         metric = Metric()
         model.train(False)
         for i, input in enumerate(data_loader):
-            input_size = len(input)
             input = collate(input)
+            input_size = len(input['img'])
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
-        logger.append(info, 'test')
+        logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
     return
 

@@ -2,7 +2,7 @@ import config
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import make_model, normalize, denormalize
+from .utils import make_model
 
 
 class Model(nn.Module):
@@ -14,13 +14,11 @@ class Model(nn.Module):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32), 'img': None,
                   'code': None}
         x = input['img']
-        x = normalize(x)
         encoded = self.model['encoder'](x)
         encoded = encoded.unsqueeze(1)
         quantized, encoding, distances, quantization_loss = self.model['quantizer'](encoded)
         quantized = quantized.squeeze(1)
         decoded = self.model['decoder'](quantized)
-        decoded = denormalize(decoded)
         output['img'] = decoded
         output['loss'] = F.mse_loss(output['img'], input['img']) / torch.var(input['img']) + quantization_loss
         return output

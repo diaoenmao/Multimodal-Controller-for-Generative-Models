@@ -2,8 +2,8 @@ def init():
     global PARAM
     PARAM = {
         'data_name': 'MNIST',
-        'model_name': 'ae',
-        'control_name': '32_2_8',
+        'model_name': 'dae',
+        'control_name': '1_2_0_60000_0_0',
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0.9,
@@ -14,7 +14,7 @@ def init():
         'patience': 5,
         'threshold': 1e-3,
         'factor': 0.1,
-        'batch_size': {'train': 256, 'test': 512},
+        'batch_size': {'train': 200, 'test': 200},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',

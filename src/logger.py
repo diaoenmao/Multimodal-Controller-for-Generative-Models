@@ -1,6 +1,7 @@
 from collections import defaultdict
 from torch.utils.tensorboard import SummaryWriter
 from numbers import Number
+from utils import recur
 
 
 class Logger():
@@ -10,6 +11,7 @@ class Logger():
         self.tracker = defaultdict(int)
         self.counter = defaultdict(int)
         self.mean = defaultdict(int)
+        self.history = defaultdict(list)
         self.iterator = defaultdict(int)
 
     def safe(self, write):
@@ -25,15 +27,26 @@ class Logger():
         self.tracker = defaultdict(int)
         self.counter = defaultdict(int)
         self.mean = defaultdict(int)
+        for name in self.mean:
+            self.history[name].append(self.mean[name])
         return
 
-    def append(self, result, tag, n=1):
+    def append(self, result, tag, n=1, mean=True):
         for k in result:
             name = '{}/{}'.format(tag, k)
             self.tracker[name] = result[k]
             self.counter[name] += n
-            if isinstance(result[k], Number):
-                self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
+            if mean:
+                if isinstance(result[k], Number):
+                    self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
+                elif isinstance(result[k], list):
+                    if self.counter[name] == n:
+                        self.mean[name] = [0] * len(result[k])
+                    for i in range(len(result[k])):
+                        self.mean[name][i] = ((self.counter[name] - n) * self.mean[name][i] + n * result[k][i]) / \
+                                             self.counter[name]
+                else:
+                    raise ValueError('Not valid data type')
         return
 
     def write(self, tag, metric_names):
@@ -41,11 +54,16 @@ class Logger():
         evaluation_info = []
         for name in names:
             tag, k = name.split('/')
-            evaluation_info.append('{}: {:.4f}'.format(k, self.mean[name]))
+            if isinstance(self.mean[name], Number):
+                s = self.mean[name]
+            elif isinstance(self.mean[name], list):
+                s = sum(self.mean[name]) / len(self.mean[name])
+            else:
+                raise ValueError('Not valid data type')
+            evaluation_info.append('{}: {:.4f}'.format(k, s))
             if self.writer is not None:
                 self.iterator[name] += 1
-                self.writer.add_scalar(name, self.tracker[name], self.iterator[name])
-                self.writer.add_scalar('{}_{}'.format(name, 'mean'), self.mean[name], self.iterator[name])
+                self.writer.add_scalar(name, s, self.iterator[name])
         info_name = '{}/info'.format(tag)
         info = self.tracker[info_name]
         info[1:1] = evaluation_info

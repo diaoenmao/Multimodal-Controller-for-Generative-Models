@@ -11,7 +11,7 @@ import torch.backends.cudnn as cudnn
 from torch.nn.modules.batchnorm import _BatchNorm
 from torch.nn.modules.conv import _ConvNd
 from data import fetch_dataset, make_data_loader
-from utils import makedir_exist_ok, save, load, to_device, process_control_name
+from utils import makedir_exist_ok, to_device, process_control_name, process_dataset, collate
 
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
@@ -31,6 +31,7 @@ def main():
 
 def runExperiment():
     dataset = fetch_dataset(data_name=config.PARAM['data_name'])
+    process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     print(config.PARAM)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
@@ -173,12 +174,6 @@ def parse_summary(summary):
     content_file.write(content)
     content_file.close()
     return content
-
-
-def collate(input):
-    for k in input:
-        input[k] = torch.stack(input[k], 0)
-    return input
 
 
 if __name__ == "__main__":

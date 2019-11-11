@@ -94,6 +94,9 @@ def process_control_name():
     config.PARAM['depth'] = int(control_name[1])
     config.PARAM['num_embedding'] = 2 ** int(control_name[2])
     config.PARAM['embedding_dim'] = 1
+    config.PARAM['split_encoder'] = int(control_name[3])
+    config.PARAM['split_mode_data'] = int(control_name[4])
+    config.PARAM['split_mode_model'] = int(control_name[5])
     return
 
 
@@ -141,6 +144,10 @@ class Stats(object):
 
 def process_dataset(dataset):
     config.PARAM['stats'] = make_stats(dataset)
+    if config.PARAM['split_mode_data'] == 0:
+        label = torch.arange(config.PARAM['split_encoder']).repeat(len(dataset) // config.PARAM['split_encoder'] + 1)
+        label = label[torch.randperm(len(dataset))]
+        dataset.label = label.tolist()
     return
 
 
