@@ -77,6 +77,11 @@ def recur(fn, input, *args):
         output = []
         for i in range(len(input)):
             output.append(recur(fn, input[i], *args))
+    elif isinstance(input, tuple):
+        output = []
+        for i in range(len(input)):
+            output.append(recur(fn, input[i], *args))
+        output = tuple(output)
     elif isinstance(input, dict):
         output = {}
         for key in input:
@@ -89,14 +94,15 @@ def recur(fn, input, *args):
 def process_control_name():
     control_name = config.PARAM['control_name'].split('_')
     config.PARAM['num_channel'] = 1
-    config.PARAM['num_hidden'] = int(control_name[0])
+    config.PARAM['num_hidden_encoder'] = int(control_name[0])
+    config.PARAM['num_hidden_decoder'] = int(control_name[1])
     config.PARAM['scale_factor'] = 2
-    config.PARAM['depth'] = int(control_name[1])
-    config.PARAM['num_embedding'] = 2 ** int(control_name[2])
+    config.PARAM['depth'] = int(control_name[2])
+    config.PARAM['num_embedding'] = 2 ** int(control_name[3])
     config.PARAM['embedding_dim'] = 1
-    config.PARAM['split_encoder'] = int(control_name[3])
-    config.PARAM['split_mode_data'] = int(control_name[4])
-    config.PARAM['split_mode_model'] = int(control_name[5])
+    config.PARAM['split_encoder'] = int(control_name[4])
+    config.PARAM['split_mode_data'] = int(control_name[5])
+    config.PARAM['split_mode_model'] = int(control_name[6])
     return
 
 

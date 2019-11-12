@@ -7,19 +7,23 @@ from .utils import make_model
 
 
 class Model(nn.Module):
-    def __init__(self):
+    def __init__(self, encoder, decoder):
         super(Model, self).__init__()
-        self.model = make_model(config.PARAM['model'])
+        self.model = nn.ModuleDict({})
+        self.model['encoder'] = nn.ModuleList([encoder] * config.PARAM['split_encoder'])
+        if config.PARAM['split_mode_model'] == 0:
+            self.model['decoder'] = decoder
+        else:
+            self.model['decoder'] = nn.ModuleList([decoder] * config.PARAM['split_encoder'])
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32), 'img': None,
                   'code': None}
         if self.training:
             actived = input['label'].unique().tolist()
-            print(len(actived))
             mask = []
             for i in range(len(actived)):
-                mask.append(input['label']==actived[i])
+                mask.append(input['label'] == actived[i])
             x = input['img']
             encoded = None
             for i in range(len(actived)):
@@ -70,85 +74,47 @@ class Model(nn.Module):
         return output
 
 
-def dae():
+def fvae():
     num_channel = config.PARAM['num_channel']
-    num_hidden = config.PARAM['num_hidden']
+    num_hidden_encoder = config.PARAM['num_hidden_encoder']
+    num_hidden_decoder = config.PARAM['num_hidden_decoder']
     scale_factor = config.PARAM['scale_factor']
     depth = config.PARAM['depth']
-    split_encoder = config.PARAM['split_encoder']
-    split_mode_model = config.PARAM['split_mode_model']
 
     config.PARAM['model'] = {}
     config.PARAM['model']['encoder'] = []
-    config.PARAM['model']['encoder'].append({'cell': 'ConvCell', 'input_size': num_channel, 'output_size': num_hidden,
-                                             'kernel_size': 1, 'stride': 1, 'padding': 0})
+    config.PARAM['model']['encoder'].append(
+        {'cell': 'ConvCell', 'input_size': num_channel, 'output_size': num_hidden_encoder,
+         'kernel_size': 1, 'stride': 1, 'padding': 0})
     for i in range(depth):
         config.PARAM['model']['encoder'].append(
-            {'cell': 'ResConvCell', 'input_size': num_hidden * ((2 * scale_factor) ** i),
-             'output_size': num_hidden * ((2 * scale_factor) ** i), 'kernel_size': 3, 'stride': 1, 'padding': 1})
+            {'cell': 'ResConvCell', 'input_size': num_hidden_encoder * ((2 * scale_factor) ** i),
+             'output_size': num_hidden_encoder * ((2 * scale_factor) ** i), 'kernel_size': 3, 'stride': 1,
+             'padding': 1})
         config.PARAM['model']['encoder'].append({'cell': 'ShuffleCell', 'mode': 'down', 'scale_factor': scale_factor})
 
     config.PARAM['model']['encoder'].append(
-        {'cell': 'ConvCell', 'input_size': num_hidden * ((2 * scale_factor) ** depth),
-         'output_size': num_hidden, 'kernel_size': 1, 'stride': 1, 'padding': 0})
+        {'cell': 'ConvCell', 'input_size': num_hidden_encoder * ((2 * scale_factor) ** depth),
+         'output_size': num_hidden_encoder, 'kernel_size': 1, 'stride': 1, 'padding': 0})
 
     config.PARAM['model']['decoder'] = []
     config.PARAM['model']['decoder'].append(
-        {'cell': 'ConvCell', 'input_size': num_hidden, 'output_size': num_hidden * ((2 * scale_factor) ** depth),
+        {'cell': 'ConvCell', 'input_size': num_hidden_encoder,
+         'output_size': num_hidden_decoder * ((2 * scale_factor) ** depth),
          'kernel_size': 1, 'stride': 1, 'padding': 0})
     for i in range(depth):
         config.PARAM['model']['decoder'].append({'cell': 'ShuffleCell', 'mode': 'up', 'scale_factor': scale_factor})
         config.PARAM['model']['decoder'].append(
-            {'cell': 'ResConvCell', 'input_size': num_hidden * ((2 * scale_factor) ** (depth - i - 1)),
-             'output_size': num_hidden * ((2 * scale_factor) ** (depth - i - 1)),
+            {'cell': 'ResConvCell', 'input_size': num_hidden_decoder * ((2 * scale_factor) ** (depth - i - 1)),
+             'output_size': num_hidden_decoder * ((2 * scale_factor) ** (depth - i - 1)),
              'kernel_size': 3, 'stride': 1, 'padding': 1})
     config.PARAM['model']['decoder'].append(
-        {'cell': 'ConvCell', 'input_size': num_hidden, 'output_size': num_channel, 'kernel_size': 1,
+        {'cell': 'ConvCell', 'input_size': num_hidden_decoder, 'output_size': num_channel, 'kernel_size': 1,
          'stride': 1, 'padding': 0, 'activation': 'none'})
-    config.PARAM['model']['encoder'] = [tuple(config.PARAM['model']['encoder'])] * split_encoder
-    if split_mode_model == 0:
-        config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
-    else:
-        config.PARAM['model']['decoder'] = [tuple(config.PARAM['model']['decoder'])] * split_encoder
-    print('aaa')
-    model = Model()
-    print('bbb')
-    return model
 
-
-def daes():
-    num_channel = config.PARAM['num_channel']
-    num_hidden = config.PARAM['num_hidden']
-    scale_factor = config.PARAM['scale_factor']
-    depth = config.PARAM['depth']
-    split_encoder = config.PARAM['split_encoder']
-    split_decoder = config.PARAM['split_decoder']
-
-    config.PARAM['model'] = {}
-    config.PARAM['model']['encoder'] = []
-    config.PARAM['model']['encoder'].append({'cell': 'ConvCell', 'input_size': num_channel, 'output_size': num_hidden,
-                                             'kernel_size': 1, 'stride': 1, 'padding': 0})
-    config.PARAM['model']['encoder'].append(
-        {'cell': 'ShuffleCell', 'mode': 'down', 'scale_factor': scale_factor ** depth})
-
-    config.PARAM['model']['encoder'].append(
-        {'cell': 'ConvCell', 'input_size': num_hidden * ((2 * scale_factor) ** depth),
-         'output_size': num_hidden, 'kernel_size': 3, 'stride': 1, 'padding': 1})
-
-    config.PARAM['model']['decoder'] = []
-    config.PARAM['model']['decoder'].append(
-        {'cell': 'ConvCell', 'input_size': num_hidden, 'output_size': num_hidden * ((2 * scale_factor) ** depth),
-         'kernel_size': 3, 'stride': 1, 'padding': 1})
-    config.PARAM['model']['decoder'].append(
-        {'cell': 'ShuffleCell', 'mode': 'up', 'scale_factor': scale_factor ** depth})
-    for i in range(depth):
-        config.PARAM['model']['decoder'].append(
-            {'cell': 'ResConvCell', 'input_size': num_hidden,
-             'output_size': num_hidden, 'kernel_size': 3, 'stride': 1, 'padding': 1})
-    config.PARAM['model']['decoder'].append(
-        {'cell': 'ConvCell', 'input_size': num_hidden, 'output_size': num_channel, 'kernel_size': 1,
-         'stride': 1, 'padding': 0, 'activation': 'none'})
-    config.PARAM['model']['encoder'] = config.PARAM['model']['encoder'] * split_encoder
-    config.PARAM['model']['decoder'] = config.PARAM['model']['decoder'] * split_decoder
-    model = Model()
+    config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
+    config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
+    encoder = make_model(config.PARAM['model']['encoder'])
+    decoder = make_model(config.PARAM['model']['decoder'])
+    model = Model(encoder, decoder)
     return model
