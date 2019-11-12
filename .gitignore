@@ -121,3 +121,5 @@ model/
 #output
 output/
 tmp/
+
+.idea/
