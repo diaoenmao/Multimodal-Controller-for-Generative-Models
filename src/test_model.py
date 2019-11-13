@@ -49,9 +49,8 @@ def runExperiment(model_tag):
     logger.safe(True)
     test(data_loader['test'], model, logger, last_epoch)
     logger.safe(False)
-    model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
     save_result = {
-        'config': config.PARAM, 'epoch': last_epoch, 'model_dict': model_state_dict, 'logger': logger}
+        'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
     save(save_result, './output/result/{}.pt'.format(model_tag))
     return
 
@@ -61,23 +60,17 @@ def test(data_loader, model, logger, epoch):
         metric = Metric()
         model.train(False)
         for i, input in enumerate(data_loader):
-            input_size = len(input)
             input = collate(input)
+            input_size = len(input['img'])
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
-        logger.append(info, 'test')
+        logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
     return
-
-
-def collate(input):
-    for k in input:
-        input[k] = torch.stack(input[k], 0)
-    return input
 
 
 if __name__ == "__main__":

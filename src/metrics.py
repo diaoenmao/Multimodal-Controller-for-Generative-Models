@@ -9,7 +9,7 @@ from utils import recur
 def PSNR(output, target, MAX=1.0):
     with torch.no_grad():
         max = torch.tensor(MAX).to(config.PARAM['device'])
-        mse = F.mse_loss(output, target)
+        mse = F.mse_loss(output.to(torch.float64), target.to(torch.float64))
         psnr = (20 * torch.log10(max) - 10 * torch.log10(mse)).item()
     return psnr
 

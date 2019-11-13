@@ -6,14 +6,10 @@ from .utils import make_model
 
 
 class Model(nn.Module):
-    def __init__(self, encoder, decoder):
+    def __init__(self):
         super(Model, self).__init__()
         self.model = nn.ModuleDict({})
-        self.model['encoder'] = nn.ModuleList([encoder] * config.PARAM['split_encoder'])
-        if config.PARAM['split_mode_model'] == 0:
-            self.model['decoder'] = decoder
-        else:
-            self.model['decoder'] = nn.ModuleList([decoder] * config.PARAM['split_encoder'])
+        self.model = make_model(config.PARAM['model'])
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32), 'img': None,
@@ -52,9 +48,6 @@ class Model(nn.Module):
             for i in range(len(self.model['encoder'])):
                 x_i = x
                 encoded_i = self.model['encoder'][i](x_i)
-                if encoded is None:
-                    encoded_shape = [x.size(0), *encoded_i.shape[1:]]
-                    encoded = x.new_zeros(encoded_shape)
                 encoded.append(encoded_i)
             if config.PARAM['split_mode_model'] == 0:
                 encoded = torch.cat(encoded, dim=0)
@@ -79,6 +72,8 @@ def fae():
     num_hidden_decoder = config.PARAM['num_hidden_decoder']
     scale_factor = config.PARAM['scale_factor']
     depth = config.PARAM['depth']
+    split_encoder = config.PARAM['split_encoder']
+    split_mode_model = config.PARAM['split_mode_model']
 
     config.PARAM['model'] = {}
     config.PARAM['model']['encoder'] = []
@@ -111,9 +106,10 @@ def fae():
         {'cell': 'ConvCell', 'input_size': num_hidden_decoder, 'output_size': num_channel, 'kernel_size': 1,
          'stride': 1, 'padding': 0, 'activation': 'none'})
 
-    config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
-    config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
-    encoder = make_model(config.PARAM['model']['encoder'])
-    decoder = make_model(config.PARAM['model']['decoder'])
-    model = Model(encoder, decoder)
+    config.PARAM['model']['encoder'] = [tuple(config.PARAM['model']['encoder']) for _ in range(split_encoder)]
+    if split_mode_model == 0:
+        config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
+    else:
+        config.PARAM['model']['decoder'] = [tuple(config.PARAM['model']['decoder']) for _ in range(split_encoder)]
+    model = Model()
     return model
