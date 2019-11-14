@@ -3,7 +3,7 @@ def init():
     PARAM = {
         'data_name': 'MNIST',
         'model_name': 'fae',
-        'control_name': '32_32_2_0_1_0_1',
+        'control_name': '32_32_2_0_100_1_0',
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0.9,

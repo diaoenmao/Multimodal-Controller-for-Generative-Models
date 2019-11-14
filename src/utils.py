@@ -93,7 +93,7 @@ def recur(fn, input, *args):
 
 def process_control_name():
     control_name = config.PARAM['control_name'].split('_')
-    config.PARAM['num_channel'] = 1
+    config.PARAM['num_channel'] = 3 if config.PARAM['data_name'] == 'CIFAR10' else 1
     config.PARAM['num_hidden_encoder'] = int(control_name[0])
     config.PARAM['num_hidden_decoder'] = int(control_name[1])
     config.PARAM['scale_factor'] = 2
@@ -150,10 +150,23 @@ class Stats(object):
 
 def process_dataset(dataset):
     config.PARAM['stats'] = make_stats(dataset)
+    config.PARAM['classes_size'] = dataset.classes_size
     if config.PARAM['split_mode_data'] == 0:
         label = torch.arange(config.PARAM['split_encoder']).repeat(len(dataset) // config.PARAM['split_encoder'] + 1)
         label = label[torch.randperm(len(dataset))]
         dataset.label = label.tolist()
+    else:
+        num_subset_class = config.PARAM['split_encoder'] // config.PARAM['classes_size']
+        pivot = 0
+        index = torch.arange(len(dataset.label))
+        label = torch.tensor(dataset.label)
+        new_label = label.clone()
+        for i in range(config.PARAM['classes_size']):
+            cur_index = torch.chunk(index[label == i], num_subset_class, dim=0)
+            for j in range(len(cur_index)):
+                new_label[cur_index[j]] = pivot
+                pivot += 1
+        dataset.label = new_label.tolist()
     return
 
 

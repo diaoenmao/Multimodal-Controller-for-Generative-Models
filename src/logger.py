@@ -66,7 +66,7 @@ class Logger():
                 self.writer.add_scalar(name, s, self.iterator[name])
         info_name = '{}/info'.format(tag)
         info = self.tracker[info_name]
-        info[1:1] = evaluation_info
+        info[2:2] = evaluation_info
         info = '  '.join(info)
         print(info)
         if self.writer is not None:

@@ -31,41 +31,43 @@ def main():
     for i in range(config.PARAM['num_Experiments']):
         model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['model_name'],
                           config.PARAM['control_name']]
-        model_tag = '_'.join(filter(None, model_tag_list))
-        print('Experiment: {}'.format(model_tag))
-        runExperiment(model_tag)
+        config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
+        print('Experiment: {}'.format(config.PARAM['model_tag']))
+        runExperiment()
     return
 
 
-def runExperiment(model_tag):
-    seed = int(model_tag.split('_')[0])
+def runExperiment():
+    seed = int(config.PARAM['model_tag'].split('_')[0])
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
+    if config.PARAM['world_size'] > 1:
+        model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
     optimizer = make_optimizer(model)
     scheduler = make_scheduler(optimizer)
     if config.PARAM['resume_mode'] == 1:
-        last_epoch, model, optimizer, scheduler, logger = resume(model, model_tag, optimizer, scheduler)
+        last_epoch, model, optimizer, scheduler, logger = resume(model, config.PARAM['model_tag'], optimizer, scheduler)
     elif config.PARAM['resume_mode'] == 2:
         last_epoch = 1
-        _, model, _, _, _ = resume(model, model_tag)
+        _, model, _, _, _ = resume(model, config.PARAM['model_tag'])
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/{}_{}'.format(model_tag, current_time)
+        logger_path = 'output/runs/{}_{}'.format(config.PARAM['model_tag'], current_time)
         logger = Logger(logger_path)
     else:
         last_epoch = 1
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/{}_{}'.format(model_tag, current_time)
+        logger_path = 'output/runs/{}_{}'.format(config.PARAM['model_tag'], current_time)
         logger = Logger(logger_path)
     config.PARAM['pivot_metric'] = 'train/Loss'
     config.PARAM['pivot'] = 65535
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['test'], model, logger, epoch)
+        # test(data_loader['test'], model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
@@ -77,11 +79,11 @@ def runExperiment(model_tag):
                 'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': model_state_dict,
                 'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
                 'logger': logger}
-            save(save_result, './output/model/{}_checkpoint.pt'.format(model_tag))
+            save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
             if config.PARAM['pivot'] > logger.tracker[config.PARAM['pivot_metric']]:
                 config.PARAM['pivot'] = logger.tracker[config.PARAM['pivot_metric']]
-                shutil.copy('./output/model/{}_checkpoint.pt'.format(model_tag),
-                            './output/model/{}_best.pt'.format(model_tag))
+                shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
+                            './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
         logger.reset()
     logger.safe(False)
     return
@@ -106,7 +108,8 @@ def train(data_loader, model, optimizer, logger, epoch):
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
             exp_finished_time = epoch_finished_time + datetime.timedelta(
                 seconds=round((config.PARAM['num_epochs'] - epoch) * batch_time * len(data_loader)))
-            info = {'info': ['Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
+            info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
+                             'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
                              'Learning rate: {}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
@@ -128,7 +131,8 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
+                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
     return
