@@ -67,7 +67,7 @@ def runExperiment():
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        # test(data_loader['test'], model, logger, epoch)
+        test(data_loader['test'], model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
@@ -127,8 +127,14 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = len(input['img'])
             input = to_device(input, config.PARAM['device'])
-            output = model(input)
-            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
+            output = {'loss': [], 'img': []}
+            for i in range(config.PARAM['split_encoder']):
+                input['activated'] = i
+                cur_output = model(input)
+                cur_output['loss'] = cur_output['loss'].mean() if config.PARAM['world_size'] > 1 else cur_output['loss']
+                output['loss'].append(cur_output['loss'])
+                output['img'].append(cur_output['img'])
+            output['loss'] = sum(output['loss']) / len(output['loss'])
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),

@@ -27,7 +27,7 @@ def make_model(model):
         cell = nn.Sequential(*container)
         return cell
     else:
-        raise ValueError('wrong model info format')
+        raise ValueError('Not valid model format')
     return
 
 
