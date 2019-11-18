@@ -73,3 +73,7 @@ class Logger():
             self.iterator[info_name] += 1
             self.writer.add_text(info_name, info, self.iterator[info_name])
         return
+
+    def flush(self):
+        self.writer.flush()
+        return

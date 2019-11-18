@@ -72,7 +72,6 @@ def test(data_loader, model, logger, epoch):
                 output['img'].append(cur_output['img'])
             output['loss'] = sum(output['loss']) / len(output['loss'])
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
-            print(evaluation)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
