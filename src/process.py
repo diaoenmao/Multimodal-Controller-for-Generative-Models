@@ -15,7 +15,7 @@ from logger import Logger
 data_name = 'MNIST'
 result_path = './output/result'
 fig_path = './output/fig'
-sub_path = '01'
+sub_path = '02'
 y_metric = 'test/PSNR'
 
 
@@ -23,12 +23,12 @@ def main():
     result_control = {
         'Split by subsets': {
             'evaluation_names': ['Federated BottleNeck', 'Isolated'],
-            'control_names': [['0'], [data_name], ['fae'], ['32'], ['8'], ['2'], ['32'], ['0'],
+            'control_names': [['0'], [data_name], ['faes'], ['32'], ['8'], ['32'], ['0'], ['2'],
                               ['1', '10', '50', '100', '500'], ['0'], ['0', '1']]},
-        'Split by labels': {
-            'evaluation_names': ['Federated BottleNeck', 'Isolated'],
-            'control_names': [['0'], [data_name], ['fae'], ['32'], ['8'], ['2'], ['32'], ['0'],
-                              ['1', '10', '50', '100', '500'], ['1'], ['0', '1']]}
+        # 'Split by labels': {
+        #     'evaluation_names': ['Federated BottleNeck', 'Isolated'],
+        #     'control_names': [['0'], [data_name], ['faes'], ['32'], ['8'], ['32'], ['0'], ['2'],
+        #                       ['1', '10', '50', '100', '500'], ['1'], ['0', '1']]}
     }
     for result_name, info in result_control.items():
         result = extract_result(info['control_names'], info)

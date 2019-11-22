@@ -153,7 +153,7 @@ def process_dataset(dataset):
     config.PARAM['classes_size'] = dataset.classes_size
     if config.PARAM['split_mode_data'] == 0:
         label = torch.arange(config.PARAM['split_encoder']).repeat_interleave(len(dataset) // config.PARAM['split_encoder'] + 1)
-        label = label[torch.randperm(len(dataset))]
+        label = label[:len(dataset)]
         dataset.label = label.tolist()
     else:
         num_subset_class = config.PARAM['split_encoder'] // config.PARAM['classes_size']

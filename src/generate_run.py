@@ -7,7 +7,7 @@ def main():
     script_name = [['train_model.py']]
     model_names = [['fae']]
     init_seeds = [[0]]
-    control_names = [['32'],['8'],['2'],['32'],['0'],['1','10','50','100','500'],['0'],['0', '1']]
+    control_names = [['32'],['8'],['32'],['0'],['2'],['1','10','50','100','500'],['0'],['0', '1']]
     control_names = list(itertools.product(*control_names))
     control_names = [['_'.join(control_names[i]) for i in range(len(control_names))]]
     controls = script_name + model_names + init_seeds + control_names
