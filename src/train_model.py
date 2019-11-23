@@ -12,7 +12,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, resume, collate
+from utils import save, to_device, process_control_name, process_dataset, save_img, resume, collate
 from logger import Logger
 
 cudnn.benchmark = True
@@ -141,6 +141,7 @@ def test(data_loader, model, logger, epoch):
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
+        save_img(output['img'][-1], './output/img/{}.png'.format(epoch))
     return
 
 

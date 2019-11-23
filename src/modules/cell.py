@@ -171,15 +171,13 @@ class ShuffleCell(nn.Module):
 class QuantizationCell(nn.Module):
     def __init__(self, cell_info):
         super(QuantizationCell, self).__init__()
-        self.cell_default_info = {'ema': False, 'commitment': 1}
-        self.cell_info = {**self.cell_default_info, **cell_info}
+        self.cell_info = cell_info
         self.cell = self.make_cell()
 
     def make_cell(self):
         cell_info = copy.deepcopy(self.cell_info)
         cell = nn.ModuleDict({})
-        cell['main'] = Quantization(cell_info['num_embedding'], cell_info['embedding_dim'], cell_info['ema'],
-                                    cell_info['commitment'])
+        cell['main'] = Quantization(cell_info['num_embedding'])
         return cell
 
     def forward(self, input):
