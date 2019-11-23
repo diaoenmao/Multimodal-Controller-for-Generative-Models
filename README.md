@@ -1,2 +1,2 @@
-# Federated-Autoencoder
-Federated-Autoencoder
+# Restricted-Multimodal-Autoencoder
+Restricted-Multimodal-Autoencoder
