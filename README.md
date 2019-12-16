@@ -1,2 +1,2 @@
-# Restricted-Multimodal-Autoencoder
-Restricted-Multimodal-Autoencoder
+# Restricted-Multimodal-Generative-Model
+Restricted-Multimodal-Generative-Model
