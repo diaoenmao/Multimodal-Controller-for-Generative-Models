@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 import models
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, resume, collate
+from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
 from logger import Logger
 
 cudnn.benchmark = True
@@ -44,7 +44,8 @@ def runExperiment():
     load_tag = 'best'
     last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/{}_{}'.format(config.PARAM['model_tag'], current_time)
+    logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
+        'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
     test(data_loader['test'], model, logger, last_epoch)
@@ -61,18 +62,16 @@ def test(data_loader, model, logger, epoch):
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = len(input['img'])
+            input_size = input['img'].numel()
             input = to_device(input, config.PARAM['device'])
-            output = {'loss': [], 'img': []}
-            for i in range(config.PARAM['split_encoder']):
-                input['activated'] = i
-                cur_output = model(input)
-                cur_output['loss'] = cur_output['loss'].mean() if config.PARAM['world_size'] > 1 else cur_output['loss']
-                output['loss'].append(cur_output['loss'])
-                output['img'].append(cur_output['img'])
-            output['loss'] = sum(output['loss']) / len(output['loss'])
+            output = model(input)
+            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
+        save_img(input['img'], './output/img/input.png')
+        save_img(output['img'], './output/img/output.png')
+        generated = model.generate(config.PARAM['batch_size']['test'])
+        save_img(generated, './output/img/generated.png')
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

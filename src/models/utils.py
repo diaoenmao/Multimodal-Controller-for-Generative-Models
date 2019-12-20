@@ -1,13 +1,13 @@
 import config
 import torch
 import torch.nn as nn
-from modules import Cell
+from modules import make_cell
 
 
 def make_model(model):
     if isinstance(model, dict):
         if 'cell' in model:
-            return Cell(model)
+            return make_cell(model)
         elif 'nn' in model:
             return eval(model['nn'])
         else:

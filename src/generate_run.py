@@ -4,7 +4,7 @@ import itertools
 
 def main():
     gpu_ids = ['0','1','2','3']
-    script_name = [['train_model.py']]
+    script_name = [['train_vae.py']]
     model_names = [['fae']]
     init_seeds = [[0]]
     control_names = [['32'],['8'],['32'],['0'],['2'],['1','10','50','100','500'],['0'],['0', '1']]

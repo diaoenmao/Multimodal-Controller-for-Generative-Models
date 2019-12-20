@@ -54,7 +54,7 @@ class Model(nn.Module):
         return output
 
 
-def fae():
+def cvae():
     channel_size = config.PARAM['channel_size']
     encoder_hidden_size = config.PARAM['encoder_hidden_size']
     embedding_size = config.PARAM['embedding_size']

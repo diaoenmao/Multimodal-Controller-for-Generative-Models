@@ -93,17 +93,12 @@ def recur(fn, input, *args):
 
 def process_control_name():
     control_name = config.PARAM['control_name'].split('_')
-    config.PARAM['channel_size'] = 3 if config.PARAM['data_name'] == 'CIFAR10' else 1
-    config.PARAM['encoder_hidden_size'] = int(control_name[0])
-    config.PARAM['encoder_sharing_rate']
-    config.PARAM['embedding_size'] = int(control_name[1])
-    config.PARAM['decoder_hidden_size'] = int(control_name[2])
-    config.PARAM['decoder_sharing_rate']
-    config.PARAM['scale_factor'] = 2
-    config.PARAM['depth'] = int(control_name[3])
-    config.PARAM['split_encoder'] = int(control_name[4])
-    config.PARAM['split_mode_data'] = int(control_name[5])
-    config.PARAM['split_mode_model'] = int(control_name[6])
+    config.PARAM['normalization'] = control_name[0]
+    config.PARAM['activation'] = control_name[1]
+    config.PARAM['hidden_size'] = int(control_name[2])
+    config.PARAM['latent_size'] = int(control_name[3])
+    config.PARAM['num_layers'] = int(control_name[4])
+    config.PARAM['sharing_rate'] = float(control_name[5])
     return
 
 
@@ -152,22 +147,10 @@ class Stats(object):
 def process_dataset(dataset):
     config.PARAM['stats'] = make_stats(dataset)
     config.PARAM['classes_size'] = dataset.classes_size
-    if config.PARAM['split_mode_data'] == 0:
-        label = torch.arange(config.PARAM['split_encoder']).repeat_interleave(len(dataset) // config.PARAM['split_encoder'] + 1)
-        label = label[:len(dataset)]
-        dataset.label = label.tolist()
-    else:
-        num_subset_class = config.PARAM['split_encoder'] // config.PARAM['classes_size']
-        pivot = 0
-        index = torch.arange(len(dataset.label))
-        label = torch.tensor(dataset.label)
-        new_label = label.clone()
-        for i in range(config.PARAM['classes_size']):
-            cur_index = torch.chunk(index[label == i], num_subset_class, dim=0)
-            for j in range(len(cur_index)):
-                new_label[cur_index[j]] = pivot
-                pivot += 1
-        dataset.label = new_label.tolist()
+    if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
+        config.PARAM['img_shape'] = [1, 28, 28]
+    elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
+        config.PARAM['img_shape'] = [3, 32, 32]
     return
 
 

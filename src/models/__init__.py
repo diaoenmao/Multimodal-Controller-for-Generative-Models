@@ -1,1 +1,2 @@
-from .rmae import *
+from .vae import *
+from .gan import *

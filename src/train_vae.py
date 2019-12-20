@@ -60,7 +60,8 @@ def runExperiment():
     else:
         last_epoch = 1
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/{}_{}'.format(config.PARAM['model_tag'], current_time)
+        logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
+            'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
     config.PARAM['pivot_metric'] = 'train/Loss'
     config.PARAM['pivot'] = 65535
@@ -127,21 +128,14 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = len(input['img'])
             input = to_device(input, config.PARAM['device'])
-            output = {'loss': [], 'img': []}
-            for i in range(config.PARAM['split_encoder']):
-                input['activated'] = i
-                cur_output = model(input)
-                cur_output['loss'] = cur_output['loss'].mean() if config.PARAM['world_size'] > 1 else cur_output['loss']
-                output['loss'].append(cur_output['loss'])
-                output['img'].append(cur_output['img'])
-            output['loss'] = sum(output['loss']) / len(output['loss'])
+            output = model(input)
+            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
-        save_img(output['img'][-1], './output/img/{}.png'.format(epoch))
     return
 
 

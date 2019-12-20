@@ -6,6 +6,12 @@ import torch.nn.functional as F
 from utils import recur
 
 
+def NLL(output, target):
+    with torch.no_grad():
+        NLL = F.binary_cross_entropy_with_logits(output, target, reduction='sum').item() / output.size(0)
+    return NLL
+
+
 def PSNR(output, target, MAX=1.0):
     with torch.no_grad():
         max = torch.tensor(MAX).to(config.PARAM['device'])
@@ -14,21 +20,11 @@ def PSNR(output, target, MAX=1.0):
     return psnr
 
 
-def BPS(code, input):
-    with torch.no_grad():
-        code = code.detach().cpu().numpy()
-        bit_depth = math.log2(config.PARAM['num_embedding'])
-        num_bit = bit_depth * code.size
-        length = input.size(-1) / config.PARAM['sr']
-        bps = num_bit / length
-    return bps
-
-
 class Metric(object):
     def __init__(self):
         self.metric = {'Loss': (lambda input, output: output['loss'].item()),
-                       'PSNR': (lambda input, output: recur(PSNR, output['img'], input['img'])),
-                       'BPS': (lambda input, output: recur(BPS, output['code'], input['img']))}
+                       'NLL': (lambda input, output: recur(NLL, output['img'], input['img'])),
+                       'PSNR': (lambda input, output: recur(PSNR, output['img'], input['img']))}
 
     def evaluate(self, metric_names, input, output):
         evaluation = {}
