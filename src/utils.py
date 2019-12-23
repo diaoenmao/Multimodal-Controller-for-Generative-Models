@@ -41,9 +41,9 @@ def load(path, mode='torch'):
     return
 
 
-def save_img(img, path):
+def save_img(img, path, nrow=10):
     makedir_exist_ok(os.path.dirname(path))
-    save_image(img, path, padding=0)
+    save_image(img, path, nrow=nrow, padding=0)
     return
 
 
@@ -151,6 +151,8 @@ def process_dataset(dataset):
         config.PARAM['img_shape'] = [1, 28, 28]
     elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
+    elif dataset.data_name in ['CUB200']:
+        config.PARAM['img_shape'] = [3, 224, 224]
     return
 
 

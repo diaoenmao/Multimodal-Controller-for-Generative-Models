@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 import models
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, load, to_device, process_control_name, process_dataset, resume, collate
+from utils import save, load, to_device, process_control_name, process_dataset, resume, collate, save_img
 from logger import Logger
 
 # if __name__ == "__main__":
@@ -30,3 +30,18 @@ from logger import Logger
 #     for i in range(n):
 #         print(torch.eq(c_0[i], c_0[i]).all())
 #         print((c_0[i]-c_1[i]).abs().mean())
+
+if __name__ == "__main__":
+    data_name = 'CelebA'
+    subset = 'identity'
+    data_name = '{}_{}'.format(data_name, subset)
+    dataset = fetch_dataset(data_name)
+    data_loader = make_data_loader(dataset)
+    for i, input in enumerate(data_loader['train']):
+        input = collate(input)
+        print(input['img'].size())
+        # print(input['label'].size())
+        print(input[subset].size())
+        break
+    save_img(input['img'], './output/img/test.png')
+    exit()

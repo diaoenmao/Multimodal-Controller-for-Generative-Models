@@ -70,8 +70,9 @@ def test(data_loader, model, logger, epoch):
             logger.append(evaluation, 'test', input_size)
         save_img(input['img'], './output/img/input_{}.png'.format(config.PARAM['model_name']))
         save_img(output['img'], './output/img/output_{}.png'.format(config.PARAM['model_name']))
-        generated = model.generate(10 * config.PARAM['classes_size'])
-        save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_name']))
+        c = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(10)
+        generated = model.generate(c)
+        save_img(generated, './output/img/generated_{}_{}.png'.format(config.PARAM['model_name'],i))
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

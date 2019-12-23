@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 
 from utils import makedir_exist_ok, save, load
-from .utils import download_url, extract_file, make_classes_counts, make_img_dataset, default_loader, IMG_EXTENSIONS
+from .utils import download_url, extract_file, make_classes_counts, default_loader, IMG_EXTENSIONS
 
 
 class ImageNet(Dataset):

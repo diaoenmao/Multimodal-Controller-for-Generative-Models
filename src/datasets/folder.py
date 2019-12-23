@@ -3,7 +3,7 @@ import shutil
 import torch
 from torch.utils.data import Dataset
 from utils import makedir_exist_ok, save, load
-from .utils import find_classes, make_img_dataset, make_classes_counts, default_loader, IMG_EXTENSIONS
+from .utils import find_classes, make_classes_counts, default_loader, IMG_EXTENSIONS
 
 
 class ImageFolder(Dataset):

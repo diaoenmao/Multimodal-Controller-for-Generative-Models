@@ -52,6 +52,33 @@ def fetch_dataset(data_name):
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
         }
+    elif data_name_head == 'Omniglot':
+        dataset['train'] = datasets.Omniglot(root=root, split='train', download=True,
+                                             transform=datasets.Compose([transforms.ToTensor()]))
+        dataset['test'] = datasets.Omniglot(root=root, split='test', download=True,
+                                            transform=datasets.Compose([transforms.ToTensor()]))
+        config.PARAM['transform'] = {
+            'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
+        }
+    elif data_name_head == 'CUB200':
+        subset = data_name.split('_')[1]
+        dataset['train'] = datasets.CUB200(root=root, split='train', subset=subset, download=True,
+                                           transform=datasets.Compose([transforms.ToTensor()]))
+        dataset['test'] = datasets.CUB200(root=root, split='test', subset=subset, download=True,
+                                          transform=datasets.Compose([transforms.ToTensor()]))
+        config.PARAM['transform'] = {
+            'train': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
+        }
+    elif data_name_head == 'CelebA':
+        subset = data_name.split('_')[1]
+        dataset['train'] = datasets.CelebA(root=root, split='train', subset=subset, download=True,
+                                           transform=datasets.Compose([transforms.ToTensor()]))
+        dataset['test'] = datasets.CelebA(root=root, split='test', subset=subset, download=True,
+                                          transform=datasets.Compose([transforms.ToTensor()]))
+        config.PARAM['transform'] = {
+            'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
+        }
     else:
         raise ValueError('Not valid dataset name')
     dataset['train'].transform = config.PARAM['transform']['train']
