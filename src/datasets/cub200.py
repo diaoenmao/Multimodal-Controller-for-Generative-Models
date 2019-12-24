@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from utils import makedir_exist_ok, save, load
+from utils import check_exists, makedir_exist_ok, save, load
 from .utils import download_url, extract_file, make_classes_counts, make_tree, make_flat_index
 
 
@@ -15,15 +15,13 @@ class CUB200(Dataset):
          '97eceeb196236b17998738112f37df78')
     ]
 
-    def __init__(self, root, split, subset, transform=None, download=False):
+    def __init__(self, root, split, subset, transform=None):
         self.root = os.path.expanduser(root)
         self.split = split
         self.subset = subset
         self.transform = transform
-        if download:
-            self.download()
-        if not self._check_exists():
-            raise RuntimeError('Dataset not found. You can use download=True to download it')
+        if not check_exists(self.processed_folder):
+            self.process()
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.target = self.target[self.subset]
@@ -48,30 +46,26 @@ class CUB200(Dataset):
     def raw_folder(self):
         return os.path.join(self.root, 'raw')
 
-    def _check_exists(self):
-        return os.path.exists(self.processed_folder)
-
-    def download(self):
-        if self._check_exists():
-            return
-        makedir_exist_ok(self.raw_folder)
-        for (url, md5) in self.file:
-            filename = os.path.basename(url)
-            file_path = os.path.join(self.raw_folder, filename)
-            download_url(url, self.raw_folder, filename, md5)
-            extract_file(file_path)
+    def process(self):
+        if not check_exists(self.raw_folder):
+            self.download()
         train_set, test_set, meta = self.make_data()
         save(train_set, os.path.join(self.processed_folder, 'train.pt'))
         save(test_set, os.path.join(self.processed_folder, 'test.pt'))
         save(meta, os.path.join(self.processed_folder, 'meta.pt'))
         return
 
+    def download(self):
+        makedir_exist_ok(self.raw_folder)
+        for (url, md5) in self.file:
+            filename = os.path.basename(url)
+            download_url(url, self.raw_folder, filename, md5)
+            extract_file(os.path.join(self.raw_folder, filename))
+        return
+
     def __repr__(self):
-        fmt_str = 'Dataset {}\n'.format(self.__class__.__name__)
-        fmt_str += '    Number of data points: {}\n'.format(self.__len__())
-        fmt_str += '    Split: {}\n'.format(self.split)
-        fmt_str += '    Root: {}\n'.format(self.root)
-        fmt_str += '    Transforms: {}\n'.format(self.transform.__repr__())
+        fmt_str = 'Dataset {}\nSize: {}\nRoot: {}\nSplit: {}\nSubset: {}\nTransforms: {}'.format(
+            self.__class__.__name__, self.__len__(), self.root, self.split, self.subset, self.transform.__repr__())
         return fmt_str
 
     def make_data(self):
@@ -95,7 +89,7 @@ class CUB200(Dataset):
                                 bbox[['x', 'y', 'width', 'height']][test_mask].values
         train_target = {'label': train_label, 'bbox': train_bbox}
         test_target = {'label': test_label, 'bbox': test_bbox}
-        classes_to_labels = {'label': anytree.Node('U', index=[], flat_index=0)}
+        classes_to_labels = {'label': anytree.Node('U', index=[])}
         for i in range(class_label['class'].values.shape[0]):
             make_tree(classes_to_labels['label'], class_label['class'].values[i])
         classes_size = {'label': make_flat_index(classes_to_labels['label'])}

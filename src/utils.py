@@ -8,6 +8,10 @@ from itertools import repeat
 from torchvision.utils import save_image
 
 
+def check_exists(path):
+    return os.path.exists(path)
+
+
 def makedir_exist_ok(path):
     try:
         os.makedirs(path)

@@ -6,75 +6,71 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
 
-def fetch_dataset(data_name):
+def fetch_dataset(data_name, subset):
     dataset = {}
     print('fetching data {}...'.format(data_name))
-    data_name_head = data_name.split('_')[0]
-    root = './data/{}'.format(data_name_head)
-    if data_name_head in ['MNIST', 'FashionMNIST', 'SVHN']:
-        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', download=True, transform=datasets.Compose(['
-                                'transforms.ToTensor()]))'.format(data_name_head))
-        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', download=True, transform=datasets.Compose(['
-                               'transforms.ToTensor()]))'.format(data_name_head))
+    root = './data/{}'.format(data_name)
+    if data_name in ['MNIST', 'FashionMNIST', 'SVHN']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
         }
-    elif data_name_head == 'EMNIST':
-        subset = data_name.split('_')[1]
-        dataset['train'] = datasets.EMNIST(root=root, split='train_{}'.format(subset), download=True,
+    elif data_name == 'EMNIST':
+        dataset['train'] = datasets.EMNIST(root=root, split='train', subset=subset,
                                            transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.EMNIST(root=root, split='test_{}'.format(subset), download=True,
+        dataset['test'] = datasets.EMNIST(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
         }
-    elif data_name_head in ['CIFAR10', 'CIFAR100']:
-        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', download=True, transform=datasets.Compose(['
-                                'transforms.ToTensor()]))'.format(data_name_head))
-        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', download=True, transform=datasets.Compose(['
-                               'transforms.ToTensor()]))'.format(data_name_head))
+    elif data_name in ['CIFAR10', 'CIFAR100']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]),
             'test': datasets.Compose([transforms.ToTensor()])
         }
-    elif data_name_head == 'ImageNet':
-        dataset['train'] = datasets.ImageNet(root, split='train', download=True,
+    elif data_name == 'ImageNet':
+        dataset['train'] = datasets.ImageNet(root, split='train', subset=subset,
                                              transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.ImageNet(root, split='test', download=True,
+        dataset['test'] = datasets.ImageNet(root, split='test', subset=subset,
                                             transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()]),
             'test': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
         }
-    elif data_name_head == 'Kodak':
+    elif data_name == 'Kodak':
         dataset['train'] = datasets.ImageFolder(root, transform=datasets.Compose([transforms.ToTensor()]))
         dataset['test'] = datasets.ImageFolder(root, transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
         }
-    elif data_name_head == 'Omniglot':
-        dataset['train'] = datasets.Omniglot(root=root, split='train', download=True,
+    elif data_name == 'Omniglot':
+        dataset['train'] = datasets.Omniglot(root=root, split='train', subset=subset,
                                              transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.Omniglot(root=root, split='test', download=True,
+        dataset['test'] = datasets.Omniglot(root=root, split='test', subset=subset,
                                             transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
         }
-    elif data_name_head == 'CUB200':
-        subset = data_name.split('_')[1]
-        dataset['train'] = datasets.CUB200(root=root, split='train', subset=subset, download=True,
+    elif data_name == 'CUB200':
+        dataset['train'] = datasets.CUB200(root=root, split='train', subset=subset,
                                            transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.CUB200(root=root, split='test', subset=subset, download=True,
+        dataset['test'] = datasets.CUB200(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()]),
             'test': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
         }
-    elif data_name_head == 'CelebA':
-        subset = data_name.split('_')[1]
-        dataset['train'] = datasets.CelebA(root=root, split='train', subset=subset, download=True,
+    elif data_name == 'CelebA':
+        dataset['train'] = datasets.CelebA(root=root, split='train', subset=subset,
                                            transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.CelebA(root=root, split='test', subset=subset, download=True,
+        dataset['test'] = datasets.CelebA(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])

@@ -32,15 +32,13 @@ from logger import Logger
 #         print((c_0[i]-c_1[i]).abs().mean())
 
 if __name__ == "__main__":
-    data_name = 'CelebA'
-    subset = 'identity'
-    data_name = '{}_{}'.format(data_name, subset)
-    dataset = fetch_dataset(data_name)
+    data_name = 'CIFAR100'
+    subset = 'label'
+    dataset = fetch_dataset(data_name, subset)
     data_loader = make_data_loader(dataset)
     for i, input in enumerate(data_loader['train']):
         input = collate(input)
         print(input['img'].size())
-        # print(input['label'].size())
         print(input[subset].size())
         break
     save_img(input['img'], './output/img/test.png')
