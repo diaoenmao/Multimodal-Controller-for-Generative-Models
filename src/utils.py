@@ -157,7 +157,7 @@ def process_dataset(dataset):
     elif dataset.data_name in ['Omniglot']:
         config.PARAM['img_shape'] = [1, 105, 105]
     elif dataset.data_name in ['CUB200']:
-        config.PARAM['img_shape'] = [3, 224, 224]
+        config.PARAM['img_shape'] = [3, 112, 112]
     elif dataset.data_name in ['CelebA']:
         config.PARAM['img_shape'] = [3, 218, 178]
     else:
@@ -169,9 +169,11 @@ def process_dataset(dataset):
 def make_mode_dataset(dataset):
     mode_img = []
     mode_label = []
+    img = np.array(dataset.img)
+    label = np.array(dataset.target)
     for i in range(config.PARAM['classes_size']['label']):
-        img_i = dataset.img[dataset.target == i]
-        label_i = dataset.target[dataset.target == i]
+        img_i = img[label == i]
+        label_i = label[label == i]
         mode_data_size = len(label_i) if config.PARAM['mode_data_size'] == 0 else config.PARAM['mode_data_size']
         mode_img.append(img_i[:mode_data_size])
         mode_label.append(label_i[:mode_data_size])
