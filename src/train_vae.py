@@ -21,8 +21,17 @@ for k in config.PARAM:
     exec('parser.add_argument(\'--{0}\',default=config.PARAM[\'{0}\'], help=\'\')'.format(k))
 args = vars(parser.parse_args())
 for k in config.PARAM:
-    if config.PARAM[k] != args[k]:
-        exec('config.PARAM[\'{0}\'] = {1}'.format(k, args[k]))
+    if k == 'control' and config.PARAM[k] != args[k]:
+        control_name_list = args[k].split('_')
+        keys_list = list(config.PARAM[k].keys())
+        for i in range(len(control_name_list)):
+            config.PARAM[k][keys_list[i]] = control_name_list[i]
+    else:
+        config.PARAM[k] = args[k]
+control_name = []
+for k in config.PARAM['control']:
+    control_name.append(config.PARAM['control'][k])
+config.PARAM['control_name'] = '_'.join(control_name)
 
 
 def main():

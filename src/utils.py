@@ -96,14 +96,13 @@ def recur(fn, input, *args):
 
 
 def process_control_name():
-    control_name = config.PARAM['control_name'].split('_')
-    config.PARAM['normalization'] = control_name[0]
-    config.PARAM['activation'] = control_name[1]
-    config.PARAM['hidden_size'] = int(control_name[2])
-    config.PARAM['latent_size'] = int(control_name[3])
-    config.PARAM['num_layers'] = int(control_name[4])
-    config.PARAM['mode_data_size'] = int(control_name[5])
-    config.PARAM['mode_size'] = int(control_name[6])
+    config.PARAM['normalization'] = config.PARAM['control']['normalization']
+    config.PARAM['activation'] = config.PARAM['control']['activation']
+    config.PARAM['hidden_size'] = int(config.PARAM['control']['hidden_size'])
+    config.PARAM['latent_size'] = int(config.PARAM['control']['latent_size'])
+    config.PARAM['num_layers'] = int(config.PARAM['control']['num_layers'])
+    config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
+    config.PARAM['mode_size'] = int(config.PARAM['control']['mode_size'])
     return
 
 
@@ -151,11 +150,10 @@ class Stats(object):
 
 def process_dataset(dataset):
     config.PARAM['classes_size'] = dataset.classes_size
-    if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100']:
-        if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
-            config.PARAM['img_shape'] = [1, 28, 28]
-        elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
-            config.PARAM['img_shape'] = [3, 32, 32]
+    if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
+        config.PARAM['img_shape'] = [1, 28, 28]
+    elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
+        config.PARAM['img_shape'] = [3, 32, 32]
     elif dataset.data_name in ['Omniglot']:
         config.PARAM['img_shape'] = [1, 105, 105]
     elif dataset.data_name in ['CUB200']:
@@ -164,7 +162,22 @@ def process_dataset(dataset):
         config.PARAM['img_shape'] = [3, 218, 178]
     else:
         raise ValueError('Not valid dataset')
+    make_mode_dataset(dataset)
     return
+
+
+def make_mode_dataset(dataset):
+    mode_img = []
+    mode_label = []
+    for i in range(config.PARAM['classes_size']['label']):
+        img_i = dataset.img[dataset.target == i]
+        label_i = dataset.target[dataset.target == i]
+        mode_data_size = len(label_i) if config.PARAM['mode_data_size'] == 0 else config.PARAM['mode_data_size']
+        mode_img.append(img_i[:mode_data_size])
+        mode_label.append(label_i[:mode_data_size])
+    dataset.img = [img for model_img_i in mode_img for img in model_img_i]
+    dataset.target = [label for model_label_i in mode_label for label in model_label_i]
+    return dataset
 
 
 def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
