@@ -27,6 +27,7 @@ class Omniglot(Dataset):
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.target = self.target[self.subset]
+        self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
         self.classes_counts = make_classes_counts(self.target)
 
     def __getitem__(self, index):
@@ -88,7 +89,7 @@ class Omniglot(Dataset):
         classes = sorted(list(classes))
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         for c in classes:
-            make_tree(classes_to_labels['label'], c)
+            make_tree(classes_to_labels['label'], [c])
         classes_size = {'label': make_flat_index(classes_to_labels['label'])}
         r = anytree.resolver.Resolver()
         for i in range(len(train_img)):

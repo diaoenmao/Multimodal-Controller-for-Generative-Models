@@ -29,6 +29,7 @@ class ImageNet(Dataset):
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.target = self.target[self.subset]
+        self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
         self.classes_counts = make_classes_counts(self.target)
 
     def __getitem__(self, index):

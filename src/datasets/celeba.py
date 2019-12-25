@@ -31,8 +31,8 @@ class CelebA(Dataset):
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.target = self.target[self.subset]
         if self.subset in ['attr', 'identity']:
-            self.classes_to_labels = self.classes_to_labels[self.subset]
-            self.classes_size = self.classes_size[self.subset]
+            self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[
+                self.subset]
             if self.subset == 'identity':
                 self.classes_counts = make_classes_counts(self.target)
 
@@ -100,9 +100,9 @@ class CelebA(Dataset):
         attr = attr.columns.tolist()
         identity = np.sort(identity['identity'].unique()).astype(str).tolist()
         for a in attr:
-            make_tree(classes_to_labels['attr'], a)
+            make_tree(classes_to_labels['attr'], [a])
         for i in identity:
-            make_tree(classes_to_labels['identity'], i)
+            make_tree(classes_to_labels['identity'], [i])
         classes_size = {'attr': make_flat_index(classes_to_labels['attr']),
                         'identity': make_flat_index(classes_to_labels['identity'])}
         return (train_img, train_target), (test_img, test_target), (classes_to_labels, classes_size)

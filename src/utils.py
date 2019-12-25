@@ -168,17 +168,17 @@ def process_dataset(dataset):
 
 def make_mode_dataset(dataset):
     mode_img = []
-    mode_label = []
+    mode_target = []
     img = np.array(dataset.img)
-    label = np.array(dataset.target)
-    for i in range(config.PARAM['classes_size']['label']):
-        img_i = img[label == i]
-        label_i = label[label == i]
-        mode_data_size = len(label_i) if config.PARAM['mode_data_size'] == 0 else config.PARAM['mode_data_size']
+    target = np.array(dataset.target)
+    for i in range(config.PARAM['classes_size']):
+        img_i = img[target == i]
+        target_i = target[target == i]
+        mode_data_size = len(target_i) if config.PARAM['mode_data_size'] == 0 else config.PARAM['mode_data_size']
         mode_img.append(img_i[:mode_data_size])
-        mode_label.append(label_i[:mode_data_size])
+        mode_target.append(target_i[:mode_data_size])
     dataset.img = [img for model_img_i in mode_img for img in model_img_i]
-    dataset.target = [label for model_label_i in mode_label for label in model_label_i]
+    dataset.target = [target for model_target_i in mode_target for target in model_target_i]
     return dataset
 
 

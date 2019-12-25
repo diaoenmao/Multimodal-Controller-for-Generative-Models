@@ -24,6 +24,7 @@ class SVHN(Dataset):
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.target = self.target[self.subset]
+        self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
         self.classes_counts = make_classes_counts(self.target)
 
     def __getitem__(self, index):
@@ -75,7 +76,7 @@ class SVHN(Dataset):
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         classes = list(map(str, list(range(10))))
         for c in classes:
-            make_tree(classes_to_labels['label'], c)
+            make_tree(classes_to_labels['label'], [c])
         classes_size = {'label': make_flat_index(classes_to_labels['label'])}
         return (train_img, train_target), (test_img, test_target), (extra_img, extra_target), \
                (classes_to_labels, classes_size)

@@ -25,6 +25,7 @@ class CUB200(Dataset):
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.target = self.target[self.subset]
+        self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
         if self.subset == 'label':
             self.classes_counts = make_classes_counts(self.target)
 
@@ -91,6 +92,6 @@ class CUB200(Dataset):
         test_target = {'label': test_label, 'bbox': test_bbox}
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         for i in range(class_label['class'].values.shape[0]):
-            make_tree(classes_to_labels['label'], class_label['class'].values[i])
+            make_tree(classes_to_labels['label'], [class_label['class'].values[i]])
         classes_size = {'label': make_flat_index(classes_to_labels['label'])}
         return (train_img, train_target), (test_img, test_target), (classes_to_labels, classes_size)
