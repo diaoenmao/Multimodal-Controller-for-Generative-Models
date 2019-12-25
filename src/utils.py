@@ -102,7 +102,8 @@ def process_control_name():
     config.PARAM['hidden_size'] = int(control_name[2])
     config.PARAM['latent_size'] = int(control_name[3])
     config.PARAM['num_layers'] = int(control_name[4])
-    config.PARAM['sharing_rate'] = float(control_name[5])
+    config.PARAM['mode_data_size'] = int(control_name[5])
+    config.PARAM['mode_size'] = int(control_name[6])
     return
 
 
@@ -149,14 +150,20 @@ class Stats(object):
 
 
 def process_dataset(dataset):
-    config.PARAM['stats'] = make_stats(dataset)
     config.PARAM['classes_size'] = dataset.classes_size
-    if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
-        config.PARAM['img_shape'] = [1, 28, 28]
-    elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
-        config.PARAM['img_shape'] = [3, 32, 32]
+    if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100']:
+        if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
+            config.PARAM['img_shape'] = [1, 28, 28]
+        elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
+            config.PARAM['img_shape'] = [3, 32, 32]
+    elif dataset.data_name in ['Omniglot']:
+        config.PARAM['img_shape'] = [1, 105, 105]
     elif dataset.data_name in ['CUB200']:
         config.PARAM['img_shape'] = [3, 224, 224]
+    elif dataset.data_name in ['CelebA']:
+        config.PARAM['img_shape'] = [3, 218, 178]
+    else:
+        raise ValueError('Not valid dataset')
     return
 
 

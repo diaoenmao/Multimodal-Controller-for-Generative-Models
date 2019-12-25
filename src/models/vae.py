@@ -59,7 +59,7 @@ class CVAE(nn.Module):
 
     def generate(self, c):
         N = c.size(0)
-        onehot = idx2onehot(c, config.PARAM['classes_size'])
+        onehot = idx2onehot(c, config.PARAM['classes_size']['label'])
         x = torch.randn([N, config.PARAM['latent_size']]).to(config.PARAM['device'])
         x = torch.cat((x, onehot), dim=-1)
         generated = self.model['decoder'](x)
@@ -70,7 +70,7 @@ class CVAE(nn.Module):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
         x, c = input['img'], input['label']
         x = x.view(x.size(0), -1)
-        onehot = idx2onehot(c, config.PARAM['classes_size'])
+        onehot = idx2onehot(c, config.PARAM['classes_size']['label'])
         x = torch.cat((x, onehot), dim=-1)
         encoded = self.model['encoder'](x)
         output['mu'], output['logvar'] = torch.chunk(encoded, 2, dim=1)
@@ -130,7 +130,7 @@ def cvae():
     latent_size = int(config.PARAM['latent_size'])
     num_layers = int(config.PARAM['num_layers'])
     feature_size = np.prod(config.PARAM['img_shape'])
-    classes_size = config.PARAM['classes_size']
+    classes_size = config.PARAM['classes_size']['label']
     config.PARAM['model'] = {}
     # Encoder
     config.PARAM['model']['encoder'] = []

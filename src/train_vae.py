@@ -29,7 +29,7 @@ def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_Experiments']))
     for i in range(config.PARAM['num_Experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['model_name'],
+        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
                           config.PARAM['control_name']]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
@@ -41,7 +41,7 @@ def runExperiment():
     seed = int(config.PARAM['model_tag'].split('_')[0])
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    dataset = fetch_dataset(config.PARAM['data_name'])
+    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
@@ -63,8 +63,8 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'train/Loss'
-    config.PARAM['pivot'] = 65535
+    config.PARAM['pivot_metric'] = 'test/NLL'
+    config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)

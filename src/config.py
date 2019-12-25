@@ -2,7 +2,8 @@ def init():
     global PARAM
     PARAM = {
         'data_name': 'MNIST',
-        'model_name': 'vae',
+        'subset': 'label',
+        'model_name': 'cvae',
         'control_name': 'none_relu_1000_200_2_0',
         'optimizer_name': 'Adam',
         'lr': 1e-3,

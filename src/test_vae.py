@@ -25,7 +25,7 @@ def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_Experiments']))
     for i in range(config.PARAM['num_Experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['model_name'],
+        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
                           config.PARAM['control_name']]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
@@ -37,7 +37,7 @@ def runExperiment():
     seed = int(config.PARAM['model_tag'].split('_')[0])
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    dataset = fetch_dataset(config.PARAM['data_name'])
+    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
@@ -68,10 +68,10 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        save_img(input['img'], './output/img/input_{}.png'.format(config.PARAM['model_name']))
-        save_img(output['img'], './output/img/output_{}.png'.format(config.PARAM['model_name']))
-        generated = model.generate(10 * config.PARAM['classes_size'])
-        save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_name']))
+        save_img(input['img'], './output/img/input_{}.png'.format(config.PARAM['model_tag']))
+        save_img(output['img'], './output/img/output_{}.png'.format(config.PARAM['model_tag']))
+        generated = model.generate(10 * config.PARAM['classes_size']['label'])
+        save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

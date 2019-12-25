@@ -25,7 +25,7 @@ def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_Experiments']))
     for i in range(config.PARAM['num_Experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['model_name'],
+        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
                           config.PARAM['control_name']]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
@@ -37,7 +37,7 @@ def runExperiment():
     seed = int(config.PARAM['model_tag'].split('_')[0])
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    dataset = fetch_dataset(config.PARAM['data_name'])
+    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
@@ -70,9 +70,9 @@ def test(data_loader, model, logger, epoch):
             logger.append(evaluation, 'test', input_size)
         save_img(input['img'], './output/img/input_{}.png'.format(config.PARAM['model_name']))
         save_img(output['img'], './output/img/output_{}.png'.format(config.PARAM['model_name']))
-        c = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(10)
+        c = torch.arange(config.PARAM['classes_size']['label']).to(config.PARAM['device']).repeat(10)
         generated = model.generate(c)
-        save_img(generated, './output/img/generated_{}_{}.png'.format(config.PARAM['model_name'],i))
+        save_img(generated, './output/img/generated_{}_{}.png'.format(config.PARAM['model_tag'],i))
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
