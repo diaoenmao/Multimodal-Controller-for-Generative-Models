@@ -1,7 +1,7 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'MNIST',
+        'data_name': 'Omniglot',
         'subset': 'label',
         'model_name': 'vae',
         'control': {'normalization': 'none', 'activation': 'relu', 'hidden_size': '1000', 'latent_size': '200',
@@ -10,7 +10,7 @@ def init():
         'lr': 1e-3,
         'momentum': 0,
         'weight_decay': 0,
-        'scheduler_name': 'None',
+        'scheduler_name': 'MultiStepLR',
         'step_size': 1,
         'milestones': [100],
         'patience': 5,

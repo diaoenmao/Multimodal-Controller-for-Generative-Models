@@ -64,8 +64,8 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = datasets.CUB200(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.Resize((112, 112)), transforms.ToTensor()]),
-            'test': datasets.Compose([transforms.Resize((112, 112)), transforms.ToTensor()])
+            'train': datasets.Compose([transforms.Resize((128, 128)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((128, 128)), transforms.ToTensor()])
         }
     elif data_name == 'CelebA':
         dataset['train'] = datasets.CelebA(root=root, split='train', subset=subset,

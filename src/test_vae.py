@@ -14,20 +14,21 @@ from logger import Logger
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
 for k in config.PARAM:
-    exec('parser.add_argument(\'--{0}\',default=config.PARAM[\'{0}\'], help=\'\')'.format(k))
+    exec('parser.add_argument(\'--{0}\',default=config.PARAM[\'{0}\'], type=type(config.PARAM[\'{0}\']))'.format(k))
+parser.add_argument('--control_name', default=None, type=str)
 args = vars(parser.parse_args())
 for k in config.PARAM:
-    if k == 'control' and config.PARAM[k] != args[k]:
-        control_name_list = args[k].split('_')
-        keys_list = list(config.PARAM[k].keys())
-        for i in range(len(control_name_list)):
-            config.PARAM[k][keys_list[i]] = control_name_list[i]
-    else:
-        config.PARAM[k] = args[k]
-control_name = []
+    config.PARAM[k] = args[k]
+if args['control_name']:
+    config.PARAM['control_name'] = args['control_name']
+    control_list = list(config.PARAM['control'].keys())
+    control_name_list = args['control_name'].split('_')
+    for i in range(len(control_name_list)):
+        config.PARAM['control'][control_list[i]] = control_name_list[i]
+control_name_list = []
 for k in config.PARAM['control']:
-    control_name.append(config.PARAM['control'][k])
-config.PARAM['control_name'] = '_'.join(control_name)
+    control_name_list.append(config.PARAM['control'][k])
+config.PARAM['control_name'] = '_'.join(control_name_list)
 
 
 def main():

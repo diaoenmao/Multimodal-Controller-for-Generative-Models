@@ -79,7 +79,7 @@ class Omniglot(Dataset):
         test_label = []
         for i in range(len(img)):
             img_i = img[i]
-            class_i = '/'.join(img_i.split('\\')[-3:-1])
+            class_i = '/'.join(os.path.normpath(img_i).split(os.path.sep)[-3:-1])
             classes.add(class_i)
             idx_i = int(os.path.splitext(os.path.basename(img_i))[0].split('_')[1])
             if idx_i <= 10:
@@ -89,17 +89,17 @@ class Omniglot(Dataset):
         classes = sorted(list(classes))
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         for c in classes:
-            make_tree(classes_to_labels['label'], [c])
+            make_tree(classes_to_labels['label'], c.split('/'))
         classes_size = {'label': make_flat_index(classes_to_labels['label'])}
         r = anytree.resolver.Resolver()
         for i in range(len(train_img)):
             train_img_i = train_img[i]
-            train_class_i = '/'.join(train_img_i.split('\\')[-3:-1])
+            train_class_i = '/'.join(os.path.normpath(train_img_i).split(os.path.sep)[-3:-1])
             node = r.get(classes_to_labels['label'], train_class_i)
             train_label.append(node.flat_index)
         for i in range(len(test_img)):
             test_img_i = test_img[i]
-            test_class_i = '/'.join(test_img_i.split('\\')[-3:-1])
+            test_class_i = '/'.join(os.path.normpath(test_img_i).split(os.path.sep)[-3:-1])
             node = r.get(classes_to_labels['label'], test_class_i)
             test_label.append(node.flat_index)
         train_target = {'label': train_label}
