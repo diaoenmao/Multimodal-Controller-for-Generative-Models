@@ -6,8 +6,8 @@ def main():
     filename = 'vae'
     gpu_ids = ['0','1','2','3']
     script_name = [['train_vae.py']]
-    data_names = ['MNIST', 'Omniglot']
-    model_names = [['vae']]
+    data_names = ['MNIST', 'Omniglot', 'CUB200']
+    model_names = [['vae', 'cvae']]
     init_seeds = [[0]]
     num_epochs = [[200]]
     s = '#!/bin/bash\n'
@@ -18,6 +18,8 @@ def main():
                              ['1', '10', '100', '500', '1000', '10000', '0'], ['1']]
         elif data_name == 'Omniglot':
             control_names = [['none'], ['relu'], ['1000'], ['200'], ['2'], ['1', '5', '0'], ['1']]
+        elif data_name == 'CUB200':
+            control_names = [['none'], ['relu'], ['1000'], ['200'], ['2'], ['1', '5', '10', '20', '0'], ['1']]
         else:
             raise ValueError('Not valid data name')
         control_names = list(itertools.product(*control_names))

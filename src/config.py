@@ -1,11 +1,11 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'Omniglot',
+        'data_name': 'CUB200',
         'subset': 'label',
         'model_name': 'vae',
         'control': {'normalization': 'none', 'activation': 'relu', 'hidden_size': '1000', 'latent_size': '200',
-                    'num_layers': '2', 'mode_data_size': '100', 'mode_size': '1'},
+                    'num_layers': '2', 'mode_data_size': '0', 'mode_size': '1'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,
@@ -20,7 +20,7 @@ def init():
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',
-        'num_epochs': 20,
+        'num_epochs': 200,
         'save_mode': 0,
         'world_size': 1,
         'metric_names': {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']},

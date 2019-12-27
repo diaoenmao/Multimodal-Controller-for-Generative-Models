@@ -82,14 +82,14 @@ def test(data_loader, model, logger, epoch):
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
-        save_img(input['img'], './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-        save_img(output['img'], './output/img/output_{}.png'.format(config.PARAM['model_tag']))
+        save_img(input['img'][:10 * config.PARAM['classes_size']], './output/img/input_{}.png'.format(config.PARAM['model_tag']))
+        save_img(output['img'][:10 * config.PARAM['classes_size']], './output/img/output_{}.png'.format(config.PARAM['model_tag']))
         if config.PARAM['model_name'] == 'vae':
-            generated = model.generate(10 * config.PARAM['classes_size']['label'])
+            generated = model.generate(10 * config.PARAM['classes_size'])
             save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
         elif config.PARAM['model_name'] == 'cvae':
             generated = model.generate(
-                torch.arange(config.PARAM['classes_size']['label']).to(config.PARAM['device']).repeat(10))
+                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(10))
             save_img(generated, './output/img/generated_{}_{}.png'.format(config.PARAM['model_tag'], i))
         else:
             raise ValueError('Not valid model name')

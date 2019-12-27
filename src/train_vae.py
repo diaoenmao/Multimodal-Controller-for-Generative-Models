@@ -3,7 +3,6 @@ import config
 config.init()
 import argparse
 import datetime
-import math
 import models
 import os
 import shutil
@@ -114,7 +113,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
         optimizer.step()
-        if i % math.ceil(len(data_loader) * config.PARAM['log_interval']) == 0:
+        if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
             lr = optimizer.param_groups[0]['lr']
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
