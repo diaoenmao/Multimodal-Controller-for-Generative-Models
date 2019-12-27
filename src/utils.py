@@ -155,11 +155,11 @@ def process_dataset(dataset):
     elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
     elif dataset.data_name in ['Omniglot']:
-        config.PARAM['img_shape'] = [1, 105, 105]
+        config.PARAM['img_shape'] = [1, 28, 28]
     elif dataset.data_name in ['CUB200']:
-        config.PARAM['img_shape'] = [3, 112, 112]
+        config.PARAM['img_shape'] = [3, 64, 64]
     elif dataset.data_name in ['CelebA']:
-        config.PARAM['img_shape'] = [3, 218, 178]
+        config.PARAM['img_shape'] = [3, 78, 64]
     else:
         raise ValueError('Not valid dataset')
     make_mode_dataset(dataset)

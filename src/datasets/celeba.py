@@ -29,16 +29,16 @@ class CelebA(Dataset):
             self.process()
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
-        self.target = self.target[self.subset]
         if self.subset in ['attr', 'identity']:
             self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[
                 self.subset]
             if self.subset == 'identity':
-                self.classes_counts = make_classes_counts(self.target)
+                self.classes_counts = make_classes_counts(self.target[self.subset])
 
     def __getitem__(self, index):
-        img, target = Image.open(self.img[index], mode='r').convert('RGB'), torch.tensor(self.target[index])
-        input = {'img': img, self.subset: target}
+        img, target = Image.open(self.img[index], mode='r').convert('RGB'), \
+                      {s: torch.tensor(self.target[s][index]) for s in self.target}
+        input = {'img': img, **target}
         if self.transform is not None:
             input = self.transform(input)
         return input
@@ -90,13 +90,12 @@ class CelebA(Dataset):
         train_mask, test_mask = split['split'] <= 1, split['split'] == 2
         train_img, test_img = img[train_mask].tolist(), img[test_mask].tolist()
         train_attr, test_attr = (attr[train_mask].values + 1) // 2, (attr[test_mask].values + 1) // 2
-        train_identity, test_identity = identity['identity'][train_mask].values, identity['identity'][test_mask].values
+        train_identity, test_identity = identity[train_mask]['identity'].values, identity[test_mask]['identity'].values
         train_bbox, test_bbox = bbox[train_mask].values, bbox[test_mask].values
         train_landmark, test_landmark = landmark[train_mask].values, landmark[test_mask].values
         train_target = {'attr': train_attr, 'identity': train_identity, 'bbox': train_bbox, 'landmark': train_landmark}
         test_target = {'attr': test_attr, 'identity': test_identity, 'bbox': test_bbox, 'landmark': test_landmark}
-        classes_to_labels = {'attr': anytree.Node('U', index=[]),
-                             'identity': anytree.Node('U', index=[])}
+        classes_to_labels = {'attr': anytree.Node('U', index=[]), 'identity': anytree.Node('U', index=[])}
         attr = attr.columns.tolist()
         identity = np.sort(identity['identity'].unique()).astype(str).tolist()
         for a in attr:

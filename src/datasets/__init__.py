@@ -7,6 +7,7 @@ from .svhn import SVHN
 from .imagenet import ImageNet
 from .folder import ImageFolder
 from .utils import *
+from .transforms import *
 
 __all__ = ('MNIST','EMNIST', 'FashionMNIST',
            'CelebA',

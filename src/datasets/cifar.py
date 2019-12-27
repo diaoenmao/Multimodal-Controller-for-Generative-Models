@@ -22,12 +22,12 @@ class CIFAR10(Dataset):
             self.process()
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
-        self.target = self.target[self.subset]
         self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
-        self.classes_counts = make_classes_counts(self.target)
+        self.classes_counts = make_classes_counts(self.target[self.subset])
 
     def __getitem__(self, index):
-        input = {'img': Image.fromarray(self.img[index]), 'label': torch.tensor(self.target[index])}
+        img, target = Image.fromarray(self.img[index]), {s: torch.tensor(self.target[s][index]) for s in self.target}
+        input = {'img': img, **target}
         if self.transform is not None:
             input = self.transform(input)
         return input
