@@ -12,7 +12,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, save_img, resume, collate
+from utils import save, to_device, process_control_name, process_dataset, resume, collate
 from logger import Logger
 
 cudnn.benchmark = True

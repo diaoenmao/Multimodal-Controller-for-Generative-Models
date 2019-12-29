@@ -1,9 +1,9 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CUB200',
-        'subset': 'label',
-        'model_name': 'vae',
+        'data_name': 'CelebA',
+        'subset': 'attr',
+        'model_name': 'cvae',
         'control': {'normalization': 'none', 'activation': 'relu', 'hidden_size': '1000', 'latent_size': '200',
                     'num_layers': '2', 'mode_data_size': '0', 'mode_size': '1'},
         'optimizer_name': 'Adam',
@@ -16,7 +16,7 @@ def init():
         'patience': 5,
         'threshold': 1e-3,
         'factor': 0.1,
-        'batch_size': {'train': 200, 'test': 500},
+        'batch_size': {'train': 100, 'test': 500},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',

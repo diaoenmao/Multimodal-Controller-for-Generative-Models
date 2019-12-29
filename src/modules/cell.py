@@ -1,7 +1,7 @@
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from utils import ntuple
 
 
 def make_cell(cell_info):
@@ -13,6 +13,10 @@ def make_cell(cell_info):
         cell = Activation(cell_info)
     elif cell_info['cell'] == 'LinearCell':
         cell = LinearCell(cell_info)
+    elif cell_info['cell'] == 'Conv3dCell':
+        cell = Conv2dCell(cell_info)
+    elif cell_info['cell'] == 'Conv3dTransposeCell':
+        cell = ConvTranspose2dCell(cell_info)
     else:
         raise ValueError('Not valid cell info')
     return cell
@@ -58,31 +62,78 @@ def Activation(mode):
     return
 
 
-class LinearCell(nn.Module):
+class LinearCell(nn.Linear):
     def __init__(self, cell_info):
-        super(LinearCell, self).__init__()
+        default_cell_info = {'bias': True}
+        cell_info = {**default_cell_info, **cell_info}
+        super(LinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
-        self.weight = nn.Parameter(torch.Tensor(self.output_size, self.input_size))
-        if cell_info['bias']:
-            self.bias = nn.Parameter(torch.Tensor(self.output_size))
-        else:
-            self.register_parameter('bias', None)
         self.normalization = Normalization(cell_info['normalization'], self.output_size)
         self.activation = Activation(cell_info['activation'])
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
-        if self.bias is not None:
-            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight)
-            bound = 1 / math.sqrt(fan_in)
-            nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, input):
         return self.activation(self.normalization(F.linear(input, self.weight, self.bias)))
 
     def extra_repr(self):
-        return 'input_size={}, output_size={}, bias={}, normalization={}, activation={}'.format(
-            self.input_size, self.output_size, self.bias is not None, self.normalization, self.activation
-        )
+        return str(self.cell_info)
+
+
+class Conv2dCell(nn.Conv3d):
+    def __init__(self, cell_info):
+        default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros'}
+        cell_info = {**default_cell_info, **cell_info}
+        super(Conv2dCell, self).__init__(cell_info['input_size'], cell_info['output_size'], cell_info['kernel_size'],
+                                         stride=cell_info['stride'], padding=cell_info['padding'],
+                                         dilation=cell_info['dilation'], groups=cell_info['groups'],
+                                         bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input):
+        _tuple = ntuple(2)
+        if self.padding_mode == 'circular':
+            expanded_padding = ((self.padding[2] + 1) // 2, self.padding[2] // 2,
+                                (self.padding[1] + 1) // 2, self.padding[1] // 2,
+                                (self.padding[0] + 1) // 2, self.padding[0] // 2)
+            return self.activation(self.normalization(F.conv2d(F.pad(input, expanded_padding, mode='circular'),
+                                                               self.weight, self.bias, self.stride, _tuple(0),
+                                                               self.dilation, self.groups)))
+        return self.activation(self.normalization(F.conv2d(input, self.weight, self.bias, self.stride,
+                                                           self.padding, self.dilation, self.groups)))
+
+    def extra_repr(self):
+        return str(self.cell_info)
+
+
+class ConvTranspose2dCell(nn.ConvTranspose3d):
+    def __init__(self, cell_info):
+        default_cell_info = {'stride': 1, 'padding': 0, 'output_padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros'}
+        cell_info = {**default_cell_info, **cell_info}
+        super(ConvTranspose2dCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
+                                                  cell_info['kernel_size'],
+                                                  stride=cell_info['stride'], padding=cell_info['padding'],
+                                                  output_padding=cell_info['output_padding'],
+                                                  dilation=cell_info['dilation'], groups=cell_info['groups'],
+                                                  bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input, output_size=None):
+        if self.padding_mode != 'zeros':
+            raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
+
+        output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size)
+
+        return self.activation(self.normalization(F.conv_transpose2d(
+            input, self.weight, self.bias, self.stride, self.padding,
+            output_padding, self.groups, self.dilation)))
+
+    def extra_repr(self):
+        return str(self.cell_info)

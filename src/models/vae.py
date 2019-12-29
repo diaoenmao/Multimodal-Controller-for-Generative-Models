@@ -19,6 +19,7 @@ def loss(input, output):
 
 
 def idx2onehot(idx, classes_size):
+    print(idx.size())
     idx = idx.view(idx.size(0), 1)
     onehot = idx.new_zeros(idx.size(0), classes_size).float()
     onehot.scatter_(1, idx, 1)
@@ -68,9 +69,12 @@ class CVAE(nn.Module):
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        x, c = input['img'], input['label']
+        x = input['img']
         x = x.view(x.size(0), -1)
-        onehot = idx2onehot(c, config.PARAM['classes_size'])
+        if config.PARAM['subset'] == 'label' or config.PARAM['subset'] == 'identity':
+            onehot = idx2onehot(input[config.PARAM['subset']], config.PARAM['classes_size'])
+        else:
+            onehot = input[config.PARAM['subset']].float()
         x = torch.cat((x, onehot), dim=-1)
         encoded = self.model['encoder'](x)
         output['mu'], output['logvar'] = torch.chunk(encoded, 2, dim=1)
@@ -124,6 +128,83 @@ def vae():
 
 
 def cvae():
+    normalization = config.PARAM['normalization']
+    activation = config.PARAM['activation']
+    hidden_size = int(config.PARAM['hidden_size'])
+    latent_size = int(config.PARAM['latent_size'])
+    num_layers = int(config.PARAM['num_layers'])
+    feature_size = np.prod(config.PARAM['img_shape'])
+    classes_size = config.PARAM['classes_size']
+    config.PARAM['model'] = {}
+    # Encoder
+    config.PARAM['model']['encoder'] = []
+    config.PARAM['model']['encoder'].append(
+        {'cell': 'LinearCell', 'input_size': feature_size + classes_size, 'output_size': hidden_size, 'bias': False,
+         'normalization': normalization, 'activation': activation})
+    for i in range(num_layers - 2):
+        config.PARAM['model']['encoder'].append(
+            {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': hidden_size, 'bias': False,
+             'normalization': normalization, 'activation': activation})
+    config.PARAM['model']['encoder'].append(
+        {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': 2 * latent_size, 'bias': False,
+         'normalization': 'none', 'activation': 'none'})
+    config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
+    # Decoder
+    config.PARAM['model']['decoder'] = []
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'LinearCell', 'input_size': latent_size + classes_size, 'output_size': hidden_size, 'bias': False,
+         'normalization': normalization, 'activation': activation})
+    for i in range(num_layers - 2):
+        config.PARAM['model']['decoder'].append(
+            {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': hidden_size, 'bias': False,
+             'normalization': normalization, 'activation': activation})
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': feature_size, 'bias': False,
+         'normalization': 'none', 'activation': 'none'})
+    config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
+    model = CVAE()
+    return model
+
+
+def conv_vae():
+    normalization = config.PARAM['normalization']
+    activation = config.PARAM['activation']
+    hidden_size = int(config.PARAM['hidden_size'])
+    latent_size = int(config.PARAM['latent_size'])
+    num_layers = int(config.PARAM['num_layers'])
+    feature_size = np.prod(config.PARAM['img_shape'])
+    config.PARAM['model'] = {}
+    # Encoder
+    config.PARAM['model']['encoder'] = []
+    config.PARAM['model']['encoder'].append(
+        {'cell': 'LinearCell', 'input_size': feature_size, 'output_size': hidden_size, 'bias': False,
+         'normalization': normalization, 'activation': activation})
+    for i in range(num_layers - 2):
+        config.PARAM['model']['encoder'].append(
+            {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': hidden_size, 'bias': False,
+             'normalization': normalization, 'activation': activation})
+    config.PARAM['model']['encoder'].append(
+        {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': 2 * latent_size, 'bias': False,
+         'normalization': 'none', 'activation': 'none'})
+    config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
+    # Decoder
+    config.PARAM['model']['decoder'] = []
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'LinearCell', 'input_size': latent_size, 'output_size': hidden_size, 'bias': False,
+         'normalization': normalization, 'activation': activation})
+    for i in range(num_layers - 2):
+        config.PARAM['model']['decoder'].append(
+            {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': hidden_size, 'bias': False,
+             'normalization': normalization, 'activation': activation})
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': feature_size, 'bias': False,
+         'normalization': 'none', 'activation': 'none'})
+    config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
+    model = VAE()
+    return model
+
+
+def conv_cvae():
     normalization = config.PARAM['normalization']
     activation = config.PARAM['activation']
     hidden_size = int(config.PARAM['hidden_size'])

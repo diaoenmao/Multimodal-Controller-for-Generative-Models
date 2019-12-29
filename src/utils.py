@@ -162,7 +162,8 @@ def process_dataset(dataset):
         config.PARAM['img_shape'] = [3, 78, 64]
     else:
         raise ValueError('Not valid dataset')
-    make_mode_dataset(dataset)
+    if config.PARAM['subset'] == 'label':
+        make_mode_dataset(dataset)
     return
 
 
@@ -179,7 +180,7 @@ def make_mode_dataset(dataset):
         mode_target.append(target_i[:mode_data_size])
     dataset.img = [img for model_img_i in mode_img for img in model_img_i]
     dataset.target[config.PARAM['subset']] = [target for model_target_i in mode_target for target in model_target_i]
-    return dataset
+    return
 
 
 def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
