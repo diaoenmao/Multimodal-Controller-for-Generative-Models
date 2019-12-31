@@ -152,6 +152,7 @@ def process_dataset(dataset):
     config.PARAM['classes_size'] = dataset.classes_size
     if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
         config.PARAM['img_shape'] = [1, 28, 28]
+        config.PARAM['encode_shape'] = [config.PARAM['hidden_size'], 8, 8]
     elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
     elif dataset.data_name in ['Omniglot']:
@@ -164,6 +165,9 @@ def process_dataset(dataset):
         raise ValueError('Not valid dataset')
     if config.PARAM['subset'] == 'label':
         make_mode_dataset(dataset)
+    config.PARAM['encode_shape'] = [config.PARAM['hidden_size'],
+                                config.PARAM['img_shape'][1] // (2 ** config.PARAM['num_layers']),
+                                config.PARAM['img_shape'][2] // (2 ** config.PARAM['num_layers'])]
     return
 
 

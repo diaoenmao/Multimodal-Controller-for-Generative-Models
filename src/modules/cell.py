@@ -13,12 +13,14 @@ def make_cell(cell_info):
         cell = Activation(cell_info)
     elif cell_info['cell'] == 'LinearCell':
         cell = LinearCell(cell_info)
-    elif cell_info['cell'] == 'Conv3dCell':
+    elif cell_info['cell'] == 'Conv2dCell':
         cell = Conv2dCell(cell_info)
-    elif cell_info['cell'] == 'Conv3dTransposeCell':
+    elif cell_info['cell'] == 'ConvTranspose2dCell':
         cell = ConvTranspose2dCell(cell_info)
+    elif cell_info['cell'] == 'ResConv2dCell':
+        cell = ResConv2dCell(cell_info)
     else:
-        raise ValueError('Not valid cell info')
+        raise ValueError('Not valid cell info: {}',format(cell_info))
     return cell
 
 
@@ -53,6 +55,8 @@ def Activation(mode):
         return nn.SELU(inplace=True)
     elif mode == 'celu':
         return nn.CELU(inplace=True)
+    elif mode == 'leakyrelu':
+        return nn.LeakyReLU(inplace=False)
     elif mode == 'sigmoid':
         return nn.Sigmoid()
     elif mode == 'softmax':
@@ -79,7 +83,7 @@ class LinearCell(nn.Linear):
         return str(self.cell_info)
 
 
-class Conv2dCell(nn.Conv3d):
+class Conv2dCell(nn.Conv2d):
     def __init__(self, cell_info):
         default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
                              'padding_mode': 'zeros'}
@@ -109,7 +113,7 @@ class Conv2dCell(nn.Conv3d):
         return str(self.cell_info)
 
 
-class ConvTranspose2dCell(nn.ConvTranspose3d):
+class ConvTranspose2dCell(nn.ConvTranspose2d):
     def __init__(self, cell_info):
         default_cell_info = {'stride': 1, 'padding': 0, 'output_padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
                              'padding_mode': 'zeros'}
@@ -134,6 +138,32 @@ class ConvTranspose2dCell(nn.ConvTranspose3d):
         return self.activation(self.normalization(F.conv_transpose2d(
             input, self.weight, self.bias, self.stride, self.padding,
             output_padding, self.groups, self.dilation)))
+
+    def extra_repr(self):
+        return str(self.cell_info)
+
+
+class ResConv2dCell(nn.Module):
+    def __init__(self, cell_info):
+        super(ResConv2dCell, self).__init__()
+        default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros'}
+        cell_info = {**default_cell_info, **cell_info}
+        conv1_info = {**cell_info}
+        conv2_info = {**cell_info, 'normalization': 'none', 'activation': 'none'}
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.conv1 = Conv2dCell(conv1_info)
+        self.conv2 = Conv2dCell(conv2_info)
+        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input):
+        identity = input
+        x = self.conv1(input)
+        x = self.conv2(x)
+        output = self.activation(x + identity)
+        return output
 
     def extra_repr(self):
         return str(self.cell_info)

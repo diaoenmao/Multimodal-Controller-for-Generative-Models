@@ -1,10 +1,10 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CelebA',
-        'subset': 'attr',
-        'model_name': 'cvae',
-        'control': {'normalization': 'none', 'activation': 'relu', 'hidden_size': '1000', 'latent_size': '200',
+        'data_name': 'MNIST',
+        'subset': 'label',
+        'model_name': 'conv_cvae',
+        'control': {'normalization': 'none', 'activation': 'relu', 'hidden_size': '256', 'latent_size': '200',
                     'num_layers': '2', 'mode_data_size': '0', 'mode_size': '1'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
