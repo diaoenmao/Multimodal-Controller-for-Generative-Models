@@ -134,7 +134,6 @@ class ConvTranspose2dCell(nn.ConvTranspose2d):
             raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
 
         output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size)
-
         return self.activation(self.normalization(F.conv_transpose2d(
             input, self.weight, self.bias, self.stride, self.padding,
             output_padding, self.groups, self.dilation)))

@@ -98,11 +98,65 @@ def recur(fn, input, *args):
 def process_control_name():
     config.PARAM['normalization'] = config.PARAM['control']['normalization']
     config.PARAM['activation'] = config.PARAM['control']['activation']
-    config.PARAM['hidden_size'] = int(config.PARAM['control']['hidden_size'])
-    config.PARAM['latent_size'] = int(config.PARAM['control']['latent_size'])
-    config.PARAM['num_layers'] = int(config.PARAM['control']['num_layers'])
     config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
-    config.PARAM['mode_size'] = int(config.PARAM['control']['mode_size'])
+    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST']:
+        config.PARAM['img_shape'] = [1, 28, 28]
+    elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
+        config.PARAM['img_shape'] = [3, 32, 32]
+    elif config.PARAM['data_name'] in ['Omniglot']:
+        config.PARAM['img_shape'] = [1, 28, 28]
+    elif config.PARAM['data_name'] in ['CUB200']:
+        config.PARAM['img_shape'] = [3, 64, 64]
+    elif config.PARAM['data_name'] in ['CelebA']:
+        config.PARAM['img_shape'] = [3, 64, 64]
+    else:
+        raise ValueError('Not valid dataset')
+    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100', 'Omniglot']:
+        if config.PARAM['model_name'] in ['vae', 'cvae']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 1024
+            config.PARAM['num_layers'] = 3
+        elif config.PARAM['model_name'] in ['dcvae', 'dccvae']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 64
+            config.PARAM['depth'] = 2
+            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'],
+                                            config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
+                                            config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
+        elif config.PARAM['model_name'] in ['gan', 'cgan']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 128
+            config.PARAM['num_layers_generator'] = 5
+            config.PARAM['num_layers_discriminator'] = 3
+        elif config.PARAM['model_name'] in ['dcgan', 'dccgan']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 64
+            config.PARAM['depth'] = 2
+            config.PARAM['init_size'] = [
+                config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
+                (config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth'])),
+                (config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth']))]
+
+    elif config.PARAM['data_name'] in ['CUB200', 'CelebA']:
+        if config.PARAM['model_name'] in ['dcvae', 'dccvae']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 64
+            config.PARAM['depth'] = 3
+            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'],
+                                            config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
+                                            config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
+        elif config.PARAM['model_name'] in ['dcgan', 'dccgan']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 64
+            config.PARAM['depth'] = 3
+            config.PARAM['init_size'] = [
+                config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
+                (config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth'])),
+                (config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth']))]
+        else:
+            raise ValueError('Not valid dataset')
+    else:
+        raise ValueError('Not valid dataset')
     return
 
 
@@ -150,24 +204,8 @@ class Stats(object):
 
 def process_dataset(dataset):
     config.PARAM['classes_size'] = dataset.classes_size
-    if dataset.data_name in ['MNIST', 'FashionMNIST', 'EMNIST']:
-        config.PARAM['img_shape'] = [1, 28, 28]
-        config.PARAM['encode_shape'] = [config.PARAM['hidden_size'], 8, 8]
-    elif dataset.data_name in ['SVHN', 'CIFAR10', 'CIFAR100']:
-        config.PARAM['img_shape'] = [3, 32, 32]
-    elif dataset.data_name in ['Omniglot']:
-        config.PARAM['img_shape'] = [1, 28, 28]
-    elif dataset.data_name in ['CUB200']:
-        config.PARAM['img_shape'] = [3, 64, 64]
-    elif dataset.data_name in ['CelebA']:
-        config.PARAM['img_shape'] = [3, 78, 64]
-    else:
-        raise ValueError('Not valid dataset')
     if config.PARAM['subset'] == 'label':
         make_mode_dataset(dataset)
-    config.PARAM['encode_shape'] = [config.PARAM['hidden_size'],
-                                config.PARAM['img_shape'][1] // (2 ** config.PARAM['num_layers']),
-                                config.PARAM['img_shape'][2] // (2 ** config.PARAM['num_layers'])]
     return
 
 
@@ -175,7 +213,10 @@ def make_mode_dataset(dataset):
     mode_img = []
     mode_target = []
     img = np.array(dataset.img)
-    target = np.array(dataset.target[config.PARAM['subset']])
+    if config.PARAM['subset'] == 'label' or config.PARAM['subset'] == 'identity':
+        target = np.array(dataset.target[config.PARAM['subset']], dtype=np.int64)
+    else:
+        target = np.array(dataset.target[config.PARAM['subset']], dtype=np.float32)
     for i in range(config.PARAM['classes_size']):
         img_i = img[target == i]
         target_i = target[target == i]

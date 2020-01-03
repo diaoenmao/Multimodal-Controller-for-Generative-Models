@@ -76,8 +76,8 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = datasets.CelebA(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.Resize((78, 64)), transforms.ToTensor()]),
-            'test': datasets.Compose([transforms.Resize((78, 64)), transforms.ToTensor()])
+            'train': datasets.Compose([transforms.Resize((64, 64)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((64, 64)), transforms.ToTensor()])
         }
     else:
         raise ValueError('Not valid dataset name')
