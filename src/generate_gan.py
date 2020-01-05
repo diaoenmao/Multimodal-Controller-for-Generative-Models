@@ -3,23 +3,24 @@ config.init()
 import itertools
 
 def main():
-    filename = 'vae'
+    filename = 'gan'
     gpu_ids = ['0','1','2','3']
-    script_name = [['train_vae.py']]
-    data_names = ['MNIST', 'Omniglot', 'CUB200']
-    model_names = [['vae', 'cvae']]
+    script_name = [['train_gan.py']]
+    data_names = ['MNIST', 'Omniglot', 'CUB200', 'CelebA']
+    model_names = [['gan', 'cgan', 'dcgan', 'dccgan']]
     init_seeds = [[0]]
     num_epochs = [[200]]
     s = '#!/bin/bash\n'
     for i in range(len(data_names)):
         data_name = data_names[i]
         if data_name == 'MNIST':
-            control_names = [['none'], ['relu'], ['1000'], ['200'], ['2'],
-                             ['1', '10', '100', '500', '1000', '10000', '0'], ['1']]
+            control_names = [['1', '10', '100', '500', '1000', '10000', '0']]
         elif data_name == 'Omniglot':
-            control_names = [['none'], ['relu'], ['1000'], ['200'], ['2'], ['1', '5', '0'], ['1']]
+            control_names = [['1', '5', '0']]
         elif data_name == 'CUB200':
-            control_names = [['none'], ['relu'], ['1000'], ['200'], ['2'], ['1', '5', '10', '20', '0'], ['1']]
+            control_names = [['1', '5', '10', '20', '0']]
+        elif data_name == 'CelebA':
+            control_names = [['0']]
         else:
             raise ValueError('Not valid data name')
         control_names = list(itertools.product(*control_names))
