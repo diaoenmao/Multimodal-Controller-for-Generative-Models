@@ -84,13 +84,13 @@ def test(data_loader, model, logger, epoch):
         logger.write('test', config.PARAM['metric_names']['test'])
         save_img(input['img'][:10 * config.PARAM['classes_size']], './output/img/input_{}.png'.format(config.PARAM['model_tag']))
         save_img(output['img'][:10 * config.PARAM['classes_size']], './output/img/output_{}.png'.format(config.PARAM['model_tag']))
-        if config.PARAM['model_name'] == 'vae':
+        if config.PARAM['model_name'] in ['vae', 'dcvae']:
             generated = model.generate(10 * config.PARAM['classes_size'])
             save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
-        elif config.PARAM['model_name'] == 'cvae':
+        elif config.PARAM['model_name'] in ['cvae', 'dccvae']:
             generated = model.generate(
                 torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(10))
-            save_img(generated, './output/img/generated_{}_{}.png'.format(config.PARAM['model_tag'], i))
+            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
         else:
             raise ValueError('Not valid model name')
     return

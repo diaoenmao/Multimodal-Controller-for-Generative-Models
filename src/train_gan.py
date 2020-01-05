@@ -12,7 +12,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, resume, collate
+from utils import save, load, to_device, process_control_name, process_dataset, collate
 from logger import Logger
 
 cudnn.benchmark = True
@@ -57,8 +57,10 @@ def runExperiment():
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    optimizer = make_optimizer(model)
-    scheduler = make_scheduler(optimizer)
+    optimizer = {'generator': make_optimizer(model.model['generator']),
+                 'discriminator': make_optimizer(model.model['discriminator'])}
+    scheduler = {'generator': make_scheduler(optimizer['generator']),
+                 'discriminator': make_scheduler(optimizer['discriminator'])}
     if config.PARAM['resume_mode'] == 1:
         last_epoch, model, optimizer, scheduler, logger = resume(model, config.PARAM['model_tag'], optimizer, scheduler)
     elif config.PARAM['resume_mode'] == 2:
@@ -73,23 +75,27 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'test/NLL'
+    config.PARAM['pivot_metric'] = 'test/Loss'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(data_loader['test'], model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
+            scheduler['generator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
+            scheduler['discriminator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
-            scheduler.step(epoch=epoch + 1)
+            scheduler['generator'].step(epoch=epoch + 1)
+            scheduler['discriminator'].step(epoch=epoch + 1)
         if config.PARAM['save_mode'] >= 0:
             logger.safe(False)
             model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
             save_result = {
                 'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': model_state_dict,
-                'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
-                'logger': logger}
+                'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
+                                   'discriminator': optimizer['discriminator'].state_dict()},
+                'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
+                                   'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
             if config.PARAM['pivot'] > logger.tracker[config.PARAM['pivot_metric']]:
                 config.PARAM['pivot'] = logger.tracker[config.PARAM['pivot_metric']]
@@ -101,6 +107,7 @@ def runExperiment():
 
 
 def train(data_loader, model, optimizer, logger, epoch):
+    criterion = torch.nn.BCELoss()
     metric = Metric()
     model.train(True)
     for i, input in enumerate(data_loader):
@@ -108,14 +115,40 @@ def train(data_loader, model, optimizer, logger, epoch):
         input = collate(input)
         input_size = len(input['img'])
         input = to_device(input, config.PARAM['device'])
-        model.zero_grad()
-        output = model(input)
-        output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
-        output['loss'].backward()
-        optimizer.step()
+        input['real'] = torch.ones(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
+        input['fake'] = torch.zeros(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
+        ############################
+        # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
+        ###########################
+        # train with real
+        optimizer['discriminator'].zero_grad()
+        D_x = model.discriminate(input['img']) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+            model.discriminate(input['img'], input[config.PARAM['subset']])
+        D_x_loss = criterion(D_x, input['real'])
+        D_x_loss.backward()
+        # train with fake
+        generated = model.generate(input['img'].size(0)) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+            model.generate(input[config.PARAM['subset']])
+        D_G_z1 = model.discriminate(generated.detach()) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+            model.discriminate(generated.detach(), input[config.PARAM['subset']])
+        D_G_z1_loss = criterion(D_G_z1, input['fake'])
+        D_G_z1_loss.backward()
+        optimizer['discriminator'].step()
+        ############################
+        # (2) Update G network: maximize log(D(G(z)))
+        ###########################
+        optimizer['generator'].zero_grad()
+        generated = model.generate(input['img'].size(0)) \
+            if config.PARAM['model_name'] in ['gan', 'dcgan'] else model.generate(input[config.PARAM['subset']])
+        D_G_z2 = model.discriminate(generated) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+            model.discriminate(generated, input[config.PARAM['subset']])
+        D_G_z2_loss = criterion(D_G_z2, input['real'])
+        D_G_z2_loss.backward()
+        optimizer['generator'].step()
+        output = {'loss': D_x_loss + D_G_z1_loss + D_G_z2_loss, 'loss_D': D_x_loss + D_G_z1_loss, 'loss_G': D_G_z2_loss}
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
-            lr = optimizer.param_groups[0]['lr']
+            lr = optimizer['generator'].param_groups[0]['lr']
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
             exp_finished_time = epoch_finished_time + datetime.timedelta(
                 seconds=round((config.PARAM['num_epochs'] - epoch) * batch_time * len(data_loader)))
@@ -131,6 +164,7 @@ def train(data_loader, model, optimizer, logger, epoch):
 
 
 def test(data_loader, model, logger, epoch):
+    criterion = torch.nn.BCELoss()
     with torch.no_grad():
         metric = Metric()
         model.train(False)
@@ -138,8 +172,23 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = len(input['img'])
             input = to_device(input, config.PARAM['device'])
-            output = model(input)
-            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
+            input['real'] = torch.ones(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
+            input['fake'] = torch.zeros(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
+            D_x = model.discriminate(input['img']) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.discriminate(input['img'], input[config.PARAM['subset']])
+            D_x_loss = criterion(D_x, input['real'])
+            generated = model.generate(input['img'].size(0)) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.generate(input[config.PARAM['subset']])
+            D_G_z1 = model.discriminate(generated.detach()) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.discriminate(generated.detach(), input[config.PARAM['subset']])
+            D_G_z1_loss = criterion(D_G_z1, input['fake'])
+            generated = model.generate(input['img'].size(0)) \
+                if config.PARAM['model_name'] in ['gan', 'dcgan'] else model.generate(input[config.PARAM['subset']])
+            D_G_z2 = model.discriminate(generated) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.discriminate(generated, input[config.PARAM['subset']])
+            D_G_z2_loss = criterion(D_G_z2, input['real'])
+            output = {'loss': D_x_loss + D_G_z1_loss + D_G_z2_loss, 'loss_D': D_x_loss + D_G_z1_loss,
+                      'loss_G': D_G_z2_loss}
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
@@ -157,7 +206,8 @@ def make_optimizer(model):
         optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
                                   weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
+        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
+                               betas=(0.5, 0.999))
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer
@@ -184,6 +234,25 @@ def make_scheduler(optimizer):
     else:
         raise ValueError('Not valid scheduler name')
     return scheduler
+
+
+def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
+    if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
+        checkpoint = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+        last_epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['model_dict'])
+        if optimizer is not None:
+            optimizer['generator'].load_state_dict(checkpoint['optimizer_dict']['generator'])
+            optimizer['discriminator'].load_state_dict(checkpoint['optimizer_dict']['discriminator'])
+        if scheduler is not None:
+            scheduler['generator'].load_state_dict(checkpoint['scheduler_dict']['generator'])
+            scheduler['discriminator'].load_state_dict(checkpoint['scheduler_dict']['discriminator'])
+        logger = checkpoint['logger']
+        print('Resume from {}'.format(last_epoch))
+        return last_epoch, model, optimizer, scheduler, logger
+    else:
+        raise ValueError('Not exists model tag')
+    return
 
 
 if __name__ == "__main__":

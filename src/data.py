@@ -16,7 +16,8 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
+            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
         }
     elif data_name == 'EMNIST':
         dataset['train'] = datasets.EMNIST(root=root, split='train', subset=subset,
@@ -24,7 +25,8 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = datasets.EMNIST(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.ToTensor()]), 'test': datasets.Compose([transforms.ToTensor()])
+            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
         }
     elif data_name in ['CIFAR10', 'CIFAR100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
@@ -41,8 +43,8 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = datasets.ImageNet(root, split='test', subset=subset,
                                             transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()]),
-            'test': datasets.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
+            'train': datasets.Compose([transforms.Resize((256, 256)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((256, 256)), transforms.ToTensor()])
         }
     elif data_name == 'Kodak':
         dataset['train'] = datasets.ImageFolder(root, transform=datasets.Compose([transforms.ToTensor()]))
@@ -56,8 +58,8 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = datasets.Omniglot(root=root, split='test', subset=subset,
                                             transform=datasets.Compose([transforms.ToTensor()]))
         config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.Resize((28, 28)), transforms.ToTensor()]),
-            'test': datasets.Compose([transforms.Resize((28, 28)), transforms.ToTensor()])
+            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor()]),
+            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor()])
         }
     elif data_name == 'CUB200':
         dataset['train'] = datasets.CUB200(root=root, split='train', subset=subset,

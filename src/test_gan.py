@@ -67,30 +67,45 @@ def runExperiment():
 
 
 def test(data_loader, model, logger, epoch):
+    criterion = torch.nn.BCELoss()
     with torch.no_grad():
         metric = Metric()
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = input['img'].numel()
+            input_size = len(input['img'])
             input = to_device(input, config.PARAM['device'])
-            output = model(input)
-            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
+            input['real'] = torch.ones(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
+            input['fake'] = torch.zeros(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
+            D_x = model.discriminate(input['img']) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.discriminate(input['img'], input[config.PARAM['subset']])
+            D_x_loss = criterion(D_x, input['real'])
+            generated = model.generate(input['img'].size(0)) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.generate(input[config.PARAM['subset']])
+            D_G_z1 = model.discriminate(generated.detach()) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.discriminate(generated.detach(), input[config.PARAM['subset']])
+            D_G_z1_loss = criterion(D_G_z1, input['fake'])
+            generated = model.generate(input['img'].size(0)) \
+                if config.PARAM['model_name'] in ['gan', 'dcgan'] else model.generate(input[config.PARAM['subset']])
+            D_G_z2 = model.discriminate(generated) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
+                model.discriminate(generated, input[config.PARAM['subset']])
+            D_G_z2_loss = criterion(D_G_z2, input['real'])
+            output = {'loss': D_x_loss + D_G_z1_loss + D_G_z2_loss, 'loss_D': D_x_loss + D_G_z1_loss,
+                      'loss_G': D_G_z2_loss}
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
-        save_img(input['img'][:10 * config.PARAM['classes_size']], './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-        save_img(output['img'][:10 * config.PARAM['classes_size']], './output/img/output_{}.png'.format(config.PARAM['model_tag']))
-        if config.PARAM['model_name'] == 'vae':
+        save_img(input['img'][:10 * config.PARAM['classes_size']],
+                 './output/img/input_{}.png'.format(config.PARAM['model_tag']))
+        if config.PARAM['model_name'] in ['gan', 'dcgan']:
             generated = model.generate(10 * config.PARAM['classes_size'])
             save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
-        elif config.PARAM['model_name'] == 'cvae':
+        elif config.PARAM['model_name'] in ['cgan', 'dccgan']:
             generated = model.generate(
                 torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(10))
-            save_img(generated, './output/img/generated_{}_{}.png'.format(config.PARAM['model_tag'], i))
+            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
         else:
             raise ValueError('Not valid model name')
     return

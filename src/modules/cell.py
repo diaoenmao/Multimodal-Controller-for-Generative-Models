@@ -1,3 +1,4 @@
+import config
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,8 +28,13 @@ def make_cell(cell_info):
 def Normalization(mode, size):
     if mode == 'none':
         return nn.Identity()
+    elif mode == 'bn1':
+        return nn.BatchNorm1d(size)
     elif mode == 'bn':
-        return nn.BatchNorm2d(size)
+        if config.PARAM['model_name'] in ['dcgan', 'dccgan']:
+            return nn.BatchNorm2d(size, 0.8)
+        else:
+            return nn.BatchNorm2d(size)
     elif mode == 'in':
         return nn.InstanceNorm2d(size)
     elif mode == 'ln':
@@ -56,7 +62,7 @@ def Activation(mode):
     elif mode == 'celu':
         return nn.CELU(inplace=True)
     elif mode == 'leakyrelu':
-        return nn.LeakyReLU(inplace=False)
+        return nn.LeakyReLU(0.2, inplace=False)
     elif mode == 'sigmoid':
         return nn.Sigmoid()
     elif mode == 'softmax':
@@ -79,8 +85,6 @@ class LinearCell(nn.Linear):
     def forward(self, input):
         return self.activation(self.normalization(F.linear(input, self.weight, self.bias)))
 
-    def extra_repr(self):
-        return str(self.cell_info)
 
 
 class Conv2dCell(nn.Conv2d):
@@ -109,8 +113,6 @@ class Conv2dCell(nn.Conv2d):
         return self.activation(self.normalization(F.conv2d(input, self.weight, self.bias, self.stride,
                                                            self.padding, self.dilation, self.groups)))
 
-    def extra_repr(self):
-        return str(self.cell_info)
 
 
 class ConvTranspose2dCell(nn.ConvTranspose2d):
@@ -138,8 +140,6 @@ class ConvTranspose2dCell(nn.ConvTranspose2d):
             input, self.weight, self.bias, self.stride, self.padding,
             output_padding, self.groups, self.dilation)))
 
-    def extra_repr(self):
-        return str(self.cell_info)
 
 
 class ResConv2dCell(nn.Module):
@@ -163,6 +163,3 @@ class ResConv2dCell(nn.Module):
         x = self.conv2(x)
         output = self.activation(x + identity)
         return output
-
-    def extra_repr(self):
-        return str(self.cell_info)

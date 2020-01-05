@@ -31,15 +31,15 @@ from logger import Logger
 #         print(torch.eq(c_0[i], c_0[i]).all())
 #         print((c_0[i]-c_1[i]).abs().mean())
 
-if __name__ == "__main__":
-    data_name = 'Omniglot'
-    subset = 'label'
-    dataset = fetch_dataset(data_name, subset)
-    data_loader = make_data_loader(dataset)
-    for i, input in enumerate(data_loader['train']):
-        input = collate(input)
-        print(input['img'].size())
-        print(input[subset].size())
-        break
-    save_img(input['img'], './output/img/test.png')
-    exit()
+# if __name__ == "__main__":
+#     data_name = 'Omniglot'
+#     subset = 'label'
+#     dataset = fetch_dataset(data_name, subset)
+#     data_loader = make_data_loader(dataset)
+#     for i, input in enumerate(data_loader['train']):
+#         input = collate(input)
+#         print(input['img'].size())
+#         print(input[subset].size())
+#         break
+#     save_img(input['img'], './output/img/test.png')
+#     exit()

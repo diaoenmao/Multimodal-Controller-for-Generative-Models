@@ -96,15 +96,11 @@ def recur(fn, input, *args):
 
 
 def process_control_name():
-    config.PARAM['normalization'] = config.PARAM['control']['normalization']
-    config.PARAM['activation'] = config.PARAM['control']['activation']
     config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
-    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST']:
-        config.PARAM['img_shape'] = [1, 28, 28]
+    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
+        config.PARAM['img_shape'] = [1, 32, 32]
     elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
-    elif config.PARAM['data_name'] in ['Omniglot']:
-        config.PARAM['img_shape'] = [1, 28, 28]
     elif config.PARAM['data_name'] in ['CUB200']:
         config.PARAM['img_shape'] = [3, 64, 64]
     elif config.PARAM['data_name'] in ['CelebA']:
@@ -118,9 +114,9 @@ def process_control_name():
             config.PARAM['num_layers'] = 3
         elif config.PARAM['model_name'] in ['dcvae', 'dccvae']:
             config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 64
-            config.PARAM['depth'] = 2
-            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'],
+            config.PARAM['hidden_size'] = 16
+            config.PARAM['depth'] = 3
+            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
         elif config.PARAM['model_name'] in ['gan', 'cgan']:
@@ -131,28 +127,19 @@ def process_control_name():
         elif config.PARAM['model_name'] in ['dcgan', 'dccgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 64
-            config.PARAM['depth'] = 2
-            config.PARAM['init_size'] = [
-                config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
-                (config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth'])),
-                (config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth']))]
-
+            config.PARAM['depth'] = 3
     elif config.PARAM['data_name'] in ['CUB200', 'CelebA']:
         if config.PARAM['model_name'] in ['dcvae', 'dccvae']:
             config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 64
-            config.PARAM['depth'] = 3
-            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'],
+            config.PARAM['hidden_size'] = 16
+            config.PARAM['depth'] = 4
+            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
         elif config.PARAM['model_name'] in ['dcgan', 'dccgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 64
-            config.PARAM['depth'] = 3
-            config.PARAM['init_size'] = [
-                config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
-                (config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth'])),
-                (config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth']))]
+            config.PARAM['depth'] = 4
         else:
             raise ValueError('Not valid dataset')
     else:

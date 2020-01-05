@@ -8,7 +8,7 @@ from utils import recur
 
 def NLL(output, target):
     with torch.no_grad():
-        NLL = F.binary_cross_entropy_with_logits(output, target, reduction='sum').item() / output.size(0)
+        NLL = F.binary_cross_entropy(output, target, reduction='sum').item() / output.size(0)
     return NLL
 
 
@@ -23,6 +23,8 @@ def PSNR(output, target, MAX=1.0):
 class Metric(object):
     def __init__(self):
         self.metric = {'Loss': (lambda input, output: output['loss'].item()),
+                       'Loss_D': (lambda input, output: output['loss_D'].item()),
+                       'Loss_G': (lambda input, output: output['loss_G'].item()),
                        'NLL': (lambda input, output: recur(NLL, output['img'], input['img'])),
                        'PSNR': (lambda input, output: recur(PSNR, output['img'], input['img']))}
 
