@@ -86,7 +86,7 @@ class CUB200(Dataset):
         label = pd.merge(label, class_label, on='label')
         train_mask, test_mask = split['split'] == 1, split['split'] == 0
         train_img, test_img = img['img'][train_mask].values.tolist(), img['img'][test_mask].values.tolist()
-        train_label, test_label = label['label'][train_mask].values, label['label'][test_mask].values
+        train_label, test_label = (label['label'][train_mask].values - 1), (label['label'][test_mask].values - 1)
         train_bbox, test_bbox = bbox[['x', 'y', 'width', 'height']][train_mask].values, \
                                 bbox[['x', 'y', 'width', 'height']][test_mask].values
         train_target = {'label': train_label, 'bbox': train_bbox}

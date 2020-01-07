@@ -110,7 +110,7 @@ def process_control_name():
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100', 'Omniglot']:
         if config.PARAM['model_name'] in ['vae', 'cvae']:
             config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 1024
+            config.PARAM['hidden_size'] = 512
             config.PARAM['num_layers'] = 3
         elif config.PARAM['model_name'] in ['dcvae', 'dccvae']:
             config.PARAM['latent_size'] = 100
@@ -129,19 +129,38 @@ def process_control_name():
             config.PARAM['hidden_size'] = 64
             config.PARAM['depth'] = 3
     elif config.PARAM['data_name'] in ['CUB200', 'CelebA']:
-        if config.PARAM['model_name'] in ['dcvae', 'dccvae']:
+        if config.PARAM['model_name'] in ['vae', 'cvae']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 1024
+            config.PARAM['num_layers'] = 4
+        elif config.PARAM['model_name'] in ['dcvae', 'dccvae']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 16
             config.PARAM['depth'] = 4
             config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
+        elif config.PARAM['model_name'] in ['gan', 'cgan']:
+            config.PARAM['latent_size'] = 100
+            config.PARAM['hidden_size'] = 128
+            config.PARAM['num_layers_generator'] = 5
+            config.PARAM['num_layers_discriminator'] = 3
         elif config.PARAM['model_name'] in ['dcgan', 'dccgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 64
             config.PARAM['depth'] = 4
         else:
             raise ValueError('Not valid dataset')
+    else:
+        raise ValueError('Not valid dataset')
+    if config.PARAM['data_name'] == 'MNIST':
+        config.PARAM['embedding_size'] = 32
+    elif config.PARAM['data_name'] == 'Omniglot':
+        config.PARAM['embedding_size'] = 32
+    elif config.PARAM['data_name'] == 'CUB200':
+        config.PARAM['embedding_size'] = 32
+    elif config.PARAM['data_name'] == 'CelebA':
+        config.PARAM['embedding_size'] = 32
     else:
         raise ValueError('Not valid dataset')
     return

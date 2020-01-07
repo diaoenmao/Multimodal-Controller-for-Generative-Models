@@ -1,15 +1,15 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'MNIST',
+        'data_name': 'CUB200',
         'subset': 'label',
-        'model_name': 'dccgan',
-        'control': {'mode_data_size': '0'},
+        'model_name': 'cvae',
+        'control': {'mode_data_size': '1'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,
         'weight_decay': 0,
-        'scheduler_name': 'MultiStepLR',
+        'scheduler_name': 'None',
         'step_size': 1,
         'milestones': [100],
         'patience': 5,
@@ -18,8 +18,8 @@ def init():
         'batch_size': {'train': 64, 'test': 512},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
-        'device': 'cuda',
-        'num_epochs': 20,
+        'device': 'cpu',
+        'num_epochs': 100,
         'save_mode': 0,
         'world_size': 1,
         'metric_names': {'train': ['Loss','NLL'], 'test': ['Loss','NLL']},
@@ -29,13 +29,3 @@ def init():
         'log_overwrite': False,
         'resume_mode': 0
     }
-    if PARAM['model_name'] in ['vae', 'cvae', 'dcvae', 'dccvae']:
-        PARAM['lr'] = 1e-3
-        PARAM['batch_size']['train'] = 256
-        PARAM['metric_names'] = {'train': ['Loss','NLL'], 'test': ['Loss','NLL']}
-    elif PARAM['model_name'] in ['gan', 'cgan', 'dcgan', 'dccgan']:
-        PARAM['lr'] = 2e-4
-        PARAM['batch_size']['train'] = 64
-        PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['Loss', 'Loss_D', 'Loss_G']}
-    else:
-        raise ValueError('Not valid config')

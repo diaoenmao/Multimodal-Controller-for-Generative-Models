@@ -163,3 +163,22 @@ class ResConv2dCell(nn.Module):
         x = self.conv2(x)
         output = self.activation(x + identity)
         return output
+
+# class Restriction(nn.Module):
+#     def __init__(self, output_size, sharing_rate):
+#
+#     def forward(self, input, label):
+#
+# class RLinearCell(nn.Linear):
+#     def __init__(self, cell_info):
+#         default_cell_info = {'bias': True}
+#         cell_info = {**default_cell_info, **cell_info}
+#         super(LinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
+#         self.input_size = cell_info['input_size']
+#         self.output_size = cell_info['output_size']
+#         self.normalization = Normalization(cell_info['normalization'], self.output_size)
+#         self.activation = Activation(cell_info['activation'])
+#         # self.restriction = Restriction(cell_info['output_size'], cell_info['sharing_rate'])
+#
+#     def forward(self, input, label):
+#         return self.activation(self.normalization(self.restriction(F.linear(input, self.weight, self.bias)), label))

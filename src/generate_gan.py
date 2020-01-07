@@ -6,7 +6,7 @@ def main():
     filename = 'gan'
     gpu_ids = ['0','1','2','3']
     script_name = [['train_gan.py']]
-    data_names = ['MNIST', 'Omniglot', 'CUB200', 'CelebA']
+    data_names = ['MNIST', 'Omniglot']
     model_names = [['gan', 'cgan', 'dcgan', 'dccgan']]
     init_seeds = [[0]]
     num_epochs = [[200]]

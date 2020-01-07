@@ -29,6 +29,12 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['lr'] = 2e-4
+config.PARAM['batch_size']['train'] = 64
+config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['Loss', 'Loss_D', 'Loss_G']}
+if config.PARAM['data_name'] == 'CelebA':
+    config.PARAM['subset'] = 'attr'
 
 
 def main():
@@ -90,7 +96,7 @@ def test(data_loader, model, logger, epoch):
             D_G_z2 = model.discriminate(generated) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
                 model.discriminate(generated, input[config.PARAM['subset']])
             D_G_z2_loss = criterion(D_G_z2, input['real'])
-            output = {'loss': D_x_loss + D_G_z1_loss + D_G_z2_loss, 'loss_D': D_x_loss + D_G_z1_loss,
+            output = {'loss': abs((D_x_loss + D_G_z1_loss) - D_G_z2_loss), 'loss_D': D_x_loss + D_G_z1_loss,
                       'loss_G': D_G_z2_loss}
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)

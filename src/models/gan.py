@@ -74,7 +74,7 @@ class CGAN(nn.Module):
 
 def gan():
     normalization = 'bn1'
-    activation = 'relu'
+    activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
     hidden_size = config.PARAM['hidden_size']
@@ -100,12 +100,12 @@ def gan():
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': np.prod(img_shape),
          'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)),
-         'bias': True, 'normalization': 'none', 'activation': 'leakyrelu'})
+         'bias': True, 'normalization': 'none', 'activation': activation})
     for i in range(num_layers_discriminator - 1):
         config.PARAM['model']['discriminator'].append(
             {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_discriminator - 1)) // (2 ** i),
              'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)) // (2 ** (i + 1)),
-             'bias': True, 'normalization': 'none', 'activation': 'leakyrelu'})
+             'bias': True, 'normalization': 'none', 'activation': activation})
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size,
          'output_size': 1, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
@@ -116,7 +116,7 @@ def gan():
 
 def cgan():
     normalization = 'bn1'
-    activation = 'relu'
+    activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
     hidden_size = config.PARAM['hidden_size']
@@ -149,12 +149,12 @@ def cgan():
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': np.prod(img_shape) + classes_size,
          'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)),
-         'bias': True, 'normalization': 'none', 'activation': 'leakyrelu'})
+         'bias': True, 'normalization': 'none', 'activation': activation})
     for i in range(num_layers_discriminator - 1):
         config.PARAM['model']['discriminator'].append(
             {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_discriminator - 1)) // (2 ** i),
              'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)) // (2 ** (i + 1)),
-             'bias': True, 'normalization': 'none', 'activation': 'leakyrelu'})
+             'bias': True, 'normalization': 'none', 'activation': activation})
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size,
          'output_size': 1, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
@@ -219,7 +219,7 @@ class DCCGAN(nn.Module):
 
 def dcgan():
     normalization = 'bn'
-    activation = 'relu'
+    activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
     hidden_size = config.PARAM['hidden_size']
@@ -246,12 +246,12 @@ def dcgan():
     config.PARAM['model']['discriminator'].append(
         {'cell': 'Conv2dCell', 'input_size': img_shape[0],
          'output_size': hidden_size, 'kernel_size': 4, 'stride': 2, 'padding': 1,
-         'bias': False, 'normalization': 'none', 'activation': 'leakyrelu'})
+         'bias': False, 'normalization': 'none', 'activation': activation})
     for i in range(depth - 1):
         config.PARAM['model']['discriminator'].append(
             {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** i),
              'output_size': hidden_size * (2 ** (i + 1)), 'kernel_size': 4, 'stride': 2, 'padding': 1,
-             'bias': False, 'normalization': normalization, 'activation': 'leakyrelu'})
+             'bias': False, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['discriminator'].append(
         {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** (depth - 1)), 'output_size': 1,
          'kernel_size': 4, 'stride': 1, 'padding': 0, 'bias': False, 'normalization': 'none', 'activation': 'sigmoid'})
@@ -262,7 +262,7 @@ def dcgan():
 
 def dccgan():
     normalization = 'bn'
-    activation = 'relu'
+    activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
     hidden_size = config.PARAM['hidden_size']
@@ -297,12 +297,12 @@ def dccgan():
     config.PARAM['model']['discriminator'].append(
         {'cell': 'Conv2dCell', 'input_size': img_shape[0] + classes_size,
          'output_size': hidden_size, 'kernel_size': 4, 'stride': 2, 'padding': 1,
-         'bias': False, 'normalization': 'none', 'activation': 'leakyrelu'})
+         'bias': False, 'normalization': 'none', 'activation': activation})
     for i in range(depth - 1):
         config.PARAM['model']['discriminator'].append(
             {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** i),
              'output_size': hidden_size * (2 ** (i + 1)), 'kernel_size': 4, 'stride': 2, 'padding': 1,
-             'bias': False, 'normalization': normalization, 'activation': 'leakyrelu'})
+             'bias': False, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['discriminator'].append(
         {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** (depth - 1)), 'output_size': 1,
          'kernel_size': 4, 'stride': 1, 'padding': 0, 'bias': False, 'normalization': 'none', 'activation': 'sigmoid'})

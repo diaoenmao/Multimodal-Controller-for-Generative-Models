@@ -33,7 +33,11 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-
+config.PARAM['lr'] = 2e-4
+config.PARAM['batch_size']['train'] = 64
+config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
+if config.PARAM['data_name'] == 'CelebA':
+    config.PARAM['subset'] = 'attr'
 
 def main():
     process_control_name()
@@ -73,7 +77,7 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'test/NLL'
+    config.PARAM['pivot_metric'] = 'test/Loss'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
@@ -157,7 +161,8 @@ def make_optimizer(model):
         optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
                                   weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
+        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
+                               betas=(0.5, 0.999))
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

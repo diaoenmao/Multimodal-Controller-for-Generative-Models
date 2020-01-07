@@ -6,7 +6,7 @@ def main():
     filename = 'vae'
     gpu_ids = ['0','1','2','3']
     script_name = [['train_vae.py']]
-    data_names = ['MNIST', 'Omniglot', 'CUB200', 'CelebA']
+    data_names = ['MNIST', 'Omniglot','CUB200','CelebA']
     model_names = [['vae', 'cvae', 'dcvae', 'dccvae']]
     init_seeds = [[0]]
     num_epochs = [[200]]

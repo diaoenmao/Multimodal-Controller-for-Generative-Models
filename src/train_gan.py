@@ -33,6 +33,11 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['lr'] = 2e-4
+config.PARAM['batch_size']['train'] = 64
+config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['Loss', 'Loss_D', 'Loss_G']}
+if config.PARAM['data_name'] == 'CelebA':
+    config.PARAM['subset'] = 'attr'
 
 
 def main():
@@ -75,7 +80,7 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'test/Loss'
+    config.PARAM['pivot_metric'] = 'test/Loss_G'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
@@ -145,7 +150,8 @@ def train(data_loader, model, optimizer, logger, epoch):
         D_G_z2_loss = criterion(D_G_z2, input['real'])
         D_G_z2_loss.backward()
         optimizer['generator'].step()
-        output = {'loss': D_x_loss + D_G_z1_loss + D_G_z2_loss, 'loss_D': D_x_loss + D_G_z1_loss, 'loss_G': D_G_z2_loss}
+        output = {'loss': abs((D_x_loss + D_G_z1_loss) - D_G_z2_loss), 'loss_D': D_x_loss + D_G_z1_loss,
+                  'loss_G': D_G_z2_loss}
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
             lr = optimizer['generator'].param_groups[0]['lr']
@@ -187,7 +193,7 @@ def test(data_loader, model, logger, epoch):
             D_G_z2 = model.discriminate(generated) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
                 model.discriminate(generated, input[config.PARAM['subset']])
             D_G_z2_loss = criterion(D_G_z2, input['real'])
-            output = {'loss': D_x_loss + D_G_z1_loss + D_G_z2_loss, 'loss_D': D_x_loss + D_G_z1_loss,
+            output = {'loss': abs((D_x_loss + D_G_z1_loss) - D_G_z2_loss), 'loss_D': D_x_loss + D_G_z1_loss,
                       'loss_G': D_G_z2_loss}
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
