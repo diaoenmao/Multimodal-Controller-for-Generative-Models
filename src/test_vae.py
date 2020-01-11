@@ -92,7 +92,7 @@ def test(data_loader, model, logger, epoch):
             generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
             save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
                      nrow=config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cvae', 'dccvae']:
+        elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'rmvae']:
             generated = model.generate(
                 torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
             save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),

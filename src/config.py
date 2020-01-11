@@ -1,10 +1,10 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CUB200',
+        'data_name': 'MNIST',
         'subset': 'label',
-        'model_name': 'cvae',
-        'control': {'mode_data_size': '1'},
+        'model_name': 'rmgan',
+        'control': {'mode_data_size': '1','sharing_rate': '0'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,
@@ -15,11 +15,11 @@ def init():
         'patience': 5,
         'threshold': 1e-3,
         'factor': 0.1,
-        'batch_size': {'train': 64, 'test': 512},
+        'batch_size': {'train': 64, 'test': 64},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
-        'device': 'cpu',
-        'num_epochs': 100,
+        'device': 'cuda',
+        'num_epochs': 200,
         'save_mode': 0,
         'world_size': 1,
         'metric_names': {'train': ['Loss','NLL'], 'test': ['Loss','NLL']},

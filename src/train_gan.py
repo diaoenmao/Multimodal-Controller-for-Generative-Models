@@ -80,7 +80,7 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'test/Loss_G'
+    config.PARAM['pivot_metric'] = 'test/Loss'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)

@@ -20,8 +20,16 @@ def make_cell(cell_info):
         cell = ConvTranspose2dCell(cell_info)
     elif cell_info['cell'] == 'ResConv2dCell':
         cell = ResConv2dCell(cell_info)
+    elif cell_info['cell'] == 'RLinearCell':
+        cell = RLinearCell(cell_info)
+    elif cell_info['cell'] == 'RConv2dCell':
+        cell = RConv2dCell(cell_info)
+    elif cell_info['cell'] == 'RConvTranspose2dCell':
+        cell = RConvTranspose2dCell(cell_info)
+    elif cell_info['cell'] == 'ResRConv2dCell':
+        cell = ResRConv2dCell(cell_info)
     else:
-        raise ValueError('Not valid cell info: {}',format(cell_info))
+        raise ValueError('Not valid cell info: {}'.format(cell_info))
     return cell
 
 
@@ -86,7 +94,6 @@ class LinearCell(nn.Linear):
         return self.activation(self.normalization(F.linear(input, self.weight, self.bias)))
 
 
-
 class Conv2dCell(nn.Conv2d):
     def __init__(self, cell_info):
         default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
@@ -112,7 +119,6 @@ class Conv2dCell(nn.Conv2d):
                                                                self.dilation, self.groups)))
         return self.activation(self.normalization(F.conv2d(input, self.weight, self.bias, self.stride,
                                                            self.padding, self.dilation, self.groups)))
-
 
 
 class ConvTranspose2dCell(nn.ConvTranspose2d):
@@ -141,7 +147,6 @@ class ConvTranspose2dCell(nn.ConvTranspose2d):
             output_padding, self.groups, self.dilation)))
 
 
-
 class ResConv2dCell(nn.Module):
     def __init__(self, cell_info):
         super(ResConv2dCell, self).__init__()
@@ -164,21 +169,32 @@ class ResConv2dCell(nn.Module):
         output = self.activation(x + identity)
         return output
 
-# class Restriction(nn.Module):
-#     def __init__(self, output_size, sharing_rate):
-#
-#     def forward(self, input, label):
-#
-# class RLinearCell(nn.Linear):
-#     def __init__(self, cell_info):
-#         default_cell_info = {'bias': True}
-#         cell_info = {**default_cell_info, **cell_info}
-#         super(LinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
-#         self.input_size = cell_info['input_size']
-#         self.output_size = cell_info['output_size']
-#         self.normalization = Normalization(cell_info['normalization'], self.output_size)
-#         self.activation = Activation(cell_info['activation'])
-#         # self.restriction = Restriction(cell_info['output_size'], cell_info['sharing_rate'])
-#
-#     def forward(self, input, label):
-#         return self.activation(self.normalization(self.restriction(F.linear(input, self.weight, self.bias)), label))
+
+class RLinearCell(nn.Linear):
+    def __init__(self, cell_info):
+        default_cell_info = {'bias': True, 'sharing_rate': 0}
+        cell_info = {**default_cell_info, **cell_info}
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.sharing_rate = cell_info['sharing_rate']
+        self.num_mode = cell_info['num_mode']
+        self.shared_size = round(self.sharing_rate * self.output_size)
+        self.free_size = self.output_size - self.shared_size
+        self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+        super(RLinearCell, self).__init__(self.input_size, self.restricted_output_size,
+                                          bias=cell_info['bias'])
+        self.register_buffer('shared_mask', torch.ones(self.shared_size))
+        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input):
+        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+        weight_mask = mask.view(mask.size(0), mask.size(1), 1)
+        weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size)
+        output = (input.view(input.size(0), 1, input.size(1)) * weight).sum(dim=2)
+        if self.bias is not None:
+            bias_mask = mask
+            bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size)
+            output = output + bias
+        return self.activation(self.normalization(output))

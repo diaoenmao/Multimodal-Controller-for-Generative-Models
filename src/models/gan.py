@@ -72,6 +72,33 @@ class CGAN(nn.Module):
         return x
 
 
+class RMGAN(nn.Module):
+    def __init__(self):
+        super(RMGAN, self).__init__()
+        self.model = make_model(config.PARAM['model'])
+
+    def generate(self, C):
+        x = torch.randn([C.size(0), config.PARAM['latent_size']]).to(config.PARAM['device'])
+        config.PARAM['attr'] = idx2onehot(C)
+        generated = self.model['generator'](x)
+        generated = generated.view(generated.size(0), *config.PARAM['img_shape'])
+        generated = (generated + 1) / 2
+        return generated
+
+    def discriminate(self, input, C):
+        x = (input * 2) - 1
+        x = x.view(x.size(0), -1)
+        config.PARAM['attr'] = idx2onehot(C)
+        x = self.model['discriminator'](x)
+        discriminated = x.view(x.size(0))
+        return discriminated
+
+    def forward(self, input):
+        x = self.generate(input[config.PARAM['subset']])
+        x = self.discriminate(x, input[config.PARAM['subset']])
+        return x
+
+
 def gan():
     normalization = 'bn1'
     activation = 'leakyrelu'
@@ -160,6 +187,54 @@ def cgan():
          'output_size': 1, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
     model = CGAN()
+    return model
+
+
+def rmgan():
+    normalization = 'bn1'
+    activation = 'leakyrelu'
+    img_shape = config.PARAM['img_shape']
+    latent_size = config.PARAM['latent_size']
+    hidden_size = config.PARAM['hidden_size']
+    num_layers_generator = config.PARAM['num_layers_generator']
+    num_layers_discriminator = config.PARAM['num_layers_discriminator']
+    sharing_rate = config.PARAM['sharing_rate']
+    num_mode = config.PARAM['classes_size']
+    config.PARAM['model'] = {}
+    # Generator
+    config.PARAM['model']['generator'] = []
+    config.PARAM['model']['generator'].append(
+        {'cell': 'RLinearCell', 'input_size': latent_size, 'output_size': hidden_size,
+         'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
+         'activation': activation})
+    for i in range(num_layers_generator - 2):
+        config.PARAM['model']['generator'].append(
+            {'cell': 'RLinearCell', 'input_size': hidden_size * (2 ** i),
+             'output_size': hidden_size * (2 ** (i + 1)),
+             'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
+             'activation': activation})
+    config.PARAM['model']['generator'].append(
+        {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)),
+         'output_size': np.prod(img_shape), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
+    config.PARAM['model']['generator'] = tuple(config.PARAM['model']['generator'])
+    # Discriminator
+    config.PARAM['model']['discriminator'] = []
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'RLinearCell', 'input_size': np.prod(img_shape),
+         'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)),
+         'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': 'none',
+         'activation': activation})
+    for i in range(num_layers_discriminator - 1):
+        config.PARAM['model']['discriminator'].append(
+            {'cell': 'RLinearCell', 'input_size': hidden_size * (2 ** (num_layers_discriminator - 1)) // (2 ** i),
+             'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)) // (2 ** (i + 1)),
+             'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': 'none',
+             'activation': activation})
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'LinearCell', 'input_size': hidden_size,
+         'output_size': 1, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
+    config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
+    model = RMGAN()
     return model
 
 

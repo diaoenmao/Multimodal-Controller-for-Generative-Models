@@ -57,7 +57,7 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    load_tag = 'best'
+    last_epoch = 1
     last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
     logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
@@ -103,15 +103,17 @@ def test(data_loader, model, logger, epoch):
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
-        save_img(input['img'][:10 * config.PARAM['classes_size']],
+        save_img(input['img'][:100],
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
         if config.PARAM['model_name'] in ['gan', 'dcgan']:
             generated = model.generate(10 * config.PARAM['classes_size'])
-            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
+            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
+                     nrow=config.PARAM['classes_size'])
         elif config.PARAM['model_name'] in ['cgan', 'dccgan']:
             generated = model.generate(
                 torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(10))
-            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']))
+            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
+                     nrow=config.PARAM['classes_size'])
         else:
             raise ValueError('Not valid model name')
     return
