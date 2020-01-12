@@ -191,7 +191,7 @@ def cgan():
 
 
 def rmgan():
-    normalization = 'bn1'
+    normalization = 'rbn1'
     activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']

@@ -219,7 +219,7 @@ def cvae():
 
 
 def rmvae():
-    normalization = 'none'
+    normalization = 'rbn1'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
