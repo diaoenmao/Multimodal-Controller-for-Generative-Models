@@ -1,4 +1,5 @@
 import config
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -266,6 +267,53 @@ class RBatchNorm1d(nn.BatchNorm1d):
             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size)
             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
         return output
+
+
+class RConv2dCell(nn.Conv2d):
+    def __init__(self, cell_info):
+        default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros', 'sharing_rate': 1}
+        cell_info = {**default_cell_info, **cell_info}
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.sharing_rate = cell_info['sharing_rate']
+        self.num_mode = cell_info['num_mode']
+        self.shared_size = round(self.sharing_rate * self.output_size)
+        self.free_size = self.output_size - self.shared_size
+        self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+
+        super(RConv2dCell, self).__init__(cell_info['input_size'], self.restricted_output_size,
+                                          cell_info['kernel_size'], stride=cell_info['stride'],
+                                          padding=cell_info['padding'], dilation=cell_info['dilation'],
+                                          groups=cell_info['groups'], bias=cell_info['bias'],
+                                          padding_mode=cell_info['padding_mode'])
+        self.register_buffer('shared_mask', torch.ones(self.shared_size))
+        if cell_info['normalization'] == 'rbn':
+            self.normalization = RBatchNorm2d(
+                {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
+        else:
+            self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input):
+        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+        weight_mask = mask.view(mask.size(0), mask.size(1), 1, 1, 1)
+        weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size,
+                                                                    *self.kernel_size)
+        x = F.unfold(input, self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
+        output = (x.transpose(1, 2).unsqueeze(3) * weight.view(weight.size(0), 1, weight.size(1), -1)
+                  .transpose(2, 3)).sum(2).transpose(1, 2)
+        output_shape = (math.floor((input.size(2) + 2 * self.padding[0] -
+                                    self.dilation[0] * (self.kernel_size[0] - 1) - 1) / self.stride[0] + 1),
+                        math.floor((input.size(3) + 2 * self.padding[1] -
+                                    self.dilation[1] * (self.kernel_size[1] - 1) - 1) / self.stride[1] + 1))
+        output = F.fold(output, output_shape, 1)
+        if self.bias is not None:
+            bias_mask = mask
+            bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size, 1, 1)
+            output = output + bias
+        return self.activation(self.normalization(output))
 
 
 class RBatchNorm2d(nn.BatchNorm2d):

@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
+import math
 import models
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
@@ -297,89 +298,273 @@ class RLinearCell(nn.Linear):
 #         output = m(input)
 
 
-class RBatchNorm2d(nn.BatchNorm2d):
-    def __init__(self, cell_info):
-        default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
-                             'sharing_rate': 1}
-        cell_info = {**default_cell_info, **cell_info}
-        self.input_size = cell_info['input_size']
-        self.eps = cell_info['eps']
-        self.momentum = cell_info['momentum']
-        self.affine = cell_info['affine']
-        self.track_running_stats = cell_info['track_running_stats']
-        self.sharing_rate = cell_info['sharing_rate']
-        self.num_mode = cell_info['num_mode']
-        self.shared_size = round(self.sharing_rate * self.input_size)
-        self.free_size = self.input_size - self.shared_size
-        self.restricted_input_size = self.shared_size + self.free_size * self.num_mode
-        super(RBatchNorm2d, self).__init__(self.restricted_input_size, eps=self.eps, momentum=self.momentum,
-                                           affine=self.affine, track_running_stats=self.track_running_stats)
-        self.register_buffer('shared_mask', torch.ones(self.shared_size))
+# class RBatchNorm2d(nn.BatchNorm2d):
+#     def __init__(self, cell_info):
+#         default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
+#                              'sharing_rate': 1}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.eps = cell_info['eps']
+#         self.momentum = cell_info['momentum']
+#         self.affine = cell_info['affine']
+#         self.track_running_stats = cell_info['track_running_stats']
+#         self.sharing_rate = cell_info['sharing_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.shared_size = round(self.sharing_rate * self.input_size)
+#         self.free_size = self.input_size - self.shared_size
+#         self.restricted_input_size = self.shared_size + self.free_size * self.num_mode
+#         super(RBatchNorm2d, self).__init__(self.restricted_input_size, eps=self.eps, momentum=self.momentum,
+#                                            affine=self.affine, track_running_stats=self.track_running_stats)
+#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
+#
+#     def forward(self, input):
+#         self._check_input_dim(input)
+#         if self.momentum is None:
+#             exponential_average_factor = 0.0
+#         else:
+#             exponential_average_factor = self.momentum
+#         if self.training and self.track_running_stats:
+#             if self.num_batches_tracked is not None:
+#                 self.num_batches_tracked += 1
+#                 if self.momentum is None:
+#                     exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+#                 else:
+#                     exponential_average_factor = self.momentum
+#         if self.training:
+#             size = input.size()
+#             size_prods = size[0]
+#             for i in range(len(size) - 2):
+#                 size_prods *= size[i + 2]
+#             if size_prods == 1:
+#                 raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(
+#                 size))
+#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+#         if self.training or not self.track_running_stats:
+#             x = input.new_zeros(input.size(0) * self.restricted_input_size * input.size(2) * input.size(3))
+#             x[mask.view(*mask.size(), 1, 1).expand(
+#                 mask.size(0), mask.size(1), input.size(2), input.size(3)).reshape(-1)] = input.view(-1)
+#             x = x.view(input.size(0), self.restricted_input_size, input.size(2), input.size(3))
+#             n = mask.sum(dim=0) * input.size(2) * input.size(3)
+#             mean_i = x.sum(dim=(0, 2, 3)) / n
+#             var_i = (x.pow(2).sum(dim=(0, 2, 3)) / n - mean_i ** 2)
+#             var_i[n > 1] = var_i[n > 1] * (n[n > 1] / (n[n > 1] - 1))
+#             mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size, 1, 1)
+#             var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size, 1, 1)
+#             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
+#             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
+#             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+#             self.running_mean[n > 1] = (1.0 - exponential_average_factor) * self.running_mean[n > 1] + \
+#                                        exponential_average_factor * mean_i[n > 1]
+#             self.running_var[n > 1] = (1.0 - exponential_average_factor) * self.running_var[n > 1] + \
+#                                       exponential_average_factor * var_i[n > 1]
+#         else:
+#             mean_s = torch.masked_select(self.running_mean, mask).view(input.size(0), self.input_size, 1, 1)
+#             var_s = torch.masked_select(self.running_var, mask).view(input.size(0), self.input_size, 1, 1)
+#             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
+#             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
+#             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+#         return output
 
-    def forward(self, input):
-        self._check_input_dim(input)
-        if self.momentum is None:
-            exponential_average_factor = 0.0
-        else:
-            exponential_average_factor = self.momentum
-        if self.training and self.track_running_stats:
-            if self.num_batches_tracked is not None:
-                self.num_batches_tracked += 1
-                if self.momentum is None:
-                    exponential_average_factor = 1.0 / float(self.num_batches_tracked)
-                else:
-                    exponential_average_factor = self.momentum
-        if self.training:
-            size = input.size()
-            size_prods = size[0]
-            for i in range(len(size) - 2):
-                size_prods *= size[i + 2]
-            if size_prods == 1:
-                raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(size))
-        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
-        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
-        if self.training or not self.track_running_stats:
-            x = input.new_zeros(input.size(0) * self.restricted_input_size * input.size(2) * input.size(3))
-            x[mask.view(*mask.size(), 1, 1).expand(
-                mask.size(0), mask.size(1), input.size(2), input.size(3)).reshape(-1)] = input.view(-1)
-            x = x.view(input.size(0), self.restricted_input_size, input.size(2), input.size(3))
-            n = mask.sum(dim=0) * input.size(2) * input.size(3)
-            mean_i = x.sum(dim=(0, 2, 3)) / n
-            var_i = (x.pow(2).sum(dim=(0, 2, 3)) / n - mean_i ** 2)
-            var_i[n > 1] = var_i[n > 1] * (n[n > 1] / (n[n > 1] - 1))
-            mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size, 1, 1)
-            var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size, 1, 1)
-            weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
-            bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
-            output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
-            self.running_mean[n > 1] = (1.0 - exponential_average_factor) * self.running_mean[n > 1] + \
-                                       exponential_average_factor * mean_i[n > 1]
-            self.running_var[n > 1] = (1.0 - exponential_average_factor) * self.running_var[n > 1] + \
-                                      exponential_average_factor * var_i[n > 1]
-        else:
-            mean_s = torch.masked_select(self.running_mean, mask).view(input.size(0), self.input_size, 1, 1)
-            var_s = torch.masked_select(self.running_var, mask).view(input.size(0), self.input_size, 1, 1)
-            weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
-            bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
-            output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
-        return output
+
+# if __name__ == "__main__":
+#     batch_size = 10
+#     num_mode = batch_size
+#     input_size = 6
+#     output_size = 5
+#     sharing_rate = 0.5
+#     eps = 1e-05
+#     input = torch.randn(batch_size, input_size, 4, 4)
+#     cell_info = {'input_size': input_size, 'sharing_rate': sharing_rate, 'num_mode': num_mode}
+#     m = RBatchNorm2d(cell_info)
+#     m.train(True)
+#     label = torch.arange(num_mode)
+#     label = label.view(label.size(0), 1)
+#     onehot = label.new_zeros(label.size(0), num_mode).float()
+#     onehot.scatter_(1, label, 1)
+#     config.PARAM['attr'] = onehot
+#     output = m(input)
+#     print(output.size())
 
 
-if __name__ == "__main__":
-    batch_size = 10
-    num_mode = batch_size
-    input_size = 6
-    output_size = 5
-    sharing_rate = 0.5
-    eps = 1e-05
-    input = torch.randn(batch_size, input_size, 4, 4)
-    cell_info = {'input_size': input_size, 'sharing_rate': sharing_rate, 'num_mode': num_mode}
-    m = RBatchNorm2d(cell_info)
-    m.train(True)
-    label = torch.arange(num_mode)
-    label = label.view(label.size(0), 1)
-    onehot = label.new_zeros(label.size(0), num_mode).float()
-    onehot.scatter_(1, label, 1)
-    config.PARAM['attr'] = onehot
-    output = m(input)
-    print(output.size())
+# if __name__ == "__main__":
+#     batch_size = 10
+#     num_mode = batch_size
+#     input_size = 6
+#     output_size = 5
+#     shape = (4, 4)
+#     kernel_size = 3
+#     stride = 1
+#     padding = 1
+#     sharing_rate = 0.5
+#     eps = 1e-05
+#     input = torch.randn(batch_size, input_size, *shape)
+#
+#     label = torch.arange(num_mode)
+#     label = label.view(label.size(0), 1)
+#     onehot = label.new_zeros(label.size(0), num_mode).float()
+#     onehot.scatter_(1, label, 1)
+#     config.PARAM['attr'] = onehot
+#     m = nn.Conv2d(input_size, output_size, kernel_size, stride, padding)
+#     weight= m.weight
+#     bias = m.bias
+#     output = m(input)
+#     print(input.size())
+#     print(weight.size())
+#     x = F.unfold(input, kernel_size, padding=1, stride=1)
+#     print(x.transpose(1, 2).size())
+#     print(weight.view(weight.size(0), -1).t().size())
+#     t = x.transpose(1, 2).matmul(weight.view(weight.size(0), -1).t()) + bias
+#     x2 = (x.transpose(1, 2).unsqueeze(3) * weight.view(weight.size(0), -1).t()).sum(2) + bias
+#     print(x2.size())
+#     print((t-x2).abs().max())
+#     exit()
+#     x = t.transpose(1, 2)
+#     x = F.fold(x, shape, 1)
+#     print(x.size())
+#     print((output-x).abs().max())
+
+# class RConv2dCell(nn.Conv2d):
+#     def __init__(self, cell_info):
+#         default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+#                              'padding_mode': 'zeros', 'sharing_rate': 1}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.output_size = cell_info['output_size']
+#         self.sharing_rate = cell_info['sharing_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.shared_size = round(self.sharing_rate * self.output_size)
+#         self.free_size = self.output_size - self.shared_size
+#         self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+#
+#         super(RConv2dCell, self).__init__(cell_info['input_size'],  self.restricted_output_size, cell_info['kernel_size'],
+#                                           stride=cell_info['stride'], padding=cell_info['padding'],
+#                                           dilation=cell_info['dilation'], groups=cell_info['groups'],
+#                                           bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
+#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
+#         if cell_info['normalization'] == 'rbn':
+#             self.normalization = RBatchNorm2d(
+#                 {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
+#         else:
+#             self.normalization = Normalization(cell_info['normalization'], self.output_size)
+#         # self.activation = Activation(cell_info['activation'])
+#
+#     def forward(self, input):
+#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+#         weight_mask = mask.view(mask.size(0), mask.size(1), 1, 1, 1)
+#         weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size,
+#                                                                     *self.kernel_size)
+#         x = F.unfold(input, self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
+#         print(x.transpose(1, 2).unsqueeze(3).size())
+#         print(weight.view(weight.size(0), 1, weight.size(1), -1)
+#                   .transpose(2, 3).size())
+#         output = (x.transpose(1, 2).unsqueeze(3) * weight.view(weight.size(0), 1, weight.size(1), -1)
+#                   .transpose(2, 3)).sum(2).transpose(1, 2)
+#         output_shape = (math.floor((input.size(2) + 2 * self.padding[0] -
+#                                     self.dilation[0] * (self.kernel_size[0] - 1) - 1) / self.stride[0] + 1),
+#                         math.floor((input.size(3) + 2 * self.padding[1] -
+#                                     self.dilation[1] * (self.kernel_size[1] - 1) - 1) / self.stride[1] + 1))
+#         output = F.fold(output, output_shape, 1)
+#         if self.bias is not None:
+#             bias_mask = mask
+#             bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size, 1, 1)
+#             output = output + bias
+#         return self.normalization(output)
+#
+#
+# class RBatchNorm2d(nn.BatchNorm2d):
+#     def __init__(self, cell_info):
+#         default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
+#                              'sharing_rate': 1}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.eps = cell_info['eps']
+#         self.momentum = cell_info['momentum']
+#         self.affine = cell_info['affine']
+#         self.track_running_stats = cell_info['track_running_stats']
+#         self.sharing_rate = cell_info['sharing_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.shared_size = round(self.sharing_rate * self.input_size)
+#         self.free_size = self.input_size - self.shared_size
+#         self.restricted_input_size = self.shared_size + self.free_size * self.num_mode
+#         super(RBatchNorm2d, self).__init__(self.restricted_input_size, eps=self.eps, momentum=self.momentum,
+#                                            affine=self.affine, track_running_stats=self.track_running_stats)
+#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
+#
+#     def forward(self, input):
+#         self._check_input_dim(input)
+#         if self.momentum is None:
+#             exponential_average_factor = 0.0
+#         else:
+#             exponential_average_factor = self.momentum
+#         if self.training and self.track_running_stats:
+#             if self.num_batches_tracked is not None:
+#                 self.num_batches_tracked += 1
+#                 if self.momentum is None:
+#                     exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+#                 else:
+#                     exponential_average_factor = self.momentum
+#         if self.training:
+#             size = input.size()
+#             size_prods = size[0]
+#             for i in range(len(size) - 2):
+#                 size_prods *= size[i + 2]
+#             if size_prods == 1:
+#                 raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(size))
+#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+#         if self.training or not self.track_running_stats:
+#             x = input.new_zeros(input.size(0) * self.restricted_input_size * input.size(2) * input.size(3))
+#             x[mask.view(*mask.size(), 1, 1).expand(
+#                 mask.size(0), mask.size(1), input.size(2), input.size(3)).reshape(-1)] = input.view(-1)
+#             x = x.view(input.size(0), self.restricted_input_size, input.size(2), input.size(3))
+#             n = mask.sum(dim=0) * input.size(2) * input.size(3)
+#             mean_i = x.sum(dim=(0, 2, 3)) / n
+#             var_i = (x.pow(2).sum(dim=(0, 2, 3)) / n - mean_i ** 2)
+#             var_i[n > 1] = var_i[n > 1] * (n[n > 1] / (n[n > 1] - 1))
+#             mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size, 1, 1)
+#             var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size, 1, 1)
+#             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
+#             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
+#             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+#             self.running_mean[n > 1] = (1.0 - exponential_average_factor) * self.running_mean[n > 1] + \
+#                                        exponential_average_factor * mean_i[n > 1]
+#             self.running_var[n > 1] = (1.0 - exponential_average_factor) * self.running_var[n > 1] + \
+#                                       exponential_average_factor * var_i[n > 1]
+#         else:
+#             mean_s = torch.masked_select(self.running_mean, mask).view(input.size(0), self.input_size, 1, 1)
+#             var_s = torch.masked_select(self.running_var, mask).view(input.size(0), self.input_size, 1, 1)
+#             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
+#             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
+#             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+#         return output
+#
+# if __name__ == "__main__":
+#     batch_size = 10
+#     num_mode = batch_size
+#     input_size = 6
+#     output_size = 5
+#     shape = (4, 4)
+#     kernel_size = 3
+#     stride = 1
+#     padding = 1
+#     sharing_rate = 1
+#     input = torch.randn(batch_size, input_size, *shape)
+#
+#     label = torch.arange(num_mode)
+#     label = label.view(label.size(0), 1)
+#     onehot = label.new_zeros(label.size(0), num_mode).float()
+#     onehot.scatter_(1, label, 1)
+#     config.PARAM['attr'] = onehot
+#
+#     m1 = nn.Conv2d(input_size, output_size, kernel_size, stride, padding)
+#     output1 = m1(input)
+#     cell_info = {'input_size': input_size, 'output_size': output_size, 'kernel_size': kernel_size, 'stride': stride,
+#                  'padding': padding, 'sharing_rate': sharing_rate, 'num_mode':num_mode, 'normalization':'rbn'}
+#     m2 = RConv2dCell(cell_info)
+#     # m2.weight.data.copy_(m1.weight.data)
+#     # m2.bias.data.copy_(m1.bias.data)
+#     output2 = m2(input)
+#     print(output2.size())
+#     # print((output1-output2).abs().max())
