@@ -170,7 +170,7 @@ class ResConv2dCell(nn.Module):
 
 class RLinearCell(nn.Linear):
     def __init__(self, cell_info):
-        default_cell_info = {'bias': True, 'sharing_rate': 1}
+        default_cell_info = {'bias': True, 'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
@@ -205,7 +205,7 @@ class RLinearCell(nn.Linear):
 class RBatchNorm1d(nn.BatchNorm1d):
     def __init__(self, cell_info):
         default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
-                             'sharing_rate': 1}
+                             'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
         self.eps = cell_info['eps']
@@ -272,7 +272,7 @@ class RBatchNorm1d(nn.BatchNorm1d):
 class RConv2dCell(nn.Conv2d):
     def __init__(self, cell_info):
         default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
-                             'padding_mode': 'zeros', 'sharing_rate': 1}
+                             'padding_mode': 'zeros', 'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
@@ -281,7 +281,6 @@ class RConv2dCell(nn.Conv2d):
         self.shared_size = round(self.sharing_rate * self.output_size)
         self.free_size = self.output_size - self.shared_size
         self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
-
         super(RConv2dCell, self).__init__(cell_info['input_size'], self.restricted_output_size,
                                           cell_info['kernel_size'], stride=cell_info['stride'],
                                           padding=cell_info['padding'], dilation=cell_info['dilation'],
@@ -316,10 +315,64 @@ class RConv2dCell(nn.Conv2d):
         return self.activation(self.normalization(output))
 
 
+class RConvTranspose2dCell(nn.ConvTranspose2d):
+    def __init__(self, cell_info):
+        default_cell_info = {'stride': 1, 'padding': 0, 'output_padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros', 'sharing_rate': 1, 'num_mode': 1}
+        cell_info = {**default_cell_info, **cell_info}
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.sharing_rate = cell_info['sharing_rate']
+        self.num_mode = cell_info['num_mode']
+        self.shared_size = round(self.sharing_rate * self.output_size)
+        self.free_size = self.output_size - self.shared_size
+        self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+        super(RConvTranspose2dCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
+                                                   cell_info['kernel_size'],
+                                                   stride=cell_info['stride'], padding=cell_info['padding'],
+                                                   output_padding=cell_info['output_padding'],
+                                                   dilation=cell_info['dilation'], groups=cell_info['groups'],
+                                                   bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
+        self.register_buffer('shared_mask', torch.ones(self.shared_size))
+        if cell_info['normalization'] == 'rbn':
+            self.normalization = RBatchNorm2d(
+                {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
+        else:
+            self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input, output_size=None):
+        if self.padding_mode != 'zeros':
+            raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
+        x = F.conv_transpose2d(input, F.pad(torch.ones(self.input_size, 1, 1, 1), (1, 1, 1, 1)),
+                               stride=self.stride, padding=1, groups=self.input_size)
+        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+        weight_mask = mask.view(mask.size(0), 1, mask.size(1), 1, 1)
+        weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.input_size, self.output_size,
+                                                                    *self.kernel_size)
+        weight = torch.flip(weight.transpose(1, 2), [3, 4])
+        x = F.unfold(x, self.kernel_size, dilation=1, padding=(self.kernel_size[0] - 1, self.kernel_size[1] - 1),
+                     stride=1)
+        output = (x.transpose(1, 2).unsqueeze(3) * weight.reshape(weight.size(0), 1, weight.size(1), -1)
+                  .transpose(2, 3)).sum(2).transpose(1, 2)
+        output_shape = (
+            (input.size(2) - 1) * self.stride[0] - 2 * self.padding[0] + self.dilation[0] * (self.kernel_size[0] - 1) +
+            self.output_padding[0] + 1,
+            (input.size(3) - 1) * self.stride[1] - 2 * self.padding[1] + self.dilation[1] * (self.kernel_size[1] - 1) +
+            self.output_padding[1] + 1)
+        output = F.fold(output, output_shape, 1)
+        if self.bias is not None:
+            bias_mask = mask
+            bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size, 1, 1)
+            output = output + bias
+        return output
+
+
 class RBatchNorm2d(nn.BatchNorm2d):
     def __init__(self, cell_info):
         default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
-                             'sharing_rate': 1}
+                             'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
         self.eps = cell_info['eps']
@@ -381,4 +434,31 @@ class RBatchNorm2d(nn.BatchNorm2d):
             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)
             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size, 1, 1)
             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+        return output
+
+
+class ResRConv2dCell(nn.Module):
+    def __init__(self, cell_info):
+        super(ResRConv2dCell, self).__init__()
+        default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros', 'sharing_rate': 1, 'num_mode': 1}
+        cell_info = {**default_cell_info, **cell_info}
+        conv1_info = {**cell_info}
+        conv2_info = {**cell_info, 'normalization': 'none', 'activation': 'none'}
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.conv1 = RConv2dCell(conv1_info)
+        self.conv2 = RConv2dCell(conv2_info)
+        if cell_info['normalization'] == 'rbn':
+            self.normalization = RBatchNorm2d(
+                {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
+        else:
+            self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input):
+        identity = input
+        x = self.conv1(input)
+        x = self.conv2(x)
+        output = self.activation(x + identity)
         return output
