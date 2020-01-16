@@ -154,34 +154,34 @@ from logger import Logger
 
 # from utils import make_restricted_output_size
 
-class RLinearCell(nn.Linear):
-    def __init__(self, cell_info):
-        default_cell_info = {'bias': True, 'sharing_rate': 0}
-        cell_info = {**default_cell_info, **cell_info}
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.sharing_rate = cell_info['sharing_rate']
-        self.num_mode = cell_info['num_mode']
-        self.shared_size = round(self.sharing_rate * self.output_size)
-        self.free_size = self.output_size - self.shared_size
-        self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
-        super(RLinearCell, self).__init__(self.input_size, self.restricted_output_size,
-                                          bias=cell_info['bias'])
-        self.register_buffer('shared_mask', torch.ones(self.shared_size))
-        # self.normalization = Normalization(cell_info['normalization'], self.restricted_output_size)
-        # self.activation = Activation(cell_info['activation'])
-
-    def forward(self, input):
-        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
-        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
-        weight_mask = mask.view(mask.size(0), mask.size(1), 1)
-        weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size)
-        output = (input.view(input.size(0), 1, input.size(1)) * weight).sum(dim=2)
-        if self.bias is not None:
-            bias_mask = mask
-            bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size)
-            output = output + bias
-        return output
+# class RLinearCell(nn.Linear):
+#     def __init__(self, cell_info):
+#         default_cell_info = {'bias': True, 'sharing_rate': 0}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.output_size = cell_info['output_size']
+#         self.sharing_rate = cell_info['sharing_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.shared_size = round(self.sharing_rate * self.output_size)
+#         self.free_size = self.output_size - self.shared_size
+#         self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+#         super(RLinearCell, self).__init__(self.input_size, self.restricted_output_size,
+#                                           bias=cell_info['bias'])
+#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
+#         # self.normalization = Normalization(cell_info['normalization'], self.restricted_output_size)
+#         # self.activation = Activation(cell_info['activation'])
+#
+#     def forward(self, input):
+#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+#         weight_mask = mask.view(mask.size(0), mask.size(1), 1)
+#         weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size)
+#         output = (input.view(input.size(0), 1, input.size(1)) * weight).sum(dim=2)
+#         if self.bias is not None:
+#             bias_mask = mask
+#             bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size)
+#             output = output + bias
+#         return output
 
 
 # if __name__ == "__main__":
@@ -623,94 +623,96 @@ class RLinearCell(nn.Linear):
     # print((output-x).abs().max())
 
 
-# class RConvTranspose2dCell(nn.ConvTranspose2d):
-#     def __init__(self, cell_info):
-#         default_cell_info = {'stride': 1, 'padding': 0, 'output_padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
-#                              'padding_mode': 'zeros', 'sharing_rate': 1}
-#         cell_info = {**default_cell_info, **cell_info}
-#         self.input_size = cell_info['input_size']
-#         self.output_size = cell_info['output_size']
-#         self.sharing_rate = cell_info['sharing_rate']
-#         self.num_mode = cell_info['num_mode']
-#         self.shared_size = round(self.sharing_rate * self.output_size)
-#         self.free_size = self.output_size - self.shared_size
-#         self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
-#         super(RConvTranspose2dCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
-#                                                    cell_info['kernel_size'],
-#                                                    stride=cell_info['stride'], padding=cell_info['padding'],
-#                                                    output_padding=cell_info['output_padding'],
-#                                                    dilation=cell_info['dilation'], groups=cell_info['groups'],
-#                                                    bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
-#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
-#         # if cell_info['normalization'] == 'rbn':
-#         #     self.normalization = RBatchNorm2d(
-#         #         {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
-#         # else:
-#         #     self.normalization = Normalization(cell_info['normalization'], self.output_size)
-#         self.normalization = RBatchNorm2d(
-#                 {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
-#         # self.activation = Activation(cell_info['activation'])
-#
-#     def forward(self, input, output_size=None):
-#         if self.padding_mode != 'zeros':
-#             raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
-#         x = F.conv_transpose2d(input, F.pad(torch.ones(self.input_size, 1, 1, 1), (1, 1, 1, 1)),
-#                                stride=stride, padding=1, groups=self.input_size)
-#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
-#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
-#         weight_mask = mask.view(mask.size(0), 1, mask.size(1), 1, 1)
-#         weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.input_size, self.output_size,
-#                                                                     *self.kernel_size)
-#         weight = torch.flip(weight.transpose(1, 2), [3,4])
-#         x = F.unfold(x, self.kernel_size, dilation=1, padding=(self.kernel_size[0] - 1, self.kernel_size[1] - 1),
-#                      stride=1)
-#         output = (x.transpose(1, 2).unsqueeze(3) * weight.reshape(weight.size(0), 1, weight.size(1), -1)
-#                                                               .transpose(2, 3)).sum(2).transpose(1, 2)
-#         output_shape = (
-#             (input.size(2) - 1) * self.stride[0] - 2 * self.padding[0] + self.dilation[0] * (self.kernel_size[0] - 1) +
-#             self.output_padding[0] + 1,
-#             (input.size(3) - 1) * self.stride[1] - 2 * self.padding[1] + self.dilation[1] * (self.kernel_size[1] - 1) +
-#             self.output_padding[1] + 1)
-#         output = F.fold(output, output_shape, 1)
-#         if self.bias is not None:
-#             bias_mask = mask
-#             bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size, 1, 1)
-#             output = output + bias
-#         return self.normalization(output)
-#
-# output1 = 0
-# if __name__ == "__main__":
-#     batch_size = 10
-#     num_mode = batch_size
-#     input_size = 5
-#     output_size = 6
-#     shape = (2, 2)
-#     kernel_size = 2
-#     stride = 2
-#     padding = 0
-#     sharing_rate = 1
-#     eps = 1e-05
-#     input = torch.randn(batch_size, input_size, *shape)
-#     # input = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32).view(1, 1, 2, 2).repeat(batch_size, input_size, 1, 1)
-#     # input = torch.tensor([[[[1, 2], [3, 4]], [[1, 0], [0, 0]]]], dtype=torch.float32)
-#     label = torch.arange(num_mode)
-#     label = label.view(label.size(0), 1)
-#     onehot = label.new_zeros(label.size(0), num_mode).float()
-#     onehot.scatter_(1, label, 1)
-#     config.PARAM['attr'] = onehot
-#     m1 = nn.ConvTranspose2d(input_size, output_size, kernel_size, stride, padding)
-#     # m1.weight.data = torch.tensor([[[[1, 2], [3, 4]], [[0, 0], [0, 0]]]], dtype=torch.float32).transpose(0,1)
-#     output1 = m1(input)
-#     cell_info = {'input_size': input_size, 'output_size': output_size, 'kernel_size': kernel_size, 'stride': stride,
-#                  'padding': padding, 'sharing_rate': sharing_rate, 'num_mode': num_mode}
-#     m2 = RConvTranspose2dCell(cell_info)
-#     m2.weight.data.copy_(m1.weight.data)
-#     m2.bias.data.copy_(m1.bias.data)
-#     # print(input)
-#     # print(m1.weight)
-#     # print(m2.weight)
-#     output2 = m2(input)
-#     # print(output1)
-#     # print(output2)
-#     print(output2.size())
-#     # print((output1 - output2).abs().max())
+class RConvTranspose2dCell(nn.ConvTranspose2d):
+    def __init__(self, cell_info):
+        default_cell_info = {'stride': 1, 'padding': 0, 'output_padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+                             'padding_mode': 'zeros', 'sharing_rate': 1}
+        cell_info = {**default_cell_info, **cell_info}
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.sharing_rate = cell_info['sharing_rate']
+        self.num_mode = cell_info['num_mode']
+        self.shared_size = round(self.sharing_rate * self.output_size)
+        self.free_size = self.output_size - self.shared_size
+        self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+        super(RConvTranspose2dCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
+                                                   cell_info['kernel_size'],
+                                                   stride=cell_info['stride'], padding=cell_info['padding'],
+                                                   output_padding=cell_info['output_padding'],
+                                                   dilation=cell_info['dilation'], groups=cell_info['groups'],
+                                                   bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
+        self.register_buffer('shared_mask', torch.ones(self.shared_size))
+        # if cell_info['normalization'] == 'rbn':
+        #     self.normalization = RBatchNorm2d(
+        #         {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
+        # else:
+        #     self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        # self.normalization = RBatchNorm2d(
+        #         {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
+        # self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input, output_size=None):
+        if self.padding_mode != 'zeros':
+            raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
+        x = F.conv_transpose2d(input, F.pad(torch.ones(self.input_size, 1, 1, 1), (1, 1, 1, 1)),
+                               stride=stride, padding=1, groups=self.input_size)
+        print(input.size(), x.size())
+        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+        weight_mask = mask.view(mask.size(0), 1, mask.size(1), 1, 1)
+        weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.input_size, self.output_size,
+                                                                    *self.kernel_size)
+        weight = torch.flip(weight.transpose(1, 2), [3,4])
+        x = F.unfold(x, self.kernel_size, dilation=1, padding=(self.kernel_size[0] - self.padding[0] - 1, self.kernel_size[1] - self.padding[1] - 1),
+                     stride=1)
+        output = (x.transpose(1, 2).unsqueeze(3) * weight.reshape(weight.size(0), 1, weight.size(1), -1)
+                                                              .transpose(2, 3)).sum(2).transpose(1, 2)
+        output_shape = (
+            (input.size(2) - 1) * self.stride[0] - 2 * self.padding[0] + self.dilation[0] * (self.kernel_size[0] - 1) +
+            self.output_padding[0] + 1,
+            (input.size(3) - 1) * self.stride[1] - 2 * self.padding[1] + self.dilation[1] * (self.kernel_size[1] - 1) +
+            self.output_padding[1] + 1)
+        output = F.fold(output, output_shape, 1)
+        if self.bias is not None:
+            bias_mask = mask
+            bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size, 1, 1)
+            output = output + bias
+        # return self.normalization(output)
+        return output
+
+output1 = 0
+if __name__ == "__main__":
+    batch_size = 10
+    num_mode = batch_size
+    input_size = 1
+    output_size = 1
+    shape = (2, 2)
+    kernel_size = 4
+    stride = 2
+    padding = 1
+    sharing_rate = 1
+    eps = 1e-05
+    input = torch.randn(batch_size, input_size, *shape)
+    # input = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32).view(1, 1, 2, 2).repeat(batch_size, input_size, 1, 1)
+    # input = torch.tensor([[[[1, 2], [3, 4]], [[1, 0], [0, 0]]]], dtype=torch.float32)
+    label = torch.arange(num_mode)
+    label = label.view(label.size(0), 1)
+    onehot = label.new_zeros(label.size(0), num_mode).float()
+    onehot.scatter_(1, label, 1)
+    config.PARAM['attr'] = onehot
+    m1 = nn.ConvTranspose2d(input_size, output_size, kernel_size, stride, padding)
+    # m1.weight.data = torch.tensor([[[[1, 2], [3, 4]], [[0, 0], [0, 0]]]], dtype=torch.float32).transpose(0,1)
+    output1 = m1(input)
+    cell_info = {'input_size': input_size, 'output_size': output_size, 'kernel_size': kernel_size, 'stride': stride,
+                 'padding': padding, 'sharing_rate': sharing_rate, 'num_mode': num_mode}
+    m2 = RConvTranspose2dCell(cell_info)
+    m2.weight.data.copy_(m1.weight.data)
+    m2.bias.data.copy_(m1.bias.data)
+    # print(input)
+    # print(m1.weight)
+    # print(m2.weight)
+    output2 = m2(input)
+    # print(output1)
+    # print(output2)
+    print(output2.size())
+    print((output1 - output2).abs().max())

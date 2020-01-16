@@ -120,12 +120,12 @@ def gan():
              'bias': True, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)),
-         'output_size': np.prod(img_shape), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
+         'output_size': np.prod(img_shape).item(), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
     config.PARAM['model']['generator'] = tuple(config.PARAM['model']['generator'])
     # Discriminator
     config.PARAM['model']['discriminator'] = []
     config.PARAM['model']['discriminator'].append(
-        {'cell': 'LinearCell', 'input_size': np.prod(img_shape),
+        {'cell': 'LinearCell', 'input_size': np.prod(img_shape).item(),
          'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)),
          'bias': True, 'normalization': 'none', 'activation': activation})
     for i in range(num_layers_discriminator - 1):
@@ -150,18 +150,19 @@ def cgan():
     num_layers_generator = config.PARAM['num_layers_generator']
     num_layers_discriminator = config.PARAM['num_layers_discriminator']
     classes_size = config.PARAM['classes_size']
+    embedding_size = config.PARAM['embedding_size']
     config.PARAM['model'] = {}
     # Embedding
     config.PARAM['model']['generator_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': classes_size,
+        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['discriminator_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': classes_size,
+        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     # Generator
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
-        {'cell': 'LinearCell', 'input_size': latent_size + classes_size, 'output_size': hidden_size,
+        {'cell': 'LinearCell', 'input_size': latent_size + embedding_size, 'output_size': hidden_size,
          'bias': True, 'normalization': normalization, 'activation': activation})
     for i in range(num_layers_generator - 2):
         config.PARAM['model']['generator'].append(
@@ -169,12 +170,12 @@ def cgan():
              'bias': True, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)),
-         'output_size': np.prod(img_shape), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
+         'output_size': np.prod(img_shape).item(), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
     config.PARAM['model']['generator'] = tuple(config.PARAM['model']['generator'])
     # Discriminator
     config.PARAM['model']['discriminator'] = []
     config.PARAM['model']['discriminator'].append(
-        {'cell': 'LinearCell', 'input_size': np.prod(img_shape) + classes_size,
+        {'cell': 'LinearCell', 'input_size': np.prod(img_shape).item() + embedding_size,
          'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)),
          'bias': True, 'normalization': 'none', 'activation': activation})
     for i in range(num_layers_discriminator - 1):
@@ -215,12 +216,12 @@ def rmgan():
              'activation': activation})
     config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)),
-         'output_size': np.prod(img_shape), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
+         'output_size': np.prod(img_shape).item(), 'bias': True, 'normalization': 'none', 'activation': 'tanh'})
     config.PARAM['model']['generator'] = tuple(config.PARAM['model']['generator'])
     # Discriminator
     config.PARAM['model']['discriminator'] = []
     config.PARAM['model']['discriminator'].append(
-        {'cell': 'RLinearCell', 'input_size': np.prod(img_shape),
+        {'cell': 'RLinearCell', 'input_size': np.prod(img_shape).item(),
          'output_size': hidden_size * (2 ** (num_layers_discriminator - 1)),
          'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': 'none',
          'activation': activation})
@@ -292,6 +293,31 @@ class DCCGAN(nn.Module):
         return x
 
 
+class DCRMGAN(nn.Module):
+    def __init__(self):
+        super(DCRMGAN, self).__init__()
+        self.model = make_model(config.PARAM['model'])
+
+    def generate(self, C):
+        x = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
+        config.PARAM['attr'] = idx2onehot(C)
+        generated = self.model['generator'](x)
+        generated = (generated + 1) / 2
+        return generated
+
+    def discriminate(self, input, C):
+        x = (input * 2) - 1
+        config.PARAM['attr'] = idx2onehot(C)
+        x = self.model['discriminator'](x)
+        discriminated = x.view(x.size(0))
+        return discriminated
+
+    def forward(self, input):
+        x = self.generate(input[config.PARAM['subset']])
+        x = self.discriminate(x, input[config.PARAM['subset']])
+        return x
+
+
 def dcgan():
     normalization = 'bn'
     activation = 'leakyrelu'
@@ -342,19 +368,20 @@ def dccgan():
     latent_size = config.PARAM['latent_size']
     hidden_size = config.PARAM['hidden_size']
     depth = config.PARAM['depth']
-    classes_size = int(config.PARAM['classes_size'])
+    classes_size = config.PARAM['classes_size']
+    embedding_size = config.PARAM['embedding_size']
     config.PARAM['model'] = {}
     # Embedding
     config.PARAM['model']['generator_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': classes_size,
+        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['discriminator_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': classes_size,
+        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     # Generator
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
-        {'cell': 'ConvTranspose2dCell', 'input_size': latent_size + classes_size,
+        {'cell': 'ConvTranspose2dCell', 'input_size': latent_size + embedding_size,
          'output_size': hidden_size * (2 ** (depth - 1)), 'kernel_size': 4, 'stride': 1, 'padding': 0,
          'bias': False, 'normalization': normalization, 'activation': activation})
     for i in range(depth - 1):
@@ -370,7 +397,7 @@ def dccgan():
     # Discriminator
     config.PARAM['model']['discriminator'] = []
     config.PARAM['model']['discriminator'].append(
-        {'cell': 'Conv2dCell', 'input_size': img_shape[0] + classes_size,
+        {'cell': 'Conv2dCell', 'input_size': img_shape[0] + embedding_size,
          'output_size': hidden_size, 'kernel_size': 4, 'stride': 2, 'padding': 1,
          'bias': False, 'normalization': 'none', 'activation': activation})
     for i in range(depth - 1):
@@ -383,4 +410,53 @@ def dccgan():
          'kernel_size': 4, 'stride': 1, 'padding': 0, 'bias': False, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
     model = DCCGAN()
+    return model
+
+
+def dcrmgan():
+    normalization = 'rbn'
+    activation = 'leakyrelu'
+    img_shape = config.PARAM['img_shape']
+    latent_size = config.PARAM['latent_size']
+    hidden_size = config.PARAM['hidden_size']
+    depth = config.PARAM['depth']
+    sharing_rate = config.PARAM['sharing_rate']
+    num_mode = config.PARAM['classes_size']
+    config.PARAM['model'] = {}
+    # Generator
+    config.PARAM['model']['generator'] = []
+    config.PARAM['model']['generator'].append(
+        {'cell': 'RConvTranspose2dCell', 'input_size': latent_size,
+         'output_size': hidden_size * (2 ** (depth - 1)), 'kernel_size': 4, 'stride': 1, 'padding': 0,
+         'bias': False, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
+         'activation': activation})
+    for i in range(depth - 1):
+        config.PARAM['model']['generator'].append(
+            {'cell': 'RConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - 1 - i)),
+             'output_size': hidden_size * (2 ** (depth - 1 - i - 1)), 'kernel_size': 4, 'stride': 2, 'padding': 1,
+             'bias': False, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
+             'activation': activation})
+    config.PARAM['model']['generator'].append(
+        {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size,
+         'output_size': img_shape[0], 'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True,
+         'normalization': 'none', 'activation': 'tanh'})
+    config.PARAM['model']['generator'] = tuple(config.PARAM['model']['generator'])
+    # Discriminator
+    config.PARAM['model']['discriminator'] = []
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'RConv2dCell', 'input_size': img_shape[0],
+         'output_size': hidden_size, 'kernel_size': 4, 'stride': 2, 'padding': 1,
+         'bias': False, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': 'none',
+         'activation': activation})
+    for i in range(depth - 1):
+        config.PARAM['model']['discriminator'].append(
+            {'cell': 'RConv2dCell', 'input_size': hidden_size * (2 ** i),
+             'output_size': hidden_size * (2 ** (i + 1)), 'kernel_size': 4, 'stride': 2, 'padding': 1,
+             'bias': False, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
+             'activation': activation})
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** (depth - 1)), 'output_size': 1,
+         'kernel_size': 4, 'stride': 1, 'padding': 0, 'bias': False, 'normalization': 'none', 'activation': 'sigmoid'})
+    config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
+    model = DCRMGAN()
     return model

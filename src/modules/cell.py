@@ -327,7 +327,7 @@ class RConvTranspose2dCell(nn.ConvTranspose2d):
         self.shared_size = round(self.sharing_rate * self.output_size)
         self.free_size = self.output_size - self.shared_size
         self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
-        super(RConvTranspose2dCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
+        super(RConvTranspose2dCell, self).__init__(cell_info['input_size'], self.restricted_output_size,
                                                    cell_info['kernel_size'],
                                                    stride=cell_info['stride'], padding=cell_info['padding'],
                                                    output_padding=cell_info['output_padding'],
@@ -344,7 +344,7 @@ class RConvTranspose2dCell(nn.ConvTranspose2d):
     def forward(self, input, output_size=None):
         if self.padding_mode != 'zeros':
             raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
-        x = F.conv_transpose2d(input, F.pad(torch.ones(self.input_size, 1, 1, 1), (1, 1, 1, 1)),
+        x = F.conv_transpose2d(input, F.pad(torch.ones(self.input_size, 1, 1, 1, device=input.device), (1, 1, 1, 1)),
                                stride=self.stride, padding=1, groups=self.input_size)
         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
@@ -352,8 +352,8 @@ class RConvTranspose2dCell(nn.ConvTranspose2d):
         weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.input_size, self.output_size,
                                                                     *self.kernel_size)
         weight = torch.flip(weight.transpose(1, 2), [3, 4])
-        x = F.unfold(x, self.kernel_size, dilation=1, padding=(self.kernel_size[0] - 1, self.kernel_size[1] - 1),
-                     stride=1)
+        x = F.unfold(x, self.kernel_size, dilation=1, padding=(self.kernel_size[0] - self.padding[0] - 1,
+                                                               self.kernel_size[1] - self.padding[1] - 1), stride=1)
         output = (x.transpose(1, 2).unsqueeze(3) * weight.reshape(weight.size(0), 1, weight.size(1), -1)
                   .transpose(2, 3)).sum(2).transpose(1, 2)
         output_shape = (
