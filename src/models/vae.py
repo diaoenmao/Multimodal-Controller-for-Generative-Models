@@ -419,7 +419,7 @@ def dcvae():
 
 
 def dccvae():
-    normalization = 'bn'
+    normalization = 'rbn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     encode_shape = config.PARAM['encode_shape']
@@ -473,7 +473,7 @@ def dccvae():
 
 
 def dcrmvae():
-    normalization = 'rbn'
+    normalization = 'bn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     encode_shape = config.PARAM['encode_shape']

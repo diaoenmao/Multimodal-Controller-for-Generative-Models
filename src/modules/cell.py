@@ -248,14 +248,15 @@ class RBatchNorm1d(nn.BatchNorm1d):
             x[mask.view(-1)] = input.view(-1)
             x = x.view(input.size(0), self.restricted_input_size)
             n = mask.sum(dim=0)
-            mean_i = x.sum(dim=0) / n
-            var_i = (x.pow(2).sum(dim=0) / n - mean_i ** 2)
-            var_i[n > 1] = var_i[n > 1] * (n[n > 1] / (n[n > 1] - 1))
+            mean_i = input.new_zeros(self.restricted_input_size)
+            var_i = input.new_zeros(self.restricted_input_size) + 1
+            mean_i[n > 1] = x.sum(dim=0)[n > 1] / n[n > 1]
+            var_i[n > 1] = (x - mean_i).pow(2).sum(dim=0)[n > 1] / (n[n > 1] - 1)
             mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size)
             var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size)
             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size)
             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size)
-            output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+            output = (input - mean_s.detach()) / torch.sqrt(var_s.detach() + self.eps) * weight_s + bias_s
             self.running_mean[n > 1] = (1.0 - exponential_average_factor) * self.running_mean[n > 1] + \
                                        exponential_average_factor * mean_i[n > 1]
             self.running_var[n > 1] = (1.0 - exponential_average_factor) * self.running_var[n > 1] + \
@@ -416,9 +417,10 @@ class RBatchNorm2d(nn.BatchNorm2d):
                 mask.size(0), mask.size(1), input.size(2), input.size(3)).reshape(-1)] = input.view(-1)
             x = x.view(input.size(0), self.restricted_input_size, input.size(2), input.size(3))
             n = mask.sum(dim=0) * input.size(2) * input.size(3)
-            mean_i = x.sum(dim=(0, 2, 3)) / n
-            var_i = (x.pow(2).sum(dim=(0, 2, 3)) / n - mean_i ** 2)
-            var_i[n > 1] = var_i[n > 1] * (n[n > 1] / (n[n > 1] - 1))
+            mean_i = input.new_zeros(self.restricted_input_size)
+            var_i = input.new_zeros(self.restricted_input_size) + 1
+            mean_i[n > 1] = x.sum(dim=(0, 2, 3))[n > 1] / n[n > 1]
+            var_i[n > 1] = (x - mean_i).pow(2).sum(dim=(0, 2, 3))[n > 1] / (n[n > 1] - 1)
             mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size, 1, 1)
             var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size, 1, 1)
             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size, 1, 1)

@@ -3,8 +3,8 @@ def init():
     PARAM = {
         'data_name': 'MNIST',
         'subset': 'label',
-        'model_name': 'dcrmgan',
-        'control': {'mode_data_size': '1','sharing_rate': '0.5'},
+        'model_name': 'rmvae',
+        'control': {'mode_data_size': '0','sharing_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,

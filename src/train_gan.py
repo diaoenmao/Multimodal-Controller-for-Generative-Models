@@ -90,8 +90,8 @@ def runExperiment():
             scheduler['generator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
             scheduler['discriminator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
-            scheduler['generator'].step(epoch=epoch + 1)
-            scheduler['discriminator'].step(epoch=epoch + 1)
+            scheduler['generator'].step()
+            scheduler['discriminator'].step()
         if config.PARAM['save_mode'] >= 0:
             logger.safe(False)
             model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()

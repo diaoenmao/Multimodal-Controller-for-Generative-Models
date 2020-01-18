@@ -86,7 +86,7 @@ def runExperiment():
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
-            scheduler.step(epoch=epoch + 1)
+            scheduler.step()
         if config.PARAM['save_mode'] >= 0:
             logger.safe(False)
             model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
