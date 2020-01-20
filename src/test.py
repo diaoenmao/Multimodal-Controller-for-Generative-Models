@@ -724,121 +724,130 @@ from logger import Logger
 #     # print(output2)
 #     print(output2.size())
 #     print((output1 - output2).abs().max())
-
-
-class RBatchNorm1d(nn.BatchNorm1d):
-    def __init__(self, cell_info):
-        default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
-                             'sharing_rate': 1, 'num_mode': 1}
-        cell_info = {**default_cell_info, **cell_info}
-        self.input_size = cell_info['input_size']
-        self.eps = cell_info['eps']
-        self.momentum = cell_info['momentum']
-        self.affine = cell_info['affine']
-        self.track_running_stats = cell_info['track_running_stats']
-        self.sharing_rate = cell_info['sharing_rate']
-        self.num_mode = cell_info['num_mode']
-        self.shared_size = round(self.sharing_rate * self.input_size)
-        self.free_size = self.input_size - self.shared_size
-        self.restricted_input_size = self.shared_size + self.free_size * self.num_mode
-        super(RBatchNorm1d, self).__init__(self.restricted_input_size, eps=self.eps, momentum=self.momentum,
-                                           affine=self.affine, track_running_stats=self.track_running_stats)
-        self.register_buffer('shared_mask', torch.ones(self.shared_size))
-
-    def forward(self, input):
-        self._check_input_dim(input)
-        if self.momentum is None:
-            exponential_average_factor = 0.0
-        else:
-            exponential_average_factor = self.momentum
-        if self.training and self.track_running_stats:
-            if self.num_batches_tracked is not None:
-                self.num_batches_tracked += 1
-                if self.momentum is None:
-                    exponential_average_factor = 1.0 / float(self.num_batches_tracked)
-                else:
-                    exponential_average_factor = self.momentum
-        if self.training:
-            size = input.size()
-            size_prods = size[0]
-            for i in range(len(size) - 2):
-                size_prods *= size[i + 2]
-            if size_prods == 1:
-                raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(size))
-        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
-        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
-        if self.training or not self.track_running_stats:
-            x = input.new_zeros(input.size(0) * self.restricted_input_size)
-            x[mask.view(-1)] = input.view(-1)
-            x = x.view(input.size(0), self.restricted_input_size)
-            n = mask.sum(dim=0)
-            mean_i = input.new_zeros(self.restricted_input_size)
-            var_i = input.new_zeros(self.restricted_input_size) + 1
-            mean_i[n > 1] = x.sum(dim=0)[n > 1] / n[n > 1]
-            var_i[n > 1] = (x - mean_i).pow(2).sum(dim=0)[n > 1] / (n[n > 1] - 1)
-            mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size)
-            var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size)
-            weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size)
-            bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size)
-            output = (input - mean_s.detach()) / torch.sqrt(var_s.detach() + self.eps) * weight_s + bias_s
-            self.running_mean[n > 1] = (1.0 - exponential_average_factor) * self.running_mean[n > 1] + \
-                                        exponential_average_factor * mean_i[n > 1]
-            self.running_var[n > 1] = (1.0 - exponential_average_factor) * self.running_var[n > 1] + \
-                                       exponential_average_factor * var_i[n > 1]
-        else:
-            mean_s = torch.masked_select(self.running_mean, mask).view(input.size(0), self.input_size)
-            var_s = torch.masked_select(self.running_var, mask).view(input.size(0), self.input_size)
-            weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size)
-            bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size)
-            output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
-        return output
-
-
-def idx2onehot(idx):
-    if config.PARAM['subset'] == 'label' or config.PARAM['subset'] == 'identity':
-        idx = idx.view(idx.size(0), 1)
-        onehot = idx.new_zeros(idx.size(0), config.PARAM['classes_size']).float()
-        onehot.scatter_(1, idx, 1)
-    else:
-        onehot = idx.float()
-    return onehot
-
-import matplotlib.pyplot as plt
-if __name__ == "__main__":
-    data_name = 'MNIST'
-    subset = 'label'
-    dataset = fetch_dataset(data_name, subset)
-    data_loader = make_data_loader(dataset)
-    input_size = 1024
-    sharing_rate = 0.5
-    num_mode = 10
-    config.PARAM['classes_size'] = 10
-    cell_info = {'input_size': input_size, 'sharing_rate': sharing_rate, 'num_mode': num_mode}
-    m1 = RBatchNorm1d(cell_info)
-    m2 = nn.BatchNorm1d(input_size)
-    m1.train(True)
-    m2.train(True)
-    for i, input in enumerate(data_loader['train']):
-        input = collate(input)
-        input['img'] = input['img'].view(input['img'].size(0), -1)
-        config.PARAM['attr'] = idx2onehot(input[subset])
-        output1 = m1(input['img'])
-        output2 = m2(input['img'])
-        exit()
-        # if i == 10:
-        #     break
-    # print((m1.running_mean - m2.running_mean).abs().max())
-    # print((m1.running_var - m2.running_var).abs().max())
-    # plt.plot((m1.running_mean - m2.running_mean).abs().numpy())
-    # plt.show()
-    m1.train(False)
-    m2.train(False)
-    for i, input in enumerate(data_loader['test']):
-        input = collate(input)
-        input['img'] = input['img'].view(input['img'].size(0), -1)
-        config.PARAM['attr'] = idx2onehot(input[subset])
-        output1 = m1(input['img'])
-        output2 = m2(input['img'])
-        # print((output1 - output2).abs().max())
-        # if i == 10:
-        #     break
+#
+# class RBatchNorm1d(nn.BatchNorm1d):
+#     def __init__(self, cell_info):
+#         default_cell_info = {'eps': 1e-5, 'momentum': 0.1, 'affine': True, 'track_running_stats': True,
+#                              'sharing_rate': 1, 'num_mode': 1}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.eps = cell_info['eps']
+#         self.momentum = cell_info['momentum']
+#         self.affine = cell_info['affine']
+#         self.track_running_stats = cell_info['track_running_stats']
+#         self.sharing_rate = cell_info['sharing_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.shared_size = round(self.sharing_rate * self.input_size)
+#         self.free_size = self.input_size - self.shared_size
+#         self.restricted_input_size = self.shared_size + self.free_size * self.num_mode
+#         super(RBatchNorm1d, self).__init__(self.restricted_input_size, eps=self.eps, momentum=self.momentum,
+#                                            affine=self.affine, track_running_stats=self.track_running_stats)
+#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
+#
+#     def forward(self, input):
+#         self._check_input_dim(input)
+#         if self.momentum is None:
+#             exponential_average_factor = 0.0
+#         else:
+#             exponential_average_factor = self.momentum
+#         if self.training and self.track_running_stats:
+#             if self.num_batches_tracked is not None:
+#                 self.num_batches_tracked += 1
+#                 if self.momentum is None:
+#                     exponential_average_factor = 1.0 / float(self.num_batches_tracked)
+#                 else:
+#                     exponential_average_factor = self.momentum
+#         if self.training:
+#             size = input.size()
+#             size_prods = size[0]
+#             for i in range(len(size) - 2):
+#                 size_prods *= size[i + 2]
+#             if size_prods == 1:
+#                 raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(size))
+#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+#         if self.training or not self.track_running_stats:
+#             x = input.new_zeros(input.size(0) * self.restricted_input_size)
+#             x[mask.view(-1)] = input.view(-1)
+#             x = x.view(input.size(0), self.restricted_input_size)
+#             n = mask.sum(dim=0)
+#             mean_i = input.new_zeros(self.restricted_input_size)
+#             var_i = input.new_zeros(self.restricted_input_size) + 1
+#             mean_i[n > 1] = x.sum(dim=0)[n > 1] / n[n > 1]
+#             var_i[n > 1] = (x - mean_i).pow(2).sum(dim=0)[n > 1] / (n[n > 1] - 1)
+#             mean_s = torch.masked_select(mean_i, mask).view(input.size(0), self.input_size)
+#             var_s = torch.masked_select(var_i, mask).view(input.size(0), self.input_size)
+#             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size)
+#             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size)
+#             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+#             self.running_mean[n > 1] = (1.0 - exponential_average_factor) * self.running_mean[n > 1] + \
+#                                        exponential_average_factor * mean_i[n > 1]
+#             self.running_var[n > 1] = (1.0 - exponential_average_factor) * self.running_var[n > 1] + \
+#                                       exponential_average_factor * var_i[n > 1]
+#         else:
+#             mean_s = torch.masked_select(self.running_mean, mask).view(input.size(0), self.input_size)
+#             var_s = torch.masked_select(self.running_var, mask).view(input.size(0), self.input_size)
+#             weight_s = torch.masked_select(self.weight, mask).view(input.size(0), self.input_size)
+#             bias_s = torch.masked_select(self.bias, mask).view(input.size(0), self.input_size)
+#             output = (input - mean_s) / torch.sqrt(var_s + self.eps) * weight_s + bias_s
+#         return output
+#
+#
+#
+# def idx2onehot(idx):
+#     if config.PARAM['subset'] == 'label' or config.PARAM['subset'] == 'identity':
+#         idx = idx.view(idx.size(0), 1)
+#         onehot = idx.new_zeros(idx.size(0), config.PARAM['classes_size']).float()
+#         onehot.scatter_(1, idx, 1)
+#     else:
+#         onehot = idx.float()
+#     return onehot
+#
+# import matplotlib.pyplot as plt
+# if __name__ == "__main__":
+#     data_name = 'MNIST'
+#     subset = 'label'
+#     dataset = fetch_dataset(data_name, subset)
+#     data_loader = make_data_loader(dataset)
+#     input_size = 1024
+#     sharing_rate = 1
+#     num_mode = 10
+#     config.PARAM['classes_size'] = 10
+#     cell_info = {'input_size': input_size, 'sharing_rate': sharing_rate, 'num_mode': num_mode}
+#     m1 = RBatchNorm1d(cell_info)
+#     m2 = nn.BatchNorm1d(input_size)
+#     m1.train(True)
+#     m2.train(True)
+#     for i, input in enumerate(data_loader['train']):
+#         input = collate(input)
+#         input['img'] = input['img'].view(input['img'].size(0), -1)
+#         input['img'].requires_grad = True
+#         config.PARAM['attr'] = idx2onehot(input[subset])
+#         input['img'].grad = None
+#         output1 = m1(input['img'])
+#         output1.mean().backward()
+#         grad1 = input['img'].grad
+#         input['img'].grad = None
+#         # print(grad1.sum())
+#         output2 = m2(input['img'])
+#         output2.mean().backward()
+#         grad2 = input['img'].grad
+#         # print(grad2.sum())
+#         print((grad1-grad2).abs().sum())
+#         if i == 10:
+#             break
+#     # print((m1.running_mean - m2.running_mean).abs().max())
+#     # print((m1.running_var - m2.running_var).abs().max())
+#     # plt.plot((m1.running_mean - m2.running_mean).abs().numpy())
+#     # plt.show()
+#     m1.train(False)
+#     m2.train(False)
+#     for i, input in enumerate(data_loader['test']):
+#         input = collate(input)
+#         input['img'] = input['img'].view(input['img'].size(0), -1)
+#         config.PARAM['attr'] = idx2onehot(input[subset])
+#         output1 = m1(input['img'])
+#         output2 = m2(input['img'])
+#         # print((output1 - output2).abs().max())
+#         # if i == 10:
+#         #     break

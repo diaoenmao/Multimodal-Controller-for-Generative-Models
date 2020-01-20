@@ -1,9 +1,12 @@
 import config
 import torch
 import torch.nn as nn
-import math
 import torch.nn.functional as F
-from utils import recur
+import models
+import numpy as np
+from utils import recur, collate, to_device, resume
+from scipy.stats import entropy
+from torch.utils.data import DataLoader
 
 
 def NLL(output, target):
@@ -20,13 +23,54 @@ def PSNR(output, target, MAX=1.0):
     return psnr
 
 
+def InceptionScore(img, batch_size=32, splits=1):
+    N = len(img)
+    data_loader = DataLoader(img, batch_size=batch_size)
+    model = eval('models.classifier().to(config.PARAM["device"])')
+    load_tag = 'best'
+    model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier', '0']
+    model_tag = '_'.join(filter(None, model_tag))
+    last_epoch, model, _, _, _ = resume(model, model_tag, load_tag=load_tag)
+    model.train(False)
+
+    def get_pred(input):
+        output = model(input)
+        return F.softmax(output['label'], dim=-1).cpu().numpy()
+
+    preds = np.zeros((N, config.PARAM['classes_size']))
+    for i, input in enumerate(data_loader):
+        input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
+        input = to_device(input, config.PARAM['device'])
+        input_size_i = input['img'].size(0)
+        preds[i * batch_size:i * batch_size + input_size_i] = get_pred(input)
+    split_scores = []
+    for k in range(splits):
+        part = preds[k * (N // splits): (k + 1) * (N // splits), :]
+        py = np.mean(part, axis=0)
+        scores = []
+        for i in range(part.shape[0]):
+            pyx = part[i, :]
+            scores.append(entropy(pyx, py))
+        split_scores.append(np.exp(np.mean(scores)))
+    return np.mean(split_scores).item()
+
+
+def Accuracy(output, target, topk=1):
+    with torch.no_grad():
+        batch_size = target.size(0)
+        pred_k = output.topk(topk, 1, True, True)[1]
+        correct_k = pred_k.eq(target.view(-1, 1).expand_as(pred_k)).float().sum()
+        acc = (correct_k * (100.0 / batch_size)).item()
+    return acc
+
+
 class Metric(object):
     def __init__(self):
         self.metric = {'Loss': (lambda input, output: output['loss'].item()),
-                       'Loss_D': (lambda input, output: output['loss_D'].item()),
-                       'Loss_G': (lambda input, output: output['loss_G'].item()),
+                       'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
+                       'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
                        'NLL': (lambda input, output: recur(NLL, output['img'], input['img'])),
-                       'PSNR': (lambda input, output: recur(PSNR, output['img'], input['img']))}
+                       'PSNR': (lambda input, output: recur(PSNR, output['img']))}
 
     def evaluate(self, metric_names, input, output):
         evaluation = {}

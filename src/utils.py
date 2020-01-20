@@ -97,7 +97,8 @@ def recur(fn, input, *args):
 
 def process_control_name():
     config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
-    config.PARAM['sharing_rate'] = float(config.PARAM['control']['sharing_rate'])
+    if 'sharing_rate' in config.PARAM['control']:
+        config.PARAM['sharing_rate'] = float(config.PARAM['control']['sharing_rate'])
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
         config.PARAM['img_shape'] = [1, 32, 32]
     elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
@@ -110,12 +111,24 @@ def process_control_name():
         raise ValueError('Not valid dataset')
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100', 'Omniglot']:
         if config.PARAM['model_name'] in ['vae', 'cvae', 'rmvae']:
-            config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 512
-            config.PARAM['num_layers'] = 3
-        elif config.PARAM['model_name'] in ['dcvae', 'dccvae', 'dcrmvae']:
+            if config.PARAM['model_name']  == 'rmvae' and config.PARAM['data_name'] == 'Omniglot':
+                config.PARAM['latent_size'] = 10
+                config.PARAM['hidden_size'] = 64
+                config.PARAM['num_layers'] = 3
+            else:
+                config.PARAM['latent_size'] = 100
+                config.PARAM['hidden_size'] = 512
+                config.PARAM['num_layers'] = 3
+        elif config.PARAM['model_name'] in ['dcvae', 'dccvae']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 16
+            config.PARAM['depth'] = 3
+            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
+                                            config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
+                                            config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
+        elif config.PARAM['model_name'] in ['dcrmvae']:
+            config.PARAM['latent_size'] = 10
+            config.PARAM['hidden_size'] = 10
             config.PARAM['depth'] = 3
             config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
@@ -237,7 +250,7 @@ def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoin
         print('Resume from {}'.format(last_epoch))
         return last_epoch, model, optimizer, scheduler, logger
     else:
-        raise ValueError('Not exists model tag')
+        raise ValueError('Not exists model tag: {}'.format(model_tag))
     return
 
 

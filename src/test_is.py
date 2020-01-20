@@ -28,7 +28,7 @@ if args['control_name']:
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
+config.PARAM['metric_names'] = {'train': ['InceptionScore'], 'test': ['InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
 if config.PARAM['data_name'] == 'CelebA':
     config.PARAM['subset'] = 'attr'
@@ -60,7 +60,7 @@ def runExperiment():
         'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['test'], model, logger, last_epoch)
+    test(data_loader['train'], model, logger, last_epoch)
     logger.safe(False)
     save_result = {
         'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
@@ -69,37 +69,32 @@ def runExperiment():
 
 
 def test(data_loader, model, logger, epoch):
-    sample_per_mode = 10
+    sample_per_mode = 1000 if config.PARAM['data_name'] == 'MNIST' else 10
+    bound = False
     with torch.no_grad():
         metric = Metric()
         model.train(False)
-        for i, input in enumerate(data_loader):
-            input = collate(input)
-            input_size = input['img'].numel()
-            input = to_device(input, config.PARAM['device'])
-            output = model(input)
-            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
-            logger.append(evaluation, 'test', input_size)
+        if bound:
+            output = {'img':[]}
+            for i, input in enumerate(data_loader):
+                input = collate(input)
+                output['img'].append(input['img'])
+            output['img'] = torch.cat(output['img'], dim=0)
+        else:
+            if config.PARAM['model_name'] in ['vae', 'dcvae']:
+                generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
+            elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'rmvae','dcrmvae']:
+                generated = model.generate(
+                    torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
+            else:
+                raise ValueError('Not valid model name')
+            output = {'img': generated}
+        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
+        logger.append(evaluation, 'test', 1)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
-        save_img(input['img'][:100],
-                 './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-        save_img(output['img'][:100],
-                 './output/img/output_{}.png'.format(config.PARAM['model_tag']))
-        if config.PARAM['model_name'] in ['vae', 'dcvae']:
-            generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
-            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                     nrow=config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'rmvae','dcrmvae']:
-            generated = model.generate(
-                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
-            save_img(generated, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                     nrow=config.PARAM['classes_size'])
-        else:
-            raise ValueError('Not valid model name')
     return
 
 

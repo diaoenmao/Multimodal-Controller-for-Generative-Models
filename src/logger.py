@@ -39,6 +39,7 @@ class Logger():
                 if isinstance(result[k], Number):
                     self.mean[name] = ((self.counter[name] - n) * self.mean[name] + n * result[k]) / self.counter[name]
                 else:
+                    print(result[k])
                     raise ValueError('Not valid data type')
         return
 
