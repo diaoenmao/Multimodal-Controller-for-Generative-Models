@@ -3,11 +3,11 @@ config.init()
 import itertools
 
 def main():
-    filename = 'rm'
+    filename = 'rm_train'
     gpu_ids = ['0','1','2','3']
     script_name = [['train_vae.py']]
     data_names = ['MNIST']
-    model_names = [['rmvae']]
+    model_names = [['dcrmvae']]
     init_seeds = [[0]]
     num_epochs = [[200]]
     s = '#!/bin/bash\n'

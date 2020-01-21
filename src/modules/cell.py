@@ -168,73 +168,20 @@ class ResConv2dCell(nn.Module):
         return output
 
 
-# class RLinearCell(nn.Linear):
-#     def __init__(self, cell_info):
-#         default_cell_info = {'bias': True, 'sharing_rate': 1, 'num_mode': 1}
-#         cell_info = {**default_cell_info, **cell_info}
-#         self.input_size = cell_info['input_size']
-#         self.output_size = cell_info['output_size']
-#         self.sharing_rate = cell_info['sharing_rate']
-#         self.num_mode = cell_info['num_mode']
-#         self.shared_size = round(self.sharing_rate * self.output_size)
-#         self.free_size = self.output_size - self.shared_size
-#         self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
-#         super(RLinearCell, self).__init__(self.input_size, self.restricted_output_size,
-#                                           bias=cell_info['bias'])
-#         self.register_buffer('shared_mask', torch.ones(self.shared_size))
-#         if cell_info['normalization'] == 'rbn1':
-#             self.normalization = RBatchNorm1d(
-#                 {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
-#         else:
-#             self.normalization = Normalization(cell_info['normalization'], self.output_size)
-#         self.activation = Activation(cell_info['activation'])
-#
-#     def forward(self, input):
-#         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
-#         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
-#         weight_mask = mask.view(mask.size(0), mask.size(1), 1)
-#         weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size)
-#         output = (input.view(input.size(0), 1, input.size(1)) * weight).sum(dim=2)
-#         if self.bias is not None:
-#             bias_mask = mask
-#             bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size)
-#             output = output + bias
-#         return self.activation(self.normalization(output))
-
-
-class RLinearCell(nn.Module):
+class RLinearCell(nn.Linear):
     def __init__(self, cell_info):
-        super(RLinearCell, self).__init__()
         default_cell_info = {'bias': True, 'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
         self.sharing_rate = cell_info['sharing_rate']
         self.num_mode = cell_info['num_mode']
-        self.shared_input_size = round(self.sharing_rate * self.input_size)
-        self.free_input_size = self.input_size - self.shared_input_size
-        self.shared_output_size = round(self.sharing_rate * self.output_size)
-        self.free_output_size = self.output_size - self.shared_output_size
-        self.restricted_free_output_size = self.free_output_size * self.num_mode
-        if self.shared_input_size > 0 and self.shared_output_size > 0:
-            self.weight_shared = nn.Parameter(torch.Tensor(self.shared_output_size, self.shared_input_size))
-            if cell_info['bias']:
-                self.bias_shared = nn.Parameter(torch.Tensor(self.shared_output_size))
-            else:
-                self.register_parameter('bias_shared', None)
-        else:
-            self.register_parameter('weight_shared', None)
-            self.register_parameter('bias_shared', None)
-        if self.free_input_size > 0 and self.restricted_free_output_size > 0:
-            self.weight_free = nn.Parameter(torch.Tensor(self.restricted_free_output_size, self.input_size))
-            if cell_info['bias']:
-                self.bias_free = nn.Parameter(torch.Tensor(self.restricted_free_output_size))
-            else:
-                self.register_parameter('bias_free', None)
-        else:
-            self.register_parameter('weight_free', None)
-            self.register_parameter('bias_free', None)
-        self.reset_parameters()
+        self.shared_size = round(self.sharing_rate * self.output_size)
+        self.free_size = self.output_size - self.shared_size
+        self.restricted_output_size = self.shared_size + self.free_size * self.num_mode
+        super(RLinearCell, self).__init__(self.input_size, self.restricted_output_size,
+                                          bias=cell_info['bias'])
+        self.register_buffer('shared_mask', torch.ones(self.shared_size))
         if cell_info['normalization'] == 'rbn1':
             self.normalization = RBatchNorm1d(
                 {'input_size': self.output_size, 'sharing_rate': self.sharing_rate, 'num_mode': self.num_mode})
@@ -242,40 +189,16 @@ class RLinearCell(nn.Module):
             self.normalization = Normalization(cell_info['normalization'], self.output_size)
         self.activation = Activation(cell_info['activation'])
 
-    def reset_parameters(self):
-        if self.weight_shared is not None:
-            nn.init.kaiming_uniform_(self.weight_shared, a=math.sqrt(5))
-            if self.bias_shared is not None:
-                fan_in_shared, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_shared)
-                bound = 1 / math.sqrt(fan_in_shared)
-                nn.init.uniform_(self.bias_shared, -bound, bound)
-        if self.weight_free is not None:
-            nn.init.kaiming_uniform_(self.weight_free, a=math.sqrt(5))
-            if self.bias_free is not None:
-                fan_in_free, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_free)
-                bound = 1 / math.sqrt(fan_in_free)
-                nn.init.uniform_(self.bias_free, -bound, bound)
-
     def forward(self, input):
-        if self.weight_shared is not None:
-            output_shared = F.linear(input[:, :self.shared_input_size], self.weight_shared, self.bias_shared)
-        if self.weight_free is not None:
-            mask = config.PARAM['attr'].repeat_interleave(self.free_output_size, dim=1).detach().bool()
-            weight_mask = mask.view(mask.size(0), mask.size(1), 1)
-            weight_free = torch.masked_select(self.weight_free, weight_mask).view(input.size(0), self.free_output_size,
-                                                                                  self.input_size)
-            output_free = (input.view(input.size(0), 1, self.input_size) *
-                           weight_free).sum(dim=2)
-            if self.bias_free is not None:
-                bias_mask = mask
-                bias_free = torch.masked_select(self.bias_free, bias_mask).view(input.size(0), self.free_output_size)
-                output_free = output_free + bias_free
-        if self.weight_shared is None:
-            output = output_free
-        elif self.weight_free is None:
-            output = output_shared
-        else:
-            output = torch.cat([output_shared, output_free], dim=1)
+        mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
+        mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
+        weight_mask = mask.view(mask.size(0), mask.size(1), 1)
+        weight = torch.masked_select(self.weight, weight_mask).view(input.size(0), self.output_size, self.input_size)
+        output = (input.view(input.size(0), 1, input.size(1)) * weight).sum(dim=2)
+        if self.bias is not None:
+            bias_mask = mask
+            bias = torch.masked_select(self.bias, bias_mask).view(input.size(0), self.output_size)
+            output = output + bias
         return self.activation(self.normalization(output))
 
 

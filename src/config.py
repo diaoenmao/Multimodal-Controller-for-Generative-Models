@@ -3,7 +3,7 @@ def init():
     PARAM = {
         'data_name': 'MNIST',
         'subset': 'label',
-        'model_name': 'rmvae',
+        'model_name': 'dcrmvae',
         'control': {'mode_data_size': '10', 'sharing_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
@@ -18,7 +18,7 @@ def init():
         'batch_size': {'train': 64, 'test': 64},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
-        'device': 'cpu',
+        'device': 'cuda',
         'num_epochs': 200,
         'save_mode': 0,
         'world_size': 1,

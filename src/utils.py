@@ -111,9 +111,14 @@ def process_control_name():
         raise ValueError('Not valid dataset')
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100', 'Omniglot']:
         if config.PARAM['model_name'] in ['vae', 'cvae', 'rmvae']:
-            config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 512
-            config.PARAM['num_layers'] = 3
+            if config.PARAM['model_name'] == 'rmvae' and config.PARAM['data_name'] == 'Omniglot':
+                config.PARAM['latent_size'] = 100
+                config.PARAM['hidden_size'] = 128
+                config.PARAM['num_layers'] = 3
+            else:
+                config.PARAM['latent_size'] = 100
+                config.PARAM['hidden_size'] = 128
+                config.PARAM['num_layers'] = 3
         elif config.PARAM['model_name'] in ['dcvae', 'dccvae', 'dcrmvae']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 16
