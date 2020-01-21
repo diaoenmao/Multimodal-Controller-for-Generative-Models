@@ -216,15 +216,21 @@ class RLinearCell(nn.Module):
         self.shared_output_size = round(self.sharing_rate * self.output_size)
         self.free_output_size = self.output_size - self.shared_output_size
         self.restricted_free_output_size = self.free_output_size * self.num_mode
-        self.weight_shared = nn.Parameter(torch.Tensor(self.shared_output_size, self.input_size))
-        if cell_info['bias']:
-            self.bias_shared = nn.Parameter(torch.Tensor(self.shared_output_size))
+        if self.shared_input_size > 0 and self.shared_output_size > 0:
+            self.weight_shared = nn.Parameter(torch.Tensor(self.shared_output_size, self.shared_input_size))
+            if cell_info['bias']:
+                self.bias_shared = nn.Parameter(torch.Tensor(self.shared_output_size))
+            else:
+                self.register_parameter('bias_shared', None)
         else:
+            self.register_parameter('weight_shared', None)
             self.register_parameter('bias_shared', None)
-        if self.restricted_free_output_size > 0 and self.free_input_size > 0:
-            self.weight_free = nn.Parameter(torch.Tensor(self.restricted_free_output_size, self.free_input_size))
+        if self.free_input_size > 0 and self.restricted_free_output_size > 0:
+            self.weight_free = nn.Parameter(torch.Tensor(self.restricted_free_output_size, self.input_size))
             if cell_info['bias']:
                 self.bias_free = nn.Parameter(torch.Tensor(self.restricted_free_output_size))
+            else:
+                self.register_parameter('bias_free', None)
         else:
             self.register_parameter('weight_free', None)
             self.register_parameter('bias_free', None)
@@ -237,11 +243,12 @@ class RLinearCell(nn.Module):
         self.activation = Activation(cell_info['activation'])
 
     def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.weight_shared, a=math.sqrt(5))
-        if self.bias_shared is not None:
-            fan_in_shared, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_shared)
-            bound = 1 / math.sqrt(fan_in_shared)
-            nn.init.uniform_(self.bias_shared, -bound, bound)
+        if self.weight_shared is not None:
+            nn.init.kaiming_uniform_(self.weight_shared, a=math.sqrt(5))
+            if self.bias_shared is not None:
+                fan_in_shared, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_shared)
+                bound = 1 / math.sqrt(fan_in_shared)
+                nn.init.uniform_(self.bias_shared, -bound, bound)
         if self.weight_free is not None:
             nn.init.kaiming_uniform_(self.weight_free, a=math.sqrt(5))
             if self.bias_free is not None:
@@ -250,19 +257,25 @@ class RLinearCell(nn.Module):
                 nn.init.uniform_(self.bias_free, -bound, bound)
 
     def forward(self, input):
-        output = F.linear(input, self.weight_shared, self.bias_shared)
+        if self.weight_shared is not None:
+            output_shared = F.linear(input[:, :self.shared_input_size], self.weight_shared, self.bias_shared)
         if self.weight_free is not None:
             mask = config.PARAM['attr'].repeat_interleave(self.free_output_size, dim=1).detach().bool()
             weight_mask = mask.view(mask.size(0), mask.size(1), 1)
             weight_free = torch.masked_select(self.weight_free, weight_mask).view(input.size(0), self.free_output_size,
-                                                                                  self.free_input_size)
-            free_output = (input[:, self.shared_input_size:].view(input.size(0), 1, self.free_input_size) *
+                                                                                  self.input_size)
+            output_free = (input.view(input.size(0), 1, self.input_size) *
                            weight_free).sum(dim=2)
             if self.bias_free is not None:
                 bias_mask = mask
-                free_bias = torch.masked_select(self.bias_free, bias_mask).view(input.size(0), self.free_output_size)
-                free_output = free_output + free_bias
-            output = torch.cat([output, free_output], dim=1)
+                bias_free = torch.masked_select(self.bias_free, bias_mask).view(input.size(0), self.free_output_size)
+                output_free = output_free + bias_free
+        if self.weight_shared is None:
+            output = output_free
+        elif self.weight_free is None:
+            output = output_shared
+        else:
+            output = torch.cat([output_shared, output_free], dim=1)
         return self.activation(self.normalization(output))
 
 

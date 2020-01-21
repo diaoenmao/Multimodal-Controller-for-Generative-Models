@@ -18,7 +18,7 @@ def init():
         'batch_size': {'train': 64, 'test': 64},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
-        'device': 'cuda',
+        'device': 'cpu',
         'num_epochs': 200,
         'save_mode': 0,
         'world_size': 1,
