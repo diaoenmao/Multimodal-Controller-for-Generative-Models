@@ -1,10 +1,10 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'Omniglot',
+        'data_name': 'MNIST',
         'subset': 'label',
-        'model_name': 'vae',
-        'control': {'mode_data_size': '0', 'sharing_rate': '1'},
+        'model_name': 'rmvae',
+        'control': {'mode_data_size': '10', 'sharing_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,
@@ -19,7 +19,7 @@ def init():
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',
-        'num_epochs': 50,
+        'num_epochs': 200,
         'save_mode': 0,
         'world_size': 1,
         'metric_names': {'train': ['Loss','NLL'], 'test': ['Loss','NLL']},

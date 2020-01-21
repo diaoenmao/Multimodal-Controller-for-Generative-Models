@@ -232,7 +232,7 @@ def rmvae():
     # Encoder
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
-        {'cell': 'RLinearCell', 'input_size': np.prod(img_shape).item(), 'output_size': hidden_size,
+        {'cell': 'LinearCell', 'input_size': np.prod(img_shape).item(), 'output_size': hidden_size,
          'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
          'activation': activation})
     for i in range(num_layers - 2):
