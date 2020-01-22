@@ -111,19 +111,14 @@ def process_control_name():
         raise ValueError('Not valid dataset')
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'SVHN', 'CIFAR10', 'CIFAR100', 'Omniglot']:
         if config.PARAM['model_name'] in ['vae', 'cvae', 'rmvae']:
-            if config.PARAM['model_name'] == 'rmvae' and config.PARAM['data_name'] == 'Omniglot':
-                config.PARAM['latent_size'] = 100
-                config.PARAM['hidden_size'] = 128
-                config.PARAM['num_layers'] = 3
-            else:
-                config.PARAM['latent_size'] = 100
-                config.PARAM['hidden_size'] = 128
-                config.PARAM['num_layers'] = 3
+            config.PARAM['latent_size'] = 32
+            config.PARAM['hidden_size'] = 1024
+            config.PARAM['num_layers'] = 4
         elif config.PARAM['model_name'] in ['dcvae', 'dccvae', 'dcrmvae']:
-            config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 16
-            config.PARAM['depth'] = 3
-            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** config.PARAM['depth']),
+            config.PARAM['latent_size'] = 32
+            config.PARAM['hidden_size'] = 32
+            config.PARAM['depth'] = 4
+            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** (config.PARAM['depth'] - 1)),
                                             config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
         elif config.PARAM['model_name'] in ['gan', 'cgan', 'rmgan']:

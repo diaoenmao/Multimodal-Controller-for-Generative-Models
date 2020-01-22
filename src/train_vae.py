@@ -33,7 +33,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 2e-4
+config.PARAM['lr'] = 1e-3
 config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 if config.PARAM['data_name'] == 'CelebA':
     config.PARAM['subset'] = 'attr'
