@@ -82,10 +82,8 @@ class Omniglot(Dataset):
             class_i = '/'.join(os.path.normpath(img_i).split(os.path.sep)[-3:-1])
             classes.add(class_i)
             idx_i = int(os.path.splitext(os.path.basename(img_i))[0].split('_')[1])
-            if idx_i <= 10:
-                train_img.append(img_i)
-            else:
-                test_img.append(img_i)
+            train_img.append(img_i)
+            test_img.append(img_i)
         classes = sorted(list(classes))
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         for c in classes:

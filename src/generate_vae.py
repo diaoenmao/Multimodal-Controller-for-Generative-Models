@@ -6,7 +6,7 @@ def main():
     filename = 'vae'
     gpu_ids = ['0','1','2','3']
     script_name = [['train_vae.py']]
-    data_names = ['MNIST', 'Omniglot','CUB200','CelebA']
+    data_names = ['MNIST', 'Omniglot']
     model_names = [['vae', 'cvae', 'dcvae', 'dccvae']]
     init_seeds = [[0]]
     num_epochs = [[200]]
@@ -14,9 +14,9 @@ def main():
     for i in range(len(data_names)):
         data_name = data_names[i]
         if data_name == 'MNIST':
-            control_names = [['1', '10', '100', '500', '1000', '10000', '0']]
+            control_names = [['1', '10', '100', '500', '1000', '0']]
         elif data_name == 'Omniglot':
-            control_names = [['1', '5', '0']]
+            control_names = [['1', '10', '0']]
         elif data_name == 'CUB200':
             control_names = [['1', '5', '10', '20', '0']]
         elif data_name == 'CelebA':

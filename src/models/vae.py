@@ -46,8 +46,8 @@ class VAE(nn.Module):
         x = input['img']
         x = x.view(x.size(0), -1)
         x = self.model['encoder'](x)
-        x = self.model['encoder_latent'](x)
-        output['mu'], output['logvar'] = torch.chunk(x, 2, dim=1)
+        output['mu'] = self.model['encoder_latent_mu'](x)
+        output['logvar'] = self.model['encoder_latent_logvar'](x)
         if self.training:
             x = reparameterize(output['mu'], output['logvar'])
         else:
@@ -82,8 +82,8 @@ class CVAE(nn.Module):
         encoder_embedding = self.model['encoder_embedding'](onehot)
         x = torch.cat((x, encoder_embedding), dim=1)
         x = self.model['encoder'](x)
-        x = self.model['encoder_latent'](x)
-        output['mu'], output['logvar'] = torch.chunk(x, 2, dim=1)
+        output['mu'] = self.model['encoder_latent_mu'](x)
+        output['logvar'] = self.model['encoder_latent_logvar'](x)
         if self.training:
             x = reparameterize(output['mu'], output['logvar'])
         else:
@@ -148,12 +148,15 @@ def vae():
              'bias': True, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # latent
-    config.PARAM['model']['encoder_latent'] = {
-        'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': 2 * latent_size,
+    config.PARAM['model']['encoder_latent_mu'] = {
+        'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': latent_size,
+        'bias': True, 'normalization': 'none', 'activation': 'none'}
+    config.PARAM['model']['encoder_latent_logvar'] = {
+        'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': latent_size,
         'bias': True, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_latent'] = {
         'cell': 'LinearCell', 'input_size': latent_size, 'output_size': hidden_size // (2 ** (num_layers - 2)),
-        'bias': True, 'normalization': 'none', 'activation': activation}
+        'bias': True, 'normalization': 'none', 'activation': 'none'}
     # Decoder
     config.PARAM['model']['decoder'] = []
     for i in range(num_layers - 2):
@@ -197,13 +200,16 @@ def cvae():
              'bias': True, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # latent
-    config.PARAM['model']['encoder_latent'] = {
-        'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': 2 * latent_size,
+    config.PARAM['model']['encoder_latent_mu'] = {
+        'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': latent_size,
+        'bias': True, 'normalization': 'none', 'activation': 'none'}
+    config.PARAM['model']['encoder_latent_logvar'] = {
+        'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': latent_size,
         'bias': True, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_latent'] = {
         'cell': 'LinearCell', 'input_size': latent_size + embedding_size,
         'output_size': hidden_size // (2 ** (num_layers - 2)), 'bias': True, 'normalization': 'none',
-        'activation': activation}
+        'activation': 'none'}
     # Decoder
     config.PARAM['model']['decoder'] = []
     for i in range(num_layers - 2):
@@ -232,8 +238,7 @@ def rmvae():
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
         {'cell': 'RLinearCell', 'input_size': np.prod(img_shape).item(), 'output_size': hidden_size,
-         'bias': True, 'num_mode': num_mode, 'normalization': normalization,
-         'activation': activation})
+         'bias': True, 'num_mode': num_mode, 'normalization': normalization, 'activation': activation})
     for i in range(num_layers - 2):
         config.PARAM['model']['encoder'].append(
             {'cell': 'RLinearCell', 'input_size': hidden_size // (2 ** i), 'output_size': hidden_size // (2 ** (i + 1)),
@@ -282,8 +287,8 @@ class DCVAE(nn.Module):
         x = input['img']
         x = self.model['encoder'](x)
         x = x.view(x.size(0), -1)
-        latent_encoded = self.model['encoder_latent'](x)
-        output['mu'], output['logvar'] = torch.chunk(latent_encoded, 2, dim=1)
+        output['mu'] = self.model['encoder_latent_mu'](x)
+        output['logvar'] = self.model['encoder_latent_logvar'](x)
         if self.training:
             x = reparameterize(output['mu'], output['logvar'])
         else:
@@ -321,8 +326,8 @@ class DCCVAE(nn.Module):
         x = torch.cat((x, encoder_embedding), dim=1)
         x = self.model['encoder'](x)
         x = x.view(x.size(0), -1)
-        latent_encoded = self.model['encoder_latent'](x)
-        output['mu'], output['logvar'] = torch.chunk(latent_encoded, 2, dim=1)
+        output['mu'] = self.model['encoder_latent_mu'](x)
+        output['logvar'] = self.model['encoder_latent_logvar'](x)
         if self.training:
             x = reparameterize(output['mu'], output['logvar'])
         else:
@@ -383,33 +388,44 @@ def dcvae():
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': img_shape[0], 'output_size': hidden_size,
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': normalization,
+         'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': normalization,
          'activation': activation})
-    for i in range(depth):
+    for i in range(depth - 1):
+        config.PARAM['model']['encoder'].append(
+            {'cell': 'ResConv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** i),
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
+             'normalization': normalization, 'activation': activation})
         config.PARAM['model']['encoder'].append(
             {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** (i + 1)),
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
              'activation': activation})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # Latent
-    config.PARAM['model']['encoder_latent'] = {
-        'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': 2 * latent_size,
+    config.PARAM['model']['encoder_latent_mu'] = {
+        'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': latent_size,
+        'bias': True, 'normalization': 'none', 'activation': 'none'}
+    config.PARAM['model']['encoder_latent_logvar'] = {
+        'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': latent_size,
         'bias': True, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_latent'] = {
         'cell': 'LinearCell', 'input_size': latent_size, 'output_size': np.prod(encode_shape).item(),
-        'bias': True, 'normalization': 'none', 'activation': activation}
+        'bias': True, 'normalization': 'none', 'activation': 'none'}
     # Decoder
     config.PARAM['model']['decoder'] = []
-    for i in range(depth):
+    for i in range(depth - 1):
         config.PARAM['model']['decoder'].append(
-            {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - i)),
-             'output_size': hidden_size * (2 ** (depth - i - 1)),
+            {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - i - 1)),
+             'output_size': hidden_size * (2 ** (depth - i - 2)),
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
              'activation': activation})
+        config.PARAM['model']['decoder'].append(
+            {'cell': 'ResConv2dCell', 'input_size': hidden_size * (2 ** (depth - i - 2)),
+             'output_size': hidden_size * (2 ** (depth - i - 2)),
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
+             'normalization': normalization, 'activation': activation})
     config.PARAM['model']['decoder'].append(
-        {'cell': 'Conv2dCell', 'input_size': hidden_size, 'output_size': img_shape[0],
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none',
-         'activation': 'sigmoid'})
+        {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size, 'output_size': img_shape[0],
+         'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
     model = DCVAE()
     return model
@@ -437,32 +453,44 @@ def dccvae():
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': img_shape[0] + embedding_size, 'output_size': hidden_size,
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': normalization,
+         'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': normalization,
          'activation': activation})
-    for i in range(depth):
+    for i in range(depth - 1):
+        config.PARAM['model']['encoder'].append(
+            {'cell': 'ResConv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** i),
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
+             'normalization': normalization, 'activation': activation})
         config.PARAM['model']['encoder'].append(
             {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** (i + 1)),
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
              'activation': activation})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # Latent
-    config.PARAM['model']['encoder_latent'] = {
-        'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': 2 * latent_size,
+    config.PARAM['model']['encoder_latent_mu'] = {
+        'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': latent_size,
+        'bias': True, 'normalization': 'none', 'activation': 'none'}
+    config.PARAM['model']['encoder_latent_logvar'] = {
+        'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': latent_size,
         'bias': True, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_latent'] = {
         'cell': 'LinearCell', 'input_size': latent_size + embedding_size, 'output_size': np.prod(encode_shape).item(),
         'bias': True, 'normalization': 'none', 'activation': activation}
     # Decoder
     config.PARAM['model']['decoder'] = []
-    for i in range(depth):
+    for i in range(depth - 1):
         config.PARAM['model']['decoder'].append(
-            {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - i)),
-             'output_size': hidden_size * (2 ** (depth - i - 1)),
+            {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - i - 1)),
+             'output_size': hidden_size * (2 ** (depth - i - 2)),
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
              'activation': activation})
+        config.PARAM['model']['decoder'].append(
+            {'cell': 'ResConv2dCell', 'input_size': hidden_size * (2 ** (depth - i - 2)),
+             'output_size': hidden_size * (2 ** (depth - i - 2)),
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
+             'normalization': normalization, 'activation': activation})
     config.PARAM['model']['decoder'].append(
-        {'cell': 'Conv2dCell', 'input_size': hidden_size, 'output_size': img_shape[0],
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none',
+        {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size, 'output_size': img_shape[0],
+         'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': 'none',
          'activation': 'sigmoid'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
     model = DCCVAE()
@@ -485,7 +513,7 @@ def dcrmvae():
         {'cell': 'RConv2dCell', 'input_size': img_shape[0], 'output_size': hidden_size,
          'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'num_mode': num_mode,
          'normalization': normalization, 'activation': activation})
-    for i in range(depth-1):
+    for i in range(depth - 1):
         config.PARAM['model']['encoder'].append(
             {'cell': 'ResRConv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** i),
              'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
