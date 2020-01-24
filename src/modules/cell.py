@@ -29,6 +29,8 @@ def make_cell(cell_info):
         cell = RConvTranspose2dCell(cell_info)
     elif cell_info['cell'] == 'ResRConv2dCell':
         cell = ResRConv2dCell(cell_info)
+    elif cell_info['cell'] == 'Restriction':
+        cell = Restriction(cell_info)
     else:
         raise ValueError('Not valid cell info: {}'.format(cell_info))
     return cell
@@ -177,13 +179,6 @@ class RLinearCell(nn.Linear):
         super(RLinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
                                           bias=cell_info['bias'])
         self.embedding = nn.Linear(self.num_mode, self.output_size, bias=False)
-        p = 0.6
-        k = 10
-        embedding_weight = torch.ones(self.output_size-self.num_mode * k, self.num_mode) * math.log(p/(1-p))
-        print(embedding_weight.size())
-        embedding_weight = torch.cat([embedding_weight, torch.diag(torch.ones(self.num_mode * k) *math.log(p/(1-p)))], dim=0)
-        embedding_weight[embedding_weight == 0] = math.log((1-p)/p)
-        self.embedding.weight.data = embedding_weight
         self.normalization = Normalization(cell_info['normalization'], self.output_size)
         self.activation = Activation(cell_info['activation'])
 
@@ -282,4 +277,30 @@ class ResRConv2dCell(nn.Module):
         x = self.conv1(input)
         x = self.conv2(x)
         output = self.activation(x + identity)
+        return output
+
+
+class Restriction(nn.Module):
+    def __init__(self, cell_info):
+        super(Restriction, self).__init__()
+        default_cell_info = {'sharing_rate': 1, 'num_mode': 1}
+        cell_info = {**default_cell_info, **cell_info}
+        self.input_size = cell_info['input_size']
+        self.sharing_rate = cell_info['sharing_rate']
+        self.num_mode = cell_info['num_mode']
+        self.mode_size = math.ceil(self.input_size * (1 - self.sharing_rate) / self.num_mode)
+        self.free_size = self.mode_size * self.num_mode
+        self.shared_size = self.input_size - self.free_size
+        embedding = torch.zeros(self.num_mode, self.input_size)
+        if self.shared_size > 0:
+            embedding[:, :self.shared_size] = 1
+        if self.free_size > 0:
+            idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
+            embedding[:, self.shared_size:].scatter_(0, idx, 1)
+        self.register_buffer('embedding', embedding)
+
+    def forward(self, input):
+        embedding = config.PARAM['attr'].matmul(self.embedding)
+        embedding = embedding.view(*embedding.size(), *([1]*(input.dim()-2)))
+        output = input * embedding
         return output

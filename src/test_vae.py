@@ -28,7 +28,7 @@ if args['control_name']:
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
+config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL', 'InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
 if config.PARAM['data_name'] == 'CelebA':
     config.PARAM['subset'] = 'attr'
@@ -81,10 +81,6 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
-        logger.append(info, 'test', mean=False)
-        logger.write('test', config.PARAM['metric_names']['test'])
         save_img(input['img'][:100],
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
         save_img(output['img'][:100],
@@ -100,6 +96,13 @@ def test(data_loader, model, logger, epoch):
                      nrow=config.PARAM['classes_size'])
         else:
             raise ValueError('Not valid model name')
+        output = {'img': generated}
+        evaluation = metric.evaluate(['InceptionScore'], None, output)
+        logger.append(evaluation, 'test', 1)
+        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
+                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        logger.append(info, 'test', mean=False)
+        logger.write('test', config.PARAM['metric_names']['test'])
     return
 
 

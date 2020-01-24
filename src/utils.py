@@ -225,7 +225,7 @@ def make_mode_dataset(dataset):
     return
 
 
-def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
+def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint', verbose=True):
     if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
         checkpoint = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
         last_epoch = checkpoint['epoch']
@@ -235,7 +235,8 @@ def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoin
         if scheduler is not None:
             scheduler.load_state_dict(checkpoint['scheduler_dict'])
         logger = checkpoint['logger']
-        print('Resume from {}'.format(last_epoch))
+        if verbose:
+            print('Resume from {}'.format(last_epoch))
         return last_epoch, model, optimizer, scheduler, logger
     else:
         raise ValueError('Not exists model tag: {}'.format(model_tag))

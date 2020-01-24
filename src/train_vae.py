@@ -34,7 +34,7 @@ for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 1e-3
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
+config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL', 'InceptionScore']}
 if config.PARAM['data_name'] == 'CelebA':
     config.PARAM['subset'] = 'attr'
 
@@ -76,8 +76,8 @@ def runExperiment():
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    config.PARAM['pivot_metric'] = 'test/NLL'
-    config.PARAM['pivot'] = 1e10
+    config.PARAM['pivot_metric'] = 'test/InceptionScore'
+    config.PARAM['pivot'] = -1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
@@ -94,8 +94,8 @@ def runExperiment():
                 'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
                 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
-            if config.PARAM['pivot'] > logger.tracker[config.PARAM['pivot_metric']]:
-                config.PARAM['pivot'] = logger.tracker[config.PARAM['pivot_metric']]
+            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']]:
+                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']]
                 shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
                             './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
         logger.reset()
@@ -106,12 +106,6 @@ def runExperiment():
 def train(data_loader, model, optimizer, logger, epoch):
     metric = Metric()
     model.train(True)
-    # label = torch.arange(config.PARAM['classes_size'])
-    # label = label.view(label.size(0), 1)
-    # onehot = label.new_zeros(label.size(0), config.PARAM['classes_size']).float()
-    # onehot.scatter_(1, label, 1)
-    # test = torch.sigmoid(model.model['encoder'][0].embedding(onehot.to(config.PARAM['device']))).round()
-    # print(test[:10, :10])
     for i, input in enumerate(data_loader):
         start_time = time.time()
         input = collate(input)
@@ -140,6 +134,7 @@ def train(data_loader, model, optimizer, logger, epoch):
 
 
 def test(data_loader, model, logger, epoch):
+    sample_per_mode = 1000
     with torch.no_grad():
         metric = Metric()
         model.train(False)
@@ -151,6 +146,16 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
+        if config.PARAM['model_name'] in ['vae', 'dcvae']:
+            generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
+        elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'rmvae', 'dcrmvae']:
+            generated = model.generate(
+                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
+        else:
+            raise ValueError('Not valid model name')
+        output = {'img': generated}
+        evaluation = metric.evaluate(['InceptionScore'], None, output)
+        logger.append(evaluation, 'test', 1)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

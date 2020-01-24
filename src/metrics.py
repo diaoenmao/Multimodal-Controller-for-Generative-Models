@@ -30,7 +30,7 @@ def InceptionScore(img, batch_size=32, splits=1):
     load_tag = 'best'
     model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier', '0']
     model_tag = '_'.join(filter(None, model_tag))
-    last_epoch, model, _, _, _ = resume(model, model_tag, load_tag=load_tag)
+    last_epoch, model, _, _, _ = resume(model, model_tag, load_tag=load_tag, verbose=False)
     model.train(False)
 
     def get_pred(input):

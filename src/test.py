@@ -851,3 +851,44 @@ from logger import Logger
 #         # print((output1 - output2).abs().max())
 #         # if i == 10:
 #         #     break
+
+# class Restriction(nn.Module):
+#     def __init__(self, cell_info):
+#         super(Restriction, self).__init__()
+#         default_cell_info = {'sharing_rate': 1, 'num_mode': 1}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.sharing_rate = cell_info['sharing_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.mode_size = math.ceil(self.input_size * (1 - self.sharing_rate) / self.num_mode)
+#         self.free_size = self.mode_size * self.num_mode
+#         self.shared_size = self.input_size - self.free_size
+#         embedding = torch.zeros(self.num_mode, self.input_size)
+#         if self.shared_size > 0:
+#             embedding[:, :self.shared_size] = 1
+#         if self.free_size > 0:
+#             idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
+#             embedding[:, self.shared_size:].scatter_(0, idx, 1)
+#         self.register_buffer('embedding', embedding)
+#
+#     def forward(self, input):
+#         embedding = config.PARAM['attr'].matmul(self.embedding)
+#         embedding = embedding.view(*embedding.size(), *([1]*(input.dim()-2)))
+#         output = input * embedding
+#         return output
+#
+# if __name__ == "__main__":
+#     input_size = 20
+#     sharing_rate = 0.5
+#     num_mode = 4
+#     input = torch.randn(num_mode, input_size)
+#     label = torch.arange(num_mode)
+#     label = label.view(label.size(0), 1)
+#     onehot = label.new_zeros(label.size(0), num_mode).float()
+#     onehot.scatter_(1, label, 1)
+#     print(onehot)
+#     config.PARAM['attr'] = onehot
+#     cell_info = {'cell':'Restriction', 'input_size':input_size, 'sharing_rate':sharing_rate, 'num_mode': num_mode}
+#     m = Restriction(cell_info)
+#     output = m(input)
+#     print(output)
