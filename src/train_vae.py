@@ -76,7 +76,7 @@ def runExperiment():
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    config.PARAM['pivot_metric'] = 'test/Loss'
+    config.PARAM['pivot_metric'] = 'test/NLL'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
@@ -106,6 +106,12 @@ def runExperiment():
 def train(data_loader, model, optimizer, logger, epoch):
     metric = Metric()
     model.train(True)
+    # label = torch.arange(config.PARAM['classes_size'])
+    # label = label.view(label.size(0), 1)
+    # onehot = label.new_zeros(label.size(0), config.PARAM['classes_size']).float()
+    # onehot.scatter_(1, label, 1)
+    # test = torch.sigmoid(model.model['encoder'][0].embedding(onehot.to(config.PARAM['device']))).round()
+    # print(test[:10, :10])
     for i, input in enumerate(data_loader):
         start_time = time.time()
         input = collate(input)

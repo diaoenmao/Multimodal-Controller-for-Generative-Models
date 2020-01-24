@@ -6,22 +6,22 @@ def main():
     filename = 'is'
     gpu_ids = ['0','1','2','3']
     script_name = [['test_is.py']]
-    data_names = ['MNIST']
-    model_names = [['rmvae']]
+    data_names = ['MNIST', 'Omniglot']
+    model_names = [['vae', 'cvae', 'dcvae', 'dccvae', 'rmvae','dcrmvae']]
     init_seeds = [[0]]
     num_epochs = [[200]]
-    round = 8
+    round = 4
     s = '#!/bin/bash\n'
     for i in range(len(data_names)):
         data_name = data_names[i]
         if data_name == 'MNIST':
-            control_names = [['1', '10', '100', '500', '1000', '10000', '0'], ['0','0.1','0.3','0.5','0.7','0.9','1']]
+            control_names = [['1', '10', '100', '500', '1000', '0']]
         elif data_name == 'Omniglot':
-            control_names = [['1', '5', '0'], ['0','0.1','0.3','0.5','0.7','0.9','1']]
+            control_names = [['1', '10', '0']]
         elif data_name == 'CUB200':
-            control_names = [['1', '5', '10', '20', '0'], ['0','0.1','0.3','0.5','0.7','0.9','1']]
+            control_names = [['1', '10', '20', '0']]
         elif data_name == 'CelebA':
-            control_names = [['0'], ['0','0.1','0.3','0.5','0.7','0.9','1']]
+            control_names = [['0']]
         else:
             raise ValueError('Not valid data name')
         control_names = list(itertools.product(*control_names))

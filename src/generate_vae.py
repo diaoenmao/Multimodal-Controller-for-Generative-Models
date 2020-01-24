@@ -3,11 +3,11 @@ config.init()
 import itertools
 
 def main():
-    filename = 'vae'
+    filename = 'vae_train'
     gpu_ids = ['0','1','2','3']
     script_name = [['train_vae.py']]
     data_names = ['MNIST', 'Omniglot']
-    model_names = [['vae', 'cvae', 'dcvae', 'dccvae']]
+    model_names = [['vae', 'cvae', 'dcvae', 'dccvae', 'rmvae','dcrmvae']]
     init_seeds = [[0]]
     num_epochs = [[200]]
     s = '#!/bin/bash\n'
@@ -18,7 +18,7 @@ def main():
         elif data_name == 'Omniglot':
             control_names = [['1', '10', '0']]
         elif data_name == 'CUB200':
-            control_names = [['1', '5', '10', '20', '0']]
+            control_names = [['1', '10', '20', '0']]
         elif data_name == 'CelebA':
             control_names = [['0']]
         else:

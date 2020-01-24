@@ -152,12 +152,11 @@ class ResConv2dCell(nn.Module):
                              'padding_mode': 'zeros'}
         cell_info = {**default_cell_info, **cell_info}
         conv1_info = {**cell_info}
-        conv2_info = {**cell_info, 'normalization': 'none', 'activation': 'none'}
+        conv2_info = {**cell_info, 'normalization': cell_info['normalization'], 'activation': 'none'}
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
         self.conv1 = Conv2dCell(conv1_info)
         self.conv2 = Conv2dCell(conv2_info)
-        self.normalization = Normalization(cell_info['normalization'], self.output_size)
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
@@ -178,6 +177,13 @@ class RLinearCell(nn.Linear):
         super(RLinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'],
                                           bias=cell_info['bias'])
         self.embedding = nn.Linear(self.num_mode, self.output_size, bias=False)
+        p = 0.6
+        k = 10
+        embedding_weight = torch.ones(self.output_size-self.num_mode * k, self.num_mode) * math.log(p/(1-p))
+        print(embedding_weight.size())
+        embedding_weight = torch.cat([embedding_weight, torch.diag(torch.ones(self.num_mode * k) *math.log(p/(1-p)))], dim=0)
+        embedding_weight[embedding_weight == 0] = math.log((1-p)/p)
+        self.embedding.weight.data = embedding_weight
         self.normalization = Normalization(cell_info['normalization'], self.output_size)
         self.activation = Activation(cell_info['activation'])
 
@@ -263,7 +269,7 @@ class ResRConv2dCell(nn.Module):
                              'padding_mode': 'zeros', 'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         conv1_info = {**cell_info}
-        conv2_info = {**cell_info, 'normalization': 'none', 'activation': 'none'}
+        conv2_info = {**cell_info, 'normalization': cell_info['normalization'], 'activation': 'none'}
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
         self.conv1 = RConv2dCell(conv1_info)
