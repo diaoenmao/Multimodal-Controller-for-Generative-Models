@@ -67,6 +67,8 @@ def Accuracy(output, target, topk=1):
 class Metric(object):
     def __init__(self):
         self.metric = {'Loss': (lambda input, output: output['loss'].item()),
+                       'Loss_G': (lambda input, output: output['loss_G'].item()),
+                       'Loss_D': (lambda input, output: output['loss_D'].item()),
                        'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
                        'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
                        'NLL': (lambda input, output: recur(NLL, output['img'], input['img'])),

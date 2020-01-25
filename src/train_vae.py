@@ -144,7 +144,7 @@ def test(data_loader, model, logger, epoch):
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
+            evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['model_name'] in ['vae', 'dcvae']:
             generated = model.generate(sample_per_mode * config.PARAM['classes_size'])

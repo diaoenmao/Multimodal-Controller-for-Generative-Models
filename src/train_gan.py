@@ -35,7 +35,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['batch_size']['train'] = 64
-config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['Loss', 'Loss_D', 'Loss_G']}
+config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['Loss', 'Loss_D', 'Loss_G', 'InceptionScore']}
 if config.PARAM['data_name'] == 'CelebA':
     config.PARAM['subset'] = 'attr'
 
@@ -80,8 +80,8 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
         logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'test/Loss'
-    config.PARAM['pivot'] = 1e10
+    config.PARAM['pivot_metric'] = 'test/InceptionScore'
+    config.PARAM['pivot'] = -1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
@@ -102,8 +102,8 @@ def runExperiment():
                 'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
                                    'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
-            if config.PARAM['pivot'] > logger.tracker[config.PARAM['pivot_metric']]:
-                config.PARAM['pivot'] = logger.tracker[config.PARAM['pivot_metric']]
+            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']]:
+                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']]
                 shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
                             './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
         logger.reset()
@@ -170,6 +170,7 @@ def train(data_loader, model, optimizer, logger, epoch):
 
 
 def test(data_loader, model, logger, epoch):
+    sample_per_mode = 1000
     criterion = torch.nn.BCELoss()
     with torch.no_grad():
         metric = Metric()
@@ -195,8 +196,18 @@ def test(data_loader, model, logger, epoch):
             D_G_z2_loss = criterion(D_G_z2, input['real'])
             output = {'loss': abs((D_x_loss + D_G_z1_loss) - D_G_z2_loss), 'loss_D': D_x_loss + D_G_z1_loss,
                       'loss_G': D_G_z2_loss}
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
+            evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
             logger.append(evaluation, 'test', input_size)
+        if config.PARAM['model_name'] in ['gan', 'dcgan']:
+            generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
+        elif config.PARAM['model_name'] in ['cgan', 'dccgan', 'rmgan', 'dcrmgan']:
+            generated = model.generate(
+                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
+        else:
+            raise ValueError('Not valid model name')
+        output = {'img': generated}
+        evaluation = metric.evaluate(['InceptionScore'], None, output)
+        logger.append(evaluation, 'test', 1)
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
