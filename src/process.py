@@ -12,67 +12,91 @@ import scipy
 from utils import save, load, makedir_exist_ok
 from logger import Logger
 
-data_name = 'MNIST'
+data_name = 'FashionMNIST'
 result_path = './output/result'
 fig_path = './output/fig'
-sub_path = '02'
-y_metric = 'test/PSNR'
+sub_path = 'test'
+y_metric = 'test/InceptionScore'
+control_mode_size = ['1', '10', '100', '500', '1000', '0']
+control_sharing_rate = ['0', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '1']
 
 
 def main():
     result_control = {
-        'Split by subsets': {
-            'evaluation_names': ['Federated BottleNeck', 'Isolated'],
-            'control_names': [['0'], [data_name], ['faes'], ['32'], ['8'], ['32'], ['0'], ['2'],
-                              ['1', '10', '50', '100', '500'], ['0'], ['0', '1']]},
-        # 'Split by labels': {
-        #     'evaluation_names': ['Federated BottleNeck', 'Isolated'],
-        #     'control_names': [['0'], [data_name], ['faes'], ['32'], ['8'], ['32'], ['0'], ['2'],
-        #                       ['1', '10', '50', '100', '500'], ['1'], ['0', '1']]}
+        'VAE': {
+            'evaluation_names': ['VAE', 'CVAE', 'DCVAE', 'DCCVAE'],
+            'control_names': [['0'], [data_name], ['label'], ['vae', 'cvae', 'dcvae', 'dccvae'],
+                              control_mode_size]},
+        'GAN': {
+            'evaluation_names': ['GAN', 'CGAN', 'DCGAN', 'DCCGAN'],
+            'control_names': [['0'], [data_name], ['label'], ['gan', 'cgan', 'dcgan', 'dccgan'],
+                              control_mode_size]},
+        'RMVAE': {
+            'evaluation_names': ['RMVAE'],
+            'control_names': [['0'], [data_name], ['label'], ['rmvae'],
+                              control_mode_size,
+                              control_sharing_rate]},
+        'DCRMVAE': {
+            'evaluation_names': ['DCRMVAE'],
+            'control_names': [['0'], [data_name], ['label'], ['dcrmvae'],
+                              control_mode_size,
+                              control_sharing_rate]},
+        'RMGAN': {
+            'evaluation_names': ['RMGAN'],
+            'control_names': [['0'], [data_name], ['label'], ['rmgan'],
+                              control_mode_size,
+                              control_sharing_rate]},
+        'DCRMGAN': {
+            'evaluation_names': ['DCRMGAN'],
+            'control_names': [['0'], [data_name], ['label'], ['dcrmgan'],
+                              control_mode_size,
+                              control_sharing_rate]},
     }
     for result_name, info in result_control.items():
-        result = extract_result(info['control_names'], info)
-        result = process_result(result)
-        show_result(result, result_name)
+        result = extract_result(result_name, info)
+        # print(result)
+        print(result_name)
+        print(result[-1][result_name])
+        # show_result(result, result_name)
     return
 
 
-def extract_result(control_names, info):
+def extract_result(result_name, info):
+    control_names = info['control_names']
     control_names_product = list(itertools.product(*control_names))
-    x, y = {k: [] for k in info['evaluation_names']}, {k: [] for k in info['evaluation_names']}
-    for i in range(len(control_names_product)):
-        control_name = list(control_names_product[i])
-        model_tag = '_'.join(control_name)
-        path = '{}/{}/{}.pt'.format(result_path, sub_path, model_tag)
-        if os.path.exists(path):
-            result = load(path)
-            logger = result['logger']
-            if int(control_name[10]) == 0:
-                x['Federated BottleNeck'].append(int(control_names_product[i][8]))
-                y['Federated BottleNeck'].append(logger.mean[y_metric])
+    if result_name in ['VAE', 'GAN']:
+        x = np.array([10, 100, 1000, 5000, 10000, 60000])
+        x, y = {k: x for k in info['evaluation_names']}, {k: np.zeros(x.shape[0]) for k in info['evaluation_names']}
+        for i in range(len(control_names_product)):
+            control_name = list(control_names_product[i])
+            model_tag = '_'.join(control_name)
+            path = '{}/{}/{}.pt'.format(result_path, sub_path, model_tag)
+            if os.path.exists(path):
+                result = load(path)
+                logger = result['logger']
+                x_idx = control_mode_size.index(control_names_product[i][4])
+                evaluation_names_i = control_name[3].upper()
+                y[evaluation_names_i][x_idx] = logger.mean[y_metric]
             else:
-                x['Isolated'].append(int(control_names_product[i][8]))
-                y['Isolated'].append(logger.mean[y_metric])
-        else:
-            print('Not valid model path {}'.format(path))
-    return x, y
-
-
-def process_result(result):
-    x, y = result
-    new_y = {k: {'mean': [], 'stderr': []} for k in x}
-    for evaluation_name in x:
-        x[evaluation_name] = np.array(x[evaluation_name])
-        for i in range(len(x[evaluation_name])):
-            np_y = np.array(y[evaluation_name][i])
-            new_y[evaluation_name]['mean'].append(np.mean(np_y))
-            if len(np_y) == 1:
-                new_y[evaluation_name]['stderr'].append(0)
+                print('Not valid model path {}'.format(path))
+        return x, y
+    else:
+        x, y = np.meshgrid(np.array([10, 100, 1000, 5000, 10000, 60000]),np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]))
+        z = np.zeros(x.shape)
+        for i in range(len(control_names_product)):
+            control_name = list(control_names_product[i])
+            model_tag = '_'.join(control_name)
+            path = '{}/{}/{}.pt'.format(result_path, sub_path, model_tag)
+            if os.path.exists(path):
+                result = load(path)
+                logger = result['logger']
+                x_idx = control_mode_size.index(control_names_product[i][4])
+                y_idx = control_sharing_rate.index(control_names_product[i][5])
+                z[y_idx, x_idx] = logger.mean[y_metric]
             else:
-                new_y[evaluation_name]['stderr'].append(sem(np_y))
-        new_y[evaluation_name]['mean'] = np.array(new_y[evaluation_name]['mean'])
-        new_y[evaluation_name]['stderr'] = np.array(new_y[evaluation_name]['stderr'])
-    return x, new_y
+                print('Not valid model path {}'.format(path))
+        x, y, z = {info['evaluation_names'][0]: x}, {info['evaluation_names'][0]: y}, {info['evaluation_names'][0]: z}
+        return x, y, z
 
 
 def show_result(result, result_name):

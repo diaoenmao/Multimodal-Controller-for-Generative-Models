@@ -266,10 +266,16 @@ def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoin
             scheduler['discriminator'].load_state_dict(checkpoint['scheduler_dict']['discriminator'])
         logger = checkpoint['logger']
         print('Resume from {}'.format(last_epoch))
-        return last_epoch, model, optimizer, scheduler, logger
     else:
-        raise ValueError('Not exists model tag')
-    return
+        print('Not exists model tag: {}, start from scratch'.format(model_tag))
+        import datetime
+        from logger import Logger
+        last_epoch = 1
+        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+        logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
+            'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
+        logger = Logger(logger_path)
+    return last_epoch, model, optimizer, scheduler, logger
 
 
 if __name__ == "__main__":
