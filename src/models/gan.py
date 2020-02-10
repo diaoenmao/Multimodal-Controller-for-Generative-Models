@@ -205,6 +205,9 @@ def rmgan():
     # Generator
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
+        {'cell': 'Restriction', 'input_size': latent_size, 'num_mode': num_mode,
+         'sharing_rate': sharing_rate})
+    config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': latent_size, 'output_size': hidden_size,
          'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
          'activation': activation})
@@ -436,6 +439,9 @@ def dcrmgan():
     config.PARAM['model'] = {}
     # Generator
     config.PARAM['model']['generator'] = []
+    config.PARAM['model']['generator'].append(
+        {'cell': 'Restriction', 'input_size': latent_size, 'num_mode': num_mode,
+         'sharing_rate': sharing_rate})
     config.PARAM['model']['generator'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': latent_size,
          'output_size': hidden_size * (2 ** (depth - 1)), 'kernel_size': 4, 'stride': 1, 'padding': 0,

@@ -45,9 +45,9 @@ def load(path, mode='torch'):
     return
 
 
-def save_img(img, path, nrow=10):
+def save_img(img, path, nrow=10, padding=0, pad_value=0):
     makedir_exist_ok(os.path.dirname(path))
-    save_image(img, path, nrow=nrow, padding=0)
+    save_image(img, path, nrow=nrow, padding=padding, pad_value=pad_value)
     return
 
 
