@@ -21,8 +21,8 @@ def make_cell(cell_info):
         cell = ConvTranspose2dCell(cell_info)
     elif cell_info['cell'] == 'ResConv2dCell':
         cell = ResConv2dCell(cell_info)
-    elif cell_info['cell'] == 'Restriction':
-        cell = Restriction(cell_info)
+    elif cell_info['cell'] == 'MultimodalController':
+        cell = MultimodalController(cell_info)
     else:
         raise ValueError('Not valid cell info: {}'.format(cell_info))
     return cell
@@ -167,9 +167,9 @@ class ResConv2dCell(nn.Module):
         return output
 
 
-class Restriction(nn.Module):
+class MultimodalController(nn.Module):
     def __init__(self, cell_info):
-        super(Restriction, self).__init__()
+        super(MultimodalController, self).__init__()
         default_cell_info = {'sharing_rate': 1, 'num_mode': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']

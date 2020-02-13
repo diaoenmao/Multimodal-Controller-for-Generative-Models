@@ -148,7 +148,7 @@ def test(data_loader, model, logger, epoch):
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['model_name'] in ['vae', 'dcvae']:
             generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'rmvae', 'dcrmvae']:
+        elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'mcvae', 'dcmcvae']:
             generated = model.generate(
                 torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
         else:

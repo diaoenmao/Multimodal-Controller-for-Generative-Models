@@ -48,20 +48,20 @@ def main():
         'DCCGAN': {
             'control_names': [['0'], [data_name], ['label'], ['dccgan'],
                               control_mode_size]},
-        'RMVAE': {
-            'control_names': [['0'], [data_name], ['label'], ['rmvae'],
+        'MCVAE': {
+            'control_names': [['0'], [data_name], ['label'], ['mcvae'],
                               control_mode_size,
                               control_sharing_rate]},
-        'DCRMVAE': {
-            'control_names': [['0'], [data_name], ['label'], ['dcrmvae'],
+        'DCMCVAE': {
+            'control_names': [['0'], [data_name], ['label'], ['dcmcvae'],
                               control_mode_size,
                               control_sharing_rate]},
-        'RMGAN': {
-            'control_names': [['0'], [data_name], ['label'], ['rmgan'],
+        'MCGAN': {
+            'control_names': [['0'], [data_name], ['label'], ['mcgan'],
                               control_mode_size,
                               control_sharing_rate]},
-        'DCRMGAN': {
-            'control_names': [['0'], [data_name], ['label'], ['dcrmgan'],
+        'DCMCGAN': {
+            'control_names': [['0'], [data_name], ['label'], ['dcmcgan'],
                               control_mode_size,
                               control_sharing_rate]},
     }
@@ -71,7 +71,7 @@ def main():
         # print(result_name)
         # print(result[result_name][-1])
     show_result(result)
-    # show_img()
+    show_img()
     return
 
 
@@ -126,16 +126,15 @@ def show_result(result):
         figure_name = figures[i]
         if figure_name in ['VAE', 'GAN']:
             conditional_figure_name = 'C'+figure_name
-            rm_figure_name = 'RM'+figure_name
+            mc_figure_name = 'MC'+figure_name
         elif figure_name in ['DCVAE', 'DCGAN']:
             conditional_figure_name = figure_name[:2] + 'C'+ figure_name[2:]
-            rm_figure_name = figure_name[:2] + 'RM' + figure_name[2:]
+            mc_figure_name = figure_name[:2] + 'MC' + figure_name[2:]
         fig = plt.figure()
         plt.plot(result[figure_name][0], result[figure_name][1], color='red', linestyle='-', label=figure_name, linewidth=linewidth)
         plt.plot(result[conditional_figure_name][0], result[conditional_figure_name][1], color='orange', linestyle='--', label=conditional_figure_name, linewidth=linewidth)
-        for i in range(result[rm_figure_name][1].shape[0]):
-            label_name = rm_figure_name.replace('RM','MC')
-            plt.plot(result[rm_figure_name][0][i], result[rm_figure_name][2][i], color=colormap(colormap_indices[i]), linestyle='-', label='{}(r={})'.format(label_name, result[rm_figure_name][1][i,0]),
+        for i in range(result[mc_figure_name][1].shape[0]):
+            plt.plot(result[mc_figure_name][0][i], result[mc_figure_name][2][i], color=colormap(colormap_indices[i]), linestyle='-', label='{}(r={})'.format(mc_figure_name, result[mc_figure_name][1][i,0]),
                      linewidth=1)
         plt.legend(loc='lower right')
         plt.xscale('log')
@@ -157,7 +156,6 @@ def show_result(result):
 def show_img():
     fig_format = 'png'
     figures = ['VAE', 'DCVAE', 'GAN', 'DCGAN']
-    # figures = ['VAE']
     save_per_mode = 5
     config.PARAM['classes_size'] = 10
     config.PARAM['data_name'] = data_name
@@ -168,14 +166,14 @@ def show_img():
         if figure_name in ['VAE', 'GAN']:
             base_name = figure_name.lower()
             conditional_name = 'c' + base_name
-            rm_name = 'rm' + base_name
+            mc_name = 'mc' + base_name
         elif figure_name in ['DCVAE', 'DCGAN']:
             base_name = figure_name.lower()
             conditional_name = base_name[:2] + 'c' + base_name[2:]
-            rm_name = base_name[:2] + 'rm' + base_name[2:]
+            mc_name = base_name[:2] + 'mc' + base_name[2:]
         base_img = []
         conditional_img = []
-        rm_img = [[] for _ in range(len(control_sharing_rate))]
+        mc_img = [[] for _ in range(len(control_sharing_rate))]
         for j in range(len(control_mode_size)):
             config.PARAM['control'] = {'mode_data_size': control_mode_size[j]}
             control_name_list = []
@@ -213,7 +211,7 @@ def show_img():
                 for k in config.PARAM['control']:
                     control_name_list.append(config.PARAM['control'][k])
                 config.PARAM['control_name'] = '_'.join(control_name_list)
-                config.PARAM['model_name'] = rm_name
+                config.PARAM['model_name'] = mc_name
                 model_tag_list = [str(seed), config.PARAM['data_name'], config.PARAM['subset'],
                                   config.PARAM['model_name'],
                                   config.PARAM['control_name']]
@@ -221,16 +219,16 @@ def show_img():
                 process_control_name()
                 model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
                 _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag, verbose=False)
-                rm_img_j_m = model.generate(torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(save_per_mode))
-                rm_img_j_m = rm_img_j_m.permute(1, 2, 3, 0).view(1, -1, rm_img_j_m.size(0))
-                rm_img_j_m = F.fold(rm_img_j_m, (32 * save_per_mode, 32 * config.PARAM['classes_size']), kernel_size=32,
+                mc_img_j_m = model.generate(torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(save_per_mode))
+                mc_img_j_m = mc_img_j_m.permute(1, 2, 3, 0).view(1, -1, mc_img_j_m.size(0))
+                mc_img_j_m = F.fold(mc_img_j_m, (32 * save_per_mode, 32 * config.PARAM['classes_size']), kernel_size=32,
                                            stride=32)
-                rm_img[m].append(rm_img_j_m)
+                mc_img[m].append(mc_img_j_m)
         base_img = torch.cat(base_img, dim=0)
         conditional_img = torch.cat(conditional_img, dim=0)
-        for m in range(len(rm_img)):
-            rm_img[m] = torch.cat(rm_img[m], dim=0)
-        img = torch.cat([base_img, conditional_img, *rm_img], dim=0)
+        for m in range(len(mc_img)):
+            mc_img[m] = torch.cat(mc_img[m], dim=0)
+        img = torch.cat([base_img, conditional_img, *mc_img], dim=0)
         save_img(img, '{}/{}/{}_{}_generated.{}'.format(fig_path, sub_path, data_name, figure_name, fig_format), nrow=len(control_mode_size), padding=2, pad_value=1)
     return
 if __name__ == '__main__':

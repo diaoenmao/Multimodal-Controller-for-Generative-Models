@@ -110,23 +110,23 @@ def process_control_name():
     else:
         raise ValueError('Not valid dataset')
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
-        if config.PARAM['model_name'] in ['vae', 'cvae', 'rmvae']:
+        if config.PARAM['model_name'] in ['vae', 'cvae', 'mcvae']:
             config.PARAM['latent_size'] = 50
             config.PARAM['hidden_size'] = 1000
             config.PARAM['num_layers'] = 4
-        elif config.PARAM['model_name'] in ['dcvae', 'dccvae', 'dcrmvae']:
+        elif config.PARAM['model_name'] in ['dcvae', 'dccvae', 'dcmcvae']:
             config.PARAM['latent_size'] = 50
             config.PARAM['hidden_size'] = 50
             config.PARAM['depth'] = 4
             config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** (config.PARAM['depth'] - 1)),
                                             config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
                                             config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
-        elif config.PARAM['model_name'] in ['gan', 'cgan', 'rmgan']:
+        elif config.PARAM['model_name'] in ['gan', 'cgan', 'mcgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 100
             config.PARAM['num_layers_generator'] = 5
             config.PARAM['num_layers_discriminator'] = 4
-        elif config.PARAM['model_name'] in ['dcgan', 'dccgan', 'dcrmgan']:
+        elif config.PARAM['model_name'] in ['dcgan', 'dccgan', 'dcmcgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 50
             config.PARAM['depth'] = 3

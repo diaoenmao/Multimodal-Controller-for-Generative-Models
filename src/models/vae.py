@@ -97,9 +97,9 @@ class CVAE(nn.Module):
         return output
 
 
-class RMVAE(nn.Module):
+class MCVAE(nn.Module):
     def __init__(self):
-        super(RMVAE, self).__init__()
+        super(MCVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def generate(self, C):
@@ -227,7 +227,7 @@ def cvae():
     return model
 
 
-def rmvae():
+def mcvae():
     normalization = 'none'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
@@ -244,7 +244,7 @@ def rmvae():
          'bias': True, 'num_mode': num_mode, 'normalization': normalization, 'activation': activation})
     for i in range(num_layers - 2):
         config.PARAM['model']['encoder'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size // (2 ** i), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size // (2 ** i), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['encoder'].append(
             {'cell': 'LinearCell', 'input_size': hidden_size // (2 ** i), 'output_size': hidden_size // (2 ** (i + 1)),
@@ -253,7 +253,7 @@ def rmvae():
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # latent
     config.PARAM['model']['encoder_latent_restriction'] = {
-        'cell': 'Restriction', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'num_mode': num_mode,
+        'cell': 'MultimodalController', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'num_mode': num_mode,
         'sharing_rate': sharing_rate}
     config.PARAM['model']['encoder_latent_mu'] = {
         'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': latent_size,
@@ -262,7 +262,7 @@ def rmvae():
         'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2)), 'output_size': latent_size,
         'bias': True, 'num_mode': num_mode, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_latent_restriction'] = {
-        'cell': 'Restriction', 'input_size': latent_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate}
+        'cell': 'MultimodalController', 'input_size': latent_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate}
     config.PARAM['model']['decoder_latent'] = {
         'cell': 'LinearCell', 'input_size': latent_size, 'output_size': hidden_size // (2 ** (num_layers - 2)),
         'bias': True, 'num_mode': num_mode, 'normalization': normalization, 'activation': activation}
@@ -270,20 +270,20 @@ def rmvae():
     config.PARAM['model']['decoder'] = []
     for i in range(num_layers - 2):
         config.PARAM['model']['decoder'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size // (2 ** (num_layers - 2 - i)), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size // (2 ** (num_layers - 2 - i)), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['decoder'].append(
             {'cell': 'LinearCell', 'input_size': hidden_size // (2 ** (num_layers - 2 - i)),
              'output_size': hidden_size // (2 ** (num_layers - 2 - i - 1)),
              'bias': True, 'num_mode': num_mode, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['decoder'].append(
-        {'cell': 'Restriction', 'input_size': hidden_size, 'num_mode': num_mode,
+        {'cell': 'MultimodalController', 'input_size': hidden_size, 'num_mode': num_mode,
          'sharing_rate': sharing_rate})
     config.PARAM['model']['decoder'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size, 'output_size': np.prod(img_shape).item(),
          'bias': True, 'num_mode': num_mode, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
-    model = RMVAE()
+    model = MCVAE()
     return model
 
 
@@ -359,9 +359,9 @@ class DCCVAE(nn.Module):
         return output
 
 
-class DCRMVAE(nn.Module):
+class DCMCVAE(nn.Module):
     def __init__(self):
-        super(DCRMVAE, self).__init__()
+        super(DCMCVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def generate(self, C):
@@ -516,7 +516,7 @@ def dccvae():
     return model
 
 
-def dcrmvae():
+def dcmcvae():
     normalization = 'none'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
@@ -536,14 +536,14 @@ def dcrmvae():
          'activation': activation})
     for i in range(depth - 1):
         config.PARAM['model']['encoder'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['encoder'].append(
             {'cell': 'ResConv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** i),
              'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'num_mode': num_mode,
              'normalization': normalization, 'activation': activation})
         config.PARAM['model']['encoder'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['encoder'].append(
             {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** i), 'output_size': hidden_size * (2 ** (i + 1)),
@@ -552,7 +552,7 @@ def dcrmvae():
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # Latent
     config.PARAM['model']['encoder_latent_restriction'] = {
-        'cell': 'Restriction', 'input_size': np.prod(encode_shape).item(), 'num_mode': num_mode,
+        'cell': 'MultimodalController', 'input_size': np.prod(encode_shape).item(), 'num_mode': num_mode,
         'sharing_rate': sharing_rate}
     config.PARAM['model']['encoder_latent_mu'] = {
         'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': latent_size,
@@ -561,7 +561,7 @@ def dcrmvae():
         'cell': 'LinearCell', 'input_size': np.prod(encode_shape).item(), 'output_size': latent_size,
         'bias': True, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_latent_restriction'] = {
-        'cell': 'Restriction', 'input_size': latent_size, 'num_mode': num_mode,
+        'cell': 'MultimodalController', 'input_size': latent_size, 'num_mode': num_mode,
         'sharing_rate': sharing_rate}
     config.PARAM['model']['decoder_latent'] = {
         'cell': 'LinearCell', 'input_size': latent_size, 'output_size': np.prod(encode_shape).item(),
@@ -570,7 +570,7 @@ def dcrmvae():
     config.PARAM['model']['decoder'] = []
     for i in range(depth - 1):
         config.PARAM['model']['decoder'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** (depth - i - 1)), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** (depth - i - 1)), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['decoder'].append(
             {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - i - 1)),
@@ -578,7 +578,7 @@ def dcrmvae():
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'num_mode': num_mode,
              'normalization': normalization, 'activation': activation})
         config.PARAM['model']['decoder'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** (depth - i - 2)), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** (depth - i - 2)), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['decoder'].append(
             {'cell': 'ResConv2dCell', 'input_size': hidden_size * (2 ** (depth - i - 2)),
@@ -586,11 +586,11 @@ def dcrmvae():
              'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'num_mode': num_mode,
              'normalization': normalization, 'activation': activation})
     config.PARAM['model']['decoder'].append(
-        {'cell': 'Restriction', 'input_size': hidden_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate})
+        {'cell': 'MultimodalController', 'input_size': hidden_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate})
     config.PARAM['model']['decoder'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size, 'output_size': img_shape[0],
          'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': 'none',
          'activation': 'sigmoid'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
-    model = DCRMVAE()
+    model = DCMCVAE()
     return model

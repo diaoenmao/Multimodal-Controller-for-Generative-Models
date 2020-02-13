@@ -72,9 +72,9 @@ class CGAN(nn.Module):
         return x
 
 
-class RMGAN(nn.Module):
+class MCGAN(nn.Module):
     def __init__(self):
-        super(RMGAN, self).__init__()
+        super(MCGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def generate(self, C):
@@ -191,7 +191,7 @@ def cgan():
     return model
 
 
-def rmgan():
+def mcgan():
     normalization = 'bn1'
     activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
@@ -205,7 +205,7 @@ def rmgan():
     # Generator
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
-        {'cell': 'Restriction', 'input_size': latent_size, 'num_mode': num_mode,
+        {'cell': 'MultimodalController', 'input_size': latent_size, 'num_mode': num_mode,
          'sharing_rate': sharing_rate})
     config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': latent_size, 'output_size': hidden_size,
@@ -213,7 +213,7 @@ def rmgan():
          'activation': activation})
     for i in range(num_layers_generator - 2):
         config.PARAM['model']['generator'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['generator'].append(
             {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** i),
@@ -221,7 +221,7 @@ def rmgan():
              'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
              'activation': activation})
     config.PARAM['model']['generator'].append(
-        {'cell': 'Restriction', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)), 'num_mode': num_mode,
+        {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)), 'num_mode': num_mode,
          'sharing_rate': sharing_rate})
     config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_generator - 2)),
@@ -236,7 +236,7 @@ def rmgan():
          'activation': activation})
     for i in range(num_layers_discriminator - 2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** (num_layers_discriminator - 2)) // (2 ** i),
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** (num_layers_discriminator - 2)) // (2 ** i),
              'num_mode': num_mode, 'sharing_rate': sharing_rate})
         config.PARAM['model']['discriminator'].append(
             {'cell': 'LinearCell', 'input_size': hidden_size * (2 ** (num_layers_discriminator - 2)) // (2 ** i),
@@ -244,12 +244,12 @@ def rmgan():
              'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': 'none',
              'activation': activation})
     config.PARAM['model']['discriminator'].append(
-        {'cell': 'Restriction', 'input_size': hidden_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate})
+        {'cell': 'MultimodalController', 'input_size': hidden_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate})
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': hidden_size,
          'output_size': 1, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
-    model = RMGAN()
+    model = MCGAN()
     return model
 
 
@@ -307,9 +307,9 @@ class DCCGAN(nn.Module):
         return x
 
 
-class DCRMGAN(nn.Module):
+class DCMCGAN(nn.Module):
     def __init__(self):
-        super(DCRMGAN, self).__init__()
+        super(DCMCGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def generate(self, C):
@@ -427,7 +427,7 @@ def dccgan():
     return model
 
 
-def dcrmgan():
+def dcmcgan():
     normalization = 'bn'
     activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
@@ -440,7 +440,7 @@ def dcrmgan():
     # Generator
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
-        {'cell': 'Restriction', 'input_size': latent_size, 'num_mode': num_mode,
+        {'cell': 'MultimodalController', 'input_size': latent_size, 'num_mode': num_mode,
          'sharing_rate': sharing_rate})
     config.PARAM['model']['generator'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': latent_size,
@@ -449,7 +449,7 @@ def dcrmgan():
          'activation': activation})
     for i in range(depth - 1):
         config.PARAM['model']['generator'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** (depth - 1 - i)), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** (depth - 1 - i)), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['generator'].append(
             {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size * (2 ** (depth - 1 - i)),
@@ -457,7 +457,7 @@ def dcrmgan():
              'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': normalization,
              'activation': activation})
     config.PARAM['model']['generator'].append(
-        {'cell': 'Restriction', 'input_size': hidden_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate})
+        {'cell': 'MultimodalController', 'input_size': hidden_size, 'num_mode': num_mode, 'sharing_rate': sharing_rate})
     config.PARAM['model']['generator'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': hidden_size,
          'output_size': img_shape[0], 'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True,
@@ -472,7 +472,7 @@ def dcrmgan():
          'activation': activation})
     for i in range(depth - 1):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'Restriction', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
+            {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** i), 'num_mode': num_mode,
              'sharing_rate': sharing_rate})
         config.PARAM['model']['discriminator'].append(
             {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** i),
@@ -480,11 +480,11 @@ def dcrmgan():
              'bias': True, 'sharing_rate': sharing_rate, 'num_mode': num_mode, 'normalization': 'none',
              'activation': activation})
     config.PARAM['model']['discriminator'].append(
-        {'cell': 'Restriction', 'input_size': hidden_size * (2 ** (depth - 1)), 'num_mode': num_mode,
+        {'cell': 'MultimodalController', 'input_size': hidden_size * (2 ** (depth - 1)), 'num_mode': num_mode,
          'sharing_rate': sharing_rate})
     config.PARAM['model']['discriminator'].append(
         {'cell': 'Conv2dCell', 'input_size': hidden_size * (2 ** (depth - 1)), 'output_size': 1,
          'kernel_size': 4, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
-    model = DCRMGAN()
+    model = DCMCGAN()
     return model

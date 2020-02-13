@@ -200,7 +200,7 @@ def test(data_loader, model, logger, epoch):
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['model_name'] in ['gan', 'dcgan']:
             generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cgan', 'dccgan', 'rmgan', 'dcrmgan']:
+        elif config.PARAM['model_name'] in ['cgan', 'dccgan', 'mcgan', 'dcmcgan']:
             generated = model.generate(
                 torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
         else:
