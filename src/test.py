@@ -892,3 +892,135 @@ from logger import Logger
 #     m = Restriction(cell_info)
 #     output = m(input)
 #     print(output)
+
+import itertools
+import numpy as np
+
+# def construct_codebook(N, M, K):
+#     codebook = set()
+#     sum = np.zeros(N, dtype=np.int64)
+#     for i in range(K):
+#         indices = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+#         candidates = itertools.combinations(indices.tolist(), M)
+#         for c in candidates:
+#             prev_length = len(codebook)
+#             code_c = np.zeros(N, dtype=np.int64)
+#             code_c[list(c)] = 1
+#             str_code = ''.join(str(cc) for cc in code_c.tolist())
+#             codebook.add(str_code)
+#             if len(codebook) > prev_length:
+#                 sum += code_c
+#                 break
+#     codebook = sorted(list(codebook))
+#     for i in range(len(codebook)):
+#         codebook[i] = [int(c) for c in codebook[i]]
+#     codebook = np.array(codebook)
+#     return codebook
+#
+# if __name__ == "__main__":
+#     N = 10
+#     M = 5
+#     K = 10
+#     codebook = construct_codebook(N, M, K)
+#     print(codebook)
+
+
+# if __name__ == "__main__":
+#     N = 5
+#     M = 3
+#     indices = np.arange(N)
+#     candidates = itertools.combinations(indices.tolist(), M)
+#     for c in candidates:
+#         print(c, sum(c))
+
+# some primes for tesing
+# primes = [2]
+# x = 3
+# while x < 100000:
+#     if all(x % p for p in primes):
+#         primes.append(x)
+#     x += 2
+
+# def findc(seq, csum, clen):
+#     def _findc(csum, clen, comb, idx):
+#         if clen <= 0:
+#             if csum == 0:
+#                 yield comb
+#             return
+#         while idx < len(seq):
+#             candidate = seq[idx]
+#             if candidate > csum:
+#                 return
+#             for f in _findc(csum - candidate, clen - 1, comb + [candidate], idx + 1):
+#                 yield f
+#             idx += 1
+#     return _findc(csum, clen, [], 0)
+
+
+import numpy as np
+
+def findc(seq, ind, csum, clen):
+    def _findc(csum, clen, comb, index, idx):
+        if clen <= 0:
+            if csum == 0:
+                yield comb, index
+            return
+        while idx < len(seq):
+            comb_c = seq[idx]
+            index_c = ind[idx]
+            if comb_c > csum:
+                return
+            for g in _findc(csum - comb_c, clen - 1, comb + [comb_c], index + [index_c], idx + 1):
+                yield g
+            idx += 1
+    return _findc(csum, clen, [], [], 0)
+
+
+def make_codebook(N, M, K):
+    codebook = set()
+    sum = np.zeros(N, dtype=np.int64)
+    for i in range(K):
+        sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
+        sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+        min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
+        for s in range(min_sum, max_sum + 1):
+            g = findc(sorted_seq, sorted_ind, s, M)
+            prev_size = len(codebook)
+            for (_, idx) in g:
+                code_c = np.zeros(N, dtype=np.int64)
+                code_c[idx] = 1
+                str_code = ''.join(str(cc) for cc in code_c.tolist())
+                codebook.add(str_code)
+                if len(codebook) > prev_size:
+                    sum += code_c
+                    break
+            if len(codebook) > prev_size:
+                break
+    codebook = sorted(list(codebook))
+    for i in range(len(codebook)):
+        codebook[i] = [int(c) for c in codebook[i]]
+    codebook = np.array(codebook)
+    return codebook
+
+
+# if __name__ == "__main__":
+#     M = 3
+#     seq = np.array([3,2,1,1,3,4,1])
+#     sorted_seq = np.sort(seq)
+#     sorted_ind = np.argsort(seq)
+#     print(seq)
+#     print(sorted_seq)
+#     print(sorted_ind)
+#     min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
+#     for s in range(min_sum, max_sum + 1):
+#         for f in findc(sorted_seq, sorted_ind, s, M):
+#             print(s, f)
+
+
+if __name__ == "__main__":
+    N = 256
+    M = 128
+    K = 1000
+    codebook = make_codebook(N, M, K)
+    print(codebook)
+

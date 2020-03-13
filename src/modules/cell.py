@@ -178,12 +178,13 @@ class MultimodalController(nn.Module):
         self.mode_size = math.ceil(self.input_size * (1 - self.sharing_rate) / self.num_mode)
         self.free_size = self.mode_size * self.num_mode
         self.shared_size = self.input_size - self.free_size
-        embedding = torch.zeros(self.num_mode, self.input_size)
-        if self.shared_size > 0:
-            embedding[:, :self.shared_size] = 1
-        if self.free_size > 0:
-            idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
-            embedding[:, self.shared_size:].scatter_(0, idx, 1)
+        embedding = torch.randint(0, 2, (self.num_mode, self.input_size)).float()
+        # if self.shared_size > 0:
+        #     embedding[:, :self.shared_size] = 1
+        # if self.free_size > 0:
+            # idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
+            # idx = torch.randint(0, self.num_mode, (self.free_size, )).view(1, -1)
+            # embedding[:, self.shared_size:].scatter_(0, idx, 1)
         self.register_buffer('embedding', embedding)
 
     def forward(self, input):
