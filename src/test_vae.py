@@ -30,8 +30,6 @@ for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL', 'InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
-if config.PARAM['data_name'] == 'CelebA':
-    config.PARAM['subset'] = 'attr'
 
 
 def main():
@@ -70,7 +68,6 @@ def runExperiment():
 
 
 def test(data_loader, model, logger, epoch):
-    sample_per_mode = 1000
     save_per_mode = 10
     with torch.no_grad():
         metric = Metric()
@@ -87,20 +84,11 @@ def test(data_loader, model, logger, epoch):
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
         save_img(output['img'][:100],
                  './output/img/output_{}.png'.format(config.PARAM['model_tag']))
-        if config.PARAM['model_name'] in ['vae', 'dcvae']:
-            generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
-            save_img(model.generate(save_per_mode * config.PARAM['classes_size']),
-                     './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                     nrow=config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cvae', 'dccvae', 'mcvae', 'dcmcvae']:
-            generated = model.generate(
-                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
-            save_img(model.generate(
-                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(save_per_mode)),
-                './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                nrow=config.PARAM['classes_size'])
-        else:
-            raise ValueError('Not valid model name')
+        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        generated = model.generate(C.repeat(config.PARAM['generate_per_mode']))
+        saved = model.generate(C.repeat(save_per_mode))
+        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
+                 nrow=config.PARAM['classes_size'])
         output = {'img': generated}
         evaluation = metric.evaluate(['InceptionScore'], None, output)
         logger.append(evaluation, 'test', 1)

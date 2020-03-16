@@ -3,7 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import ntuple
+from utils import ntuple, make_codebook
 
 
 def make_cell(cell_info):
@@ -13,6 +13,8 @@ def make_cell(cell_info):
         cell = Normalization(cell_info)
     elif cell_info['cell'] == 'Activation':
         cell = Activation(cell_info)
+    elif cell_info['cell'] == 'ResizeCell':
+        cell = ResizeCell(cell_info)
     elif cell_info['cell'] == 'LinearCell':
         cell = LinearCell(cell_info)
     elif cell_info['cell'] == 'Conv2dCell':
@@ -28,13 +30,14 @@ def make_cell(cell_info):
     return cell
 
 
-def Normalization(mode, size):
+def Normalization(mode, size, dim=2):
     if mode == 'none':
         return nn.Identity()
-    elif mode == 'bn1':
-        return nn.BatchNorm1d(size)
     elif mode == 'bn':
-        return nn.BatchNorm2d(size)
+        if dim == 1:
+            return nn.BatchNorm1d(size)
+        elif dim == 2:
+            return nn.BatchNorm2d(size)
     elif mode == 'in':
         return nn.InstanceNorm2d(size)
     elif mode == 'ln':
@@ -72,6 +75,15 @@ def Activation(mode):
     return
 
 
+class ResizeCell(nn.Module):
+    def __init__(self, cell_info):
+        super(ResizeCell, self).__init__()
+        self.resize = cell_info['resize']
+
+    def forward(self, input):
+        return input.view(input.size(0), *self.resize)
+
+
 class LinearCell(nn.Linear):
     def __init__(self, cell_info):
         default_cell_info = {'bias': True}
@@ -79,7 +91,7 @@ class LinearCell(nn.Linear):
         super(LinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
         self.input_size = cell_info['input_size']
         self.output_size = cell_info['output_size']
-        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.normalization = Normalization(cell_info['normalization'], self.output_size, 1)
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
@@ -170,25 +182,22 @@ class ResConv2dCell(nn.Module):
 class MultimodalController(nn.Module):
     def __init__(self, cell_info):
         super(MultimodalController, self).__init__()
-        default_cell_info = {'sharing_rate': 1, 'num_mode': 1}
+        default_cell_info = {'num_mode': 1, 'mode_param_rate': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
-        self.sharing_rate = cell_info['sharing_rate']
         self.num_mode = cell_info['num_mode']
-        self.mode_size = math.ceil(self.input_size * (1 - self.sharing_rate) / self.num_mode)
-        self.free_size = self.mode_size * self.num_mode
-        self.shared_size = self.input_size - self.free_size
-        embedding = torch.randint(0, 2, (self.num_mode, self.input_size)).float()
-        # if self.shared_size > 0:
-        #     embedding[:, :self.shared_size] = 1
-        # if self.free_size > 0:
-            # idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
-            # idx = torch.randint(0, self.num_mode, (self.free_size, )).view(1, -1)
-            # embedding[:, self.shared_size:].scatter_(0, idx, 1)
+        self.mode_param_rate = cell_info['mode_param_rate']
+        self.mode_size = round(self.input_size * self.mode_param_rate)
+        if self.mode_size <= 0 or self.mode_size > self.input_size:
+            raise ValueError('Not valid mode param rate')
+        elif self.mode_size == self.input_size:
+            embedding = torch.ones(self.num_mode, self.mode_size, dtype=torch.float)
+        else:
+            embedding = torch.tensor(make_codebook(self.input_size, self.mode_size, self.num_mode), dtype=torch.float)
         self.register_buffer('embedding', embedding)
 
     def forward(self, input):
-        embedding = config.PARAM['attr'].matmul(self.embedding)
+        embedding = config.PARAM['indicator'].matmul(self.embedding)
         embedding = embedding.view(*embedding.size(), *([1] * (input.dim() - 2)))
         output = input * embedding
         return output

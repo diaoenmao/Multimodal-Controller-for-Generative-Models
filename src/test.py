@@ -957,50 +957,50 @@ import numpy as np
 #     return _findc(csum, clen, [], 0)
 
 
-import numpy as np
-
-def findc(seq, ind, csum, clen):
-    def _findc(csum, clen, comb, index, idx):
-        if clen <= 0:
-            if csum == 0:
-                yield comb, index
-            return
-        while idx < len(seq):
-            comb_c = seq[idx]
-            index_c = ind[idx]
-            if comb_c > csum:
-                return
-            for g in _findc(csum - comb_c, clen - 1, comb + [comb_c], index + [index_c], idx + 1):
-                yield g
-            idx += 1
-    return _findc(csum, clen, [], [], 0)
-
-
-def make_codebook(N, M, K):
-    codebook = set()
-    sum = np.zeros(N, dtype=np.int64)
-    for i in range(K):
-        sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
-        sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
-        min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
-        for s in range(min_sum, max_sum + 1):
-            g = findc(sorted_seq, sorted_ind, s, M)
-            prev_size = len(codebook)
-            for (_, idx) in g:
-                code_c = np.zeros(N, dtype=np.int64)
-                code_c[idx] = 1
-                str_code = ''.join(str(cc) for cc in code_c.tolist())
-                codebook.add(str_code)
-                if len(codebook) > prev_size:
-                    sum += code_c
-                    break
-            if len(codebook) > prev_size:
-                break
-    codebook = sorted(list(codebook))
-    for i in range(len(codebook)):
-        codebook[i] = [int(c) for c in codebook[i]]
-    codebook = np.array(codebook)
-    return codebook
+# import numpy as np
+#
+# def findc(seq, ind, csum, clen):
+#     def _findc(csum, clen, comb, index, idx):
+#         if clen <= 0:
+#             if csum == 0:
+#                 yield comb, index
+#             return
+#         while idx < len(seq):
+#             comb_c = seq[idx]
+#             index_c = ind[idx]
+#             if comb_c > csum:
+#                 return
+#             for g in _findc(csum - comb_c, clen - 1, comb + [comb_c], index + [index_c], idx + 1):
+#                 yield g
+#             idx += 1
+#     return _findc(csum, clen, [], [], 0)
+#
+#
+# def make_codebook(N, M, K):
+#     codebook = set()
+#     sum = np.zeros(N, dtype=np.int64)
+#     for i in range(K):
+#         sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
+#         sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+#         min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
+#         for s in range(min_sum, max_sum + 1):
+#             g = findc(sorted_seq, sorted_ind, s, M)
+#             prev_size = len(codebook)
+#             for (_, idx) in g:
+#                 code_c = np.zeros(N, dtype=np.int64)
+#                 code_c[idx] = 1
+#                 str_code = ''.join(str(cc) for cc in code_c.tolist())
+#                 codebook.add(str_code)
+#                 if len(codebook) > prev_size:
+#                     sum += code_c
+#                     break
+#             if len(codebook) > prev_size:
+#                 break
+#     codebook = sorted(list(codebook))
+#     for i in range(len(codebook)):
+#         codebook[i] = [int(c) for c in codebook[i]]
+#     codebook = np.array(codebook)
+#     return codebook
 
 
 # if __name__ == "__main__":
@@ -1017,10 +1017,10 @@ def make_codebook(N, M, K):
 #             print(s, f)
 
 
-if __name__ == "__main__":
-    N = 256
-    M = 128
-    K = 1000
-    codebook = make_codebook(N, M, K)
-    print(codebook)
+# if __name__ == "__main__":
+#     N = 5
+#     M = 2
+#     K = 10
+#     codebook = make_codebook(N, M, K)
+#     print(codebook)
 

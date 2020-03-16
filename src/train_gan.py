@@ -36,8 +36,6 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['batch_size']['train'] = 64
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['Loss', 'Loss_D', 'Loss_G', 'InceptionScore']}
-if config.PARAM['data_name'] == 'CelebA':
-    config.PARAM['subset'] = 'attr'
 
 
 def main():

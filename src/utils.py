@@ -97,36 +97,26 @@ def recur(fn, input, *args):
 
 def process_control_name():
     config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
-    if 'sharing_rate' in config.PARAM['control']:
-        config.PARAM['sharing_rate'] = float(config.PARAM['control']['sharing_rate'])
-    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
+    if 'mode_param_rate' in config.PARAM['control']:
+        config.PARAM['mode_param_rate'] = float(config.PARAM['control']['mode_param_rate'])
+    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST']:
         config.PARAM['img_shape'] = [1, 32, 32]
+        config.PARAM['generate_per_mode'] = 1000
+    elif config.PARAM['data_name'] in ['Omniglot']:
+        config.PARAM['img_shape'] = [1, 32, 32]
+        config.PARAM['generate_per_mode'] = 20
     elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
-    elif config.PARAM['data_name'] in ['CUB200']:
-        config.PARAM['img_shape'] = [3, 64, 64]
-    elif config.PARAM['data_name'] in ['CelebA']:
-        config.PARAM['img_shape'] = [3, 64, 64]
+        config.PARAM['generate_per_mode'] = 1000
     else:
         raise ValueError('Not valid dataset')
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
-        if config.PARAM['model_name'] in ['vae', 'cvae', 'mcvae']:
-            config.PARAM['latent_size'] = 50
-            config.PARAM['hidden_size'] = 1000
-            config.PARAM['num_layers'] = 4
-        elif config.PARAM['model_name'] in ['dcvae', 'dccvae', 'dcmcvae']:
-            config.PARAM['latent_size'] = 50
-            config.PARAM['hidden_size'] = 50
-            config.PARAM['depth'] = 4
-            config.PARAM['encode_shape'] = [config.PARAM['hidden_size'] * (2 ** (config.PARAM['depth'] - 1)),
-                                            config.PARAM['img_shape'][1] // (2 ** config.PARAM['depth']),
-                                            config.PARAM['img_shape'][2] // (2 ** config.PARAM['depth'])]
-        elif config.PARAM['model_name'] in ['gan', 'cgan', 'mcgan']:
+        if config.PARAM['model_name'] in ['cgan', 'mcgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 100
             config.PARAM['num_layers_generator'] = 5
             config.PARAM['num_layers_discriminator'] = 4
-        elif config.PARAM['model_name'] in ['dcgan', 'dccgan', 'dcmcgan']:
+        elif config.PARAM['model_name'] in ['dccgan', 'dcmcgan']:
             config.PARAM['latent_size'] = 100
             config.PARAM['hidden_size'] = 50
             config.PARAM['depth'] = 3
@@ -189,10 +179,7 @@ def make_mode_dataset(dataset):
     mode_img = []
     mode_target = []
     img = np.array(dataset.img)
-    if config.PARAM['subset'] == 'label' or config.PARAM['subset'] == 'identity':
-        target = np.array(dataset.target[config.PARAM['subset']], dtype=np.int64)
-    else:
-        target = np.array(dataset.target[config.PARAM['subset']], dtype=np.float32)
+    target = np.array(dataset.target[config.PARAM['subset']], dtype=np.int64)
     for i in range(config.PARAM['classes_size']):
         img_i = img[target == i]
         target_i = target[target == i]
@@ -232,3 +219,48 @@ def collate(input):
     for k in input:
         input[k] = torch.stack(input[k], 0)
     return input
+
+
+def findc(seq, ind, csum, clen):
+    def _findc(csum, clen, comb, index, idx):
+        if clen <= 0:
+            if csum == 0:
+                yield comb, index
+            return
+        while idx < len(seq):
+            comb_c = seq[idx]
+            index_c = ind[idx]
+            if comb_c > csum:
+                return
+            for g in _findc(csum - comb_c, clen - 1, comb + [comb_c], index + [index_c], idx + 1):
+                yield g
+            idx += 1
+
+    return _findc(csum, clen, [], [], 0)
+
+
+def make_codebook(N, M, K):
+    codebook = set()
+    sum = np.zeros(N, dtype=np.int64)
+    for i in range(K):
+        sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
+        sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+        min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
+        for s in range(min_sum, max_sum + 1):
+            g = findc(sorted_seq, sorted_ind, s, M)
+            prev_size = len(codebook)
+            for (_, idx) in g:
+                code_c = np.zeros(N, dtype=np.int64)
+                code_c[idx] = 1
+                str_code = ''.join(str(cc) for cc in code_c.tolist())
+                codebook.add(str_code)
+                if len(codebook) > prev_size:
+                    sum += code_c
+                    break
+            if len(codebook) > prev_size:
+                break
+    codebook = sorted(list(codebook))
+    for i in range(len(codebook)):
+        codebook[i] = [int(c) for c in codebook[i]]
+    codebook = np.array(codebook)
+    return codebook
