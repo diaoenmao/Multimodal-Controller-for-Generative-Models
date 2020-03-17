@@ -6,16 +6,6 @@ import torch.nn.functional as F
 from .utils import make_model
 
 
-def idx2onehot(idx):
-    if config.PARAM['subset'] == 'label' or config.PARAM['subset'] == 'identity':
-        idx = idx.view(idx.size(0), 1)
-        onehot = idx.new_zeros(idx.size(0), config.PARAM['classes_size']).float()
-        onehot.scatter_(1, idx, 1)
-    else:
-        onehot = idx.float()
-    return onehot
-
-
 class GAN(nn.Module):
     def __init__(self):
         super(GAN, self).__init__()
@@ -100,7 +90,7 @@ class MCGAN(nn.Module):
 
 
 def gan():
-    normalization = 'bn1'
+    normalization = 'bn'
     activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
@@ -142,7 +132,7 @@ def gan():
 
 
 def cgan():
-    normalization = 'bn1'
+    normalization = 'bn'
     activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']
@@ -192,7 +182,7 @@ def cgan():
 
 
 def mcgan():
-    normalization = 'bn1'
+    normalization = 'bn'
     activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     latent_size = config.PARAM['latent_size']

@@ -25,6 +25,8 @@ def make_cell(cell_info):
         cell = ResConv2dCell(cell_info)
     elif cell_info['cell'] == 'MultimodalController':
         cell = MultimodalController(cell_info)
+    elif cell_info['cell'] == 'MCLinearCell':
+        cell = MCLinearCell(cell_info)
     else:
         raise ValueError('Not valid cell info: {}'.format(cell_info))
     return cell
@@ -96,6 +98,25 @@ class LinearCell(nn.Linear):
 
     def forward(self, input):
         return self.activation(self.normalization(F.linear(input, self.weight, self.bias)))
+
+
+class MCLinearCell(nn.Linear):
+    def __init__(self, cell_info):
+        default_cell_info = {'bias': True}
+        cell_info = {**default_cell_info, **cell_info}
+        super(MCLinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
+        self.input_size = cell_info['input_size']
+        self.output_size = cell_info['output_size']
+        self.num_mode = cell_info['num_mode']
+        self.mode_param_rate = cell_info['mode_param_rate']
+        self.mc = MultimodalController(
+            {'cell': 'MultimodalController', 'input_size': self.output_size, 'num_mode': self.num_mode,
+             'mode_param_rate': self.mode_param_rate})
+        self.normalization = Normalization(cell_info['normalization'], self.output_size, 1)
+        self.activation = Activation(cell_info['activation'])
+
+    def forward(self, input):
+        return self.activation(self.normalization(self.mc(F.linear(input, self.weight, self.bias))))
 
 
 class Conv2dCell(nn.Conv2d):
@@ -193,7 +214,8 @@ class MultimodalController(nn.Module):
         elif self.mode_size == self.input_size:
             embedding = torch.ones(self.num_mode, self.mode_size, dtype=torch.float)
         else:
-            embedding = torch.tensor(make_codebook(self.input_size, self.mode_size, self.num_mode), dtype=torch.float)
+            # embedding = torch.tensor(make_codebook(self.input_size, self.mode_size, self.num_mode), dtype=torch.float)
+            embedding = torch.randint(0, 2, (self.num_mode, self.input_size)).float()
         self.register_buffer('embedding', embedding)
 
     def forward(self, input):

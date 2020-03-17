@@ -14,7 +14,6 @@ from metrics import Metric
 from utils import save, load, to_device, process_control_name, process_dataset, resume, collate, save_img
 from logger import Logger
 
-
 # if __name__ == "__main__":
 #     test_0 = load('output/test_0.pt')
 #     test_1 = load('output/test_1.pt')
@@ -763,7 +762,8 @@ from logger import Logger
 #             for i in range(len(size) - 2):
 #                 size_prods *= size[i + 2]
 #             if size_prods == 1:
-#                 raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(size))
+#                 raise ValueError('Expected more than 1 value per channel when training, got input size {}'.format(
+#                 size))
 #         mask = self.shared_mask.view(1, self.shared_mask.size(0)).expand(input.size(0), self.shared_mask.size(0))
 #         mask = torch.cat((mask, config.PARAM['attr'].repeat_interleave(self.free_size, dim=1).detach()), dim=1).bool()
 #         if self.training or not self.track_running_stats:
@@ -957,8 +957,9 @@ import numpy as np
 #     return _findc(csum, clen, [], 0)
 
 
-# import numpy as np
-#
+import numpy as np
+import itertools
+
 # def findc(seq, ind, csum, clen):
 #     def _findc(csum, clen, comb, index, idx):
 #         if clen <= 0:
@@ -973,34 +974,44 @@ import numpy as np
 #             for g in _findc(csum - comb_c, clen - 1, comb + [comb_c], index + [index_c], idx + 1):
 #                 yield g
 #             idx += 1
+#
 #     return _findc(csum, clen, [], [], 0)
-#
-#
-# def make_codebook(N, M, K):
-#     codebook = set()
-#     sum = np.zeros(N, dtype=np.int64)
-#     for i in range(K):
-#         sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
-#         sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
-#         min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
-#         for s in range(min_sum, max_sum + 1):
-#             g = findc(sorted_seq, sorted_ind, s, M)
-#             prev_size = len(codebook)
-#             for (_, idx) in g:
-#                 code_c = np.zeros(N, dtype=np.int64)
-#                 code_c[idx] = 1
-#                 str_code = ''.join(str(cc) for cc in code_c.tolist())
-#                 codebook.add(str_code)
-#                 if len(codebook) > prev_size:
-#                     sum += code_c
-#                     break
-#             if len(codebook) > prev_size:
-#                 break
-#     codebook = sorted(list(codebook))
-#     for i in range(len(codebook)):
-#         codebook[i] = [int(c) for c in codebook[i]]
-#     codebook = np.array(codebook)
-#     return codebook
+
+
+def make_codebook(N, M, K):
+    search_range = 100
+    codebook = set()
+    sum = np.zeros(N, dtype=np.int64)
+    for i in range(K):
+        print(i)
+        sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
+        sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+        seq_c = itertools.combinations(sorted_seq, M)
+        ind_c = itertools.combinations(sorted_ind, M)
+        p = 0
+        while True:
+            print(p)
+            prev_size = len(codebook)
+            seq_s = np.array(list(itertools.islice(seq_c, p, p + search_range)))
+            ind_s = np.array(list(itertools.islice(ind_c, p, p + search_range)))
+            seq_sum = seq_s.sum(axis=1)
+            ind_s = ind_s[sorted(range(len(seq_sum)), key=lambda k: seq_sum[k])]
+            for idx in ind_s:
+                code_c = np.zeros(N, dtype=np.int64)
+                code_c[idx] = 1
+                str_code = ''.join(str(cc) for cc in code_c.tolist())
+                codebook.add(str_code)
+                if len(codebook) > prev_size:
+                    sum += code_c
+                    break
+            if len(codebook) > prev_size:
+                break
+            p += search_range
+    codebook = sorted(list(codebook))
+    for i in range(len(codebook)):
+        codebook[i] = [int(c) for c in codebook[i]]
+    codebook = np.array(codebook)
+    return codebook
 
 
 # if __name__ == "__main__":
@@ -1016,11 +1027,12 @@ import numpy as np
 #         for f in findc(sorted_seq, sorted_ind, s, M):
 #             print(s, f)
 
+import matplotlib.pyplot as plt
 
-# if __name__ == "__main__":
-#     N = 5
-#     M = 2
-#     K = 10
-#     codebook = make_codebook(N, M, K)
-#     print(codebook)
-
+if __name__ == "__main__":
+    N = 512
+    M = 256
+    K = 10
+    A = list(range(N))
+    codebook = make_codebook(N, M, K)
+    print(codebook)

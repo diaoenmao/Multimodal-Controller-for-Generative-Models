@@ -168,7 +168,6 @@ def train(data_loader, model, optimizer, logger, epoch):
 
 
 def test(data_loader, model, logger, epoch):
-    sample_per_mode = 1000
     criterion = torch.nn.BCELoss()
     with torch.no_grad():
         metric = Metric()
@@ -196,13 +195,8 @@ def test(data_loader, model, logger, epoch):
                       'loss_G': D_G_z2_loss}
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
             logger.append(evaluation, 'test', input_size)
-        if config.PARAM['model_name'] in ['gan', 'dcgan']:
-            generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cgan', 'dccgan', 'mcgan', 'dcmcgan']:
-            generated = model.generate(
-                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
-        else:
-            raise ValueError('Not valid model name')
+        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        generated = model.generate(C.repeat(config.PARAM['generate_per_mode']))
         output = {'img': generated}
         evaluation = metric.evaluate(['InceptionScore'], None, output)
         logger.append(evaluation, 'test', 1)

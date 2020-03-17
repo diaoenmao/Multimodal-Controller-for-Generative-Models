@@ -3,8 +3,9 @@ def init():
     PARAM = {
         'data_name': 'Omniglot',
         'subset': 'label',
-        'model_name': 'classifier',
-        'control': {'mode_data_size': '0'},
+        'model_name': 'mcvae',
+        # 'control': {'mode_data_size': '0'},
+        'control': {'mode_data_size': '0', 'mode_param_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,

@@ -114,7 +114,11 @@ def cvae():
     # Decoder
     config.PARAM['model']['decoder'] = []
     input_size = latent_size + embedding_size
-    for i in range(len(decoder_hidden_size)):
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'LinearCell', 'input_size': input_size, 'output_size': decoder_hidden_size[0], 'bias': True,
+         'normalization': normalization, 'activation': activation})
+    input_size = decoder_hidden_size[0]
+    for i in range(1, len(decoder_hidden_size)):
         output_size = decoder_hidden_size[i]
         config.PARAM['model']['decoder'].append(
             {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
@@ -137,7 +141,7 @@ def mcvae():
     mode_param_rate = config.PARAM['mode_param_rate']
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
-    encoder_hidden_size = [512, 256, 128]
+    encoder_hidden_size = [1024, 512, 256, 128]
     decoder_hidden_size = encoder_hidden_size[::-1]
     config.PARAM['model'] = {}
     # Encoder
@@ -162,19 +166,25 @@ def mcvae():
         'bias': True, 'normalization': 'none', 'activation': 'none'}
     # Decoder
     config.PARAM['model']['decoder'] = []
-    input_size = latent_size
-    for i in range(len(decoder_hidden_size)):
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'LinearCell', 'input_size': latent_size, 'output_size': decoder_hidden_size[0], 'bias': True,
+         'normalization': normalization, 'activation': activation})
+    input_size = decoder_hidden_size[0]
+    for i in range(1, len(decoder_hidden_size)):
         output_size = decoder_hidden_size[i]
+        config.PARAM['model']['decoder'].append(
+            {'cell': 'MultimodalController', 'input_size': input_size,
+             'num_mode': num_mode, 'mode_param_rate': mode_param_rate})
         config.PARAM['model']['decoder'].append(
             {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
              'normalization': normalization, 'activation': activation})
-        config.PARAM['model']['decoder'].append(
-            {'cell': 'MultimodalController', 'input_size': output_size,
-             'num_mode': num_mode, 'mode_param_rate': mode_param_rate})
         input_size = output_size
+    config.PARAM['model']['decoder'].append(
+        {'cell': 'MultimodalController', 'input_size': input_size,
+         'num_mode': num_mode, 'mode_param_rate': mode_param_rate})
     output_size = np.prod(img_shape)
     config.PARAM['model']['decoder'].append(
-        {'cell': 'LinearCell', 'input_size': decoder_hidden_size[-1], 'output_size': output_size, 'bias': True,
+        {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
          'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
     model = MCVAE()
@@ -244,7 +254,7 @@ class DCMCVAE(nn.Module):
 
 
 def dccvae():
-    normalization = 'bn'
+    normalization = 'none'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     classes_size = config.PARAM['classes_size']
@@ -324,13 +334,13 @@ def dccvae():
 
 
 def dcmcvae():
-    normalization = 'bn'
+    normalization = 'none'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
     mode_param_rate = config.PARAM['mode_param_rate']
     config.PARAM['latent_size'] = 64
-    latent_size =  config.PARAM['latent_size']
+    latent_size = config.PARAM['latent_size']
     encoder_hidden_size = [64, 128, 256, 512]
     decoder_hidden_size = encoder_hidden_size[::-1]
     config.PARAM['encode_shape'] = [encoder_hidden_size[-1], img_shape[1] // (2 ** len(encoder_hidden_size)),

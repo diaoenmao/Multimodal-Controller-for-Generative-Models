@@ -2,6 +2,7 @@ import collections.abc as container_abcs
 import config
 import errno
 import numpy as np
+import itertools
 import os
 import torch
 from itertools import repeat
@@ -110,18 +111,18 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 1000
     else:
         raise ValueError('Not valid dataset')
-    if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
-        if config.PARAM['model_name'] in ['cgan', 'mcgan']:
-            config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 100
-            config.PARAM['num_layers_generator'] = 5
-            config.PARAM['num_layers_discriminator'] = 4
-        elif config.PARAM['model_name'] in ['dccgan', 'dcmcgan']:
-            config.PARAM['latent_size'] = 100
-            config.PARAM['hidden_size'] = 50
-            config.PARAM['depth'] = 3
-    else:
-        raise ValueError('Not valid dataset')
+    # if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
+    #     if config.PARAM['model_name'] in ['cgan', 'mcgan']:
+    #         config.PARAM['latent_size'] = 100
+    #         config.PARAM['hidden_size'] = 100
+    #         config.PARAM['num_layers_generator'] = 5
+    #         config.PARAM['num_layers_discriminator'] = 4
+    #     elif config.PARAM['model_name'] in ['dccgan', 'dcmcgan']:
+    #         config.PARAM['latent_size'] = 100
+    #         config.PARAM['hidden_size'] = 50
+    #         config.PARAM['depth'] = 3
+    # else:
+    #     raise ValueError('Not valid dataset')
     config.PARAM['embedding_size'] = 32
     return
 
@@ -221,46 +222,36 @@ def collate(input):
     return input
 
 
-def findc(seq, ind, csum, clen):
-    def _findc(csum, clen, comb, index, idx):
-        if clen <= 0:
-            if csum == 0:
-                yield comb, index
-            return
-        while idx < len(seq):
-            comb_c = seq[idx]
-            index_c = ind[idx]
-            if comb_c > csum:
-                return
-            for g in _findc(csum - comb_c, clen - 1, comb + [comb_c], index + [index_c], idx + 1):
-                yield g
-            idx += 1
 
-    return _findc(csum, clen, [], [], 0)
-
-
-def make_codebook(N, M, K):
-    codebook = set()
-    sum = np.zeros(N, dtype=np.int64)
-    for i in range(K):
-        sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
-        sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
-        min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
-        for s in range(min_sum, max_sum + 1):
-            g = findc(sorted_seq, sorted_ind, s, M)
-            prev_size = len(codebook)
-            for (_, idx) in g:
-                code_c = np.zeros(N, dtype=np.int64)
-                code_c[idx] = 1
-                str_code = ''.join(str(cc) for cc in code_c.tolist())
-                codebook.add(str_code)
-                if len(codebook) > prev_size:
-                    sum += code_c
-                    break
-            if len(codebook) > prev_size:
-                break
-    codebook = sorted(list(codebook))
-    for i in range(len(codebook)):
-        codebook[i] = [int(c) for c in codebook[i]]
-    codebook = np.array(codebook)
-    return codebook
+# def make_codebook(N, M, K):
+#     search_range = 1000
+#     codebook = set()
+#     sum = np.zeros(N, dtype=np.int64)
+#     for i in range(K):
+#         sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
+#         sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+#         seq_c = itertools.combinations(sorted_seq, M)
+#         ind_c = itertools.combinations(sorted_ind, M)
+#         p = 0
+#         while True:
+#             prev_size = len(codebook)
+#             seq_s = np.array(list(itertools.islice(seq_c, p, p + search_range)))
+#             ind_s = np.array(list(itertools.islice(ind_c, p, p + search_range)))
+#             seq_sum = seq_s.sum(axis=1)
+#             ind_s = ind_s[sorted(range(len(seq_sum)), key=lambda k: seq_sum[k])]
+#             for idx in ind_s:
+#                 code_c = np.zeros(N, dtype=np.int64)
+#                 code_c[idx] = 1
+#                 str_code = ''.join(str(cc) for cc in code_c.tolist())
+#                 codebook.add(str_code)
+#                 if len(codebook) > prev_size:
+#                     sum += code_c
+#                     break
+#             if len(codebook) > prev_size:
+#                 break
+#             p += search_range
+#     codebook = sorted(list(codebook))
+#     for i in range(len(codebook)):
+#         codebook[i] = [int(c) for c in codebook[i]]
+#     codebook = np.array(codebook)
+#     return codebook

@@ -72,7 +72,6 @@ def runExperiment():
 
 
 def test(data_loader, model, logger, epoch):
-    sample_per_mode = 1000
     save_per_mode = 10
     criterion = torch.nn.BCELoss()
     with torch.no_grad():
@@ -103,20 +102,11 @@ def test(data_loader, model, logger, epoch):
             logger.append(evaluation, 'test', input_size)
         save_img(input['img'][:100],
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-        if config.PARAM['model_name'] in ['gan', 'dcgan']:
-            generated = model.generate(sample_per_mode * config.PARAM['classes_size'])
-            save_img(model.generate(save_per_mode * config.PARAM['classes_size']),
-                     './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                     nrow=config.PARAM['classes_size'])
-        elif config.PARAM['model_name'] in ['cgan', 'dccgan', 'mcgan', 'dcmcgan']:
-            generated = model.generate(
-                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(sample_per_mode))
-            save_img(model.generate(
-                torch.arange(config.PARAM['classes_size']).to(config.PARAM['device']).repeat(save_per_mode)),
-                './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                nrow=config.PARAM['classes_size'])
-        else:
-            raise ValueError('Not valid model name')
+        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        generated = model.generate(C.repeat(config.PARAM['generate_per_mode']))
+        saved = model.generate(C.repeat(save_per_mode))
+        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
+                 nrow=config.PARAM['classes_size'])
         output = {'img': generated}
         evaluation = metric.evaluate(['InceptionScore'], None, output)
         logger.append(evaluation, 'test', 1)
