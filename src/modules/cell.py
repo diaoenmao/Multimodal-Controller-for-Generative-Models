@@ -3,7 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import ntuple, make_codebook
+from utils import ntuple
 
 
 def make_cell(cell_info):
@@ -116,7 +116,7 @@ class MCLinearCell(nn.Linear):
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
-        return self.activation(self.normalization(self.mc(F.linear(input, self.weight, self.bias))))
+        return self.mc(self.activation(self.normalization(F.linear(input, self.weight, self.bias))))
 
 
 class Conv2dCell(nn.Conv2d):
@@ -215,7 +215,12 @@ class MultimodalController(nn.Module):
             embedding = torch.ones(self.num_mode, self.mode_size, dtype=torch.float)
         else:
             # embedding = torch.tensor(make_codebook(self.input_size, self.mode_size, self.num_mode), dtype=torch.float)
-            embedding = torch.randint(0, 2, (self.num_mode, self.input_size)).float()
+            # embedding = torch.randint(0, 2, (self.num_mode, self.input_size)).float()
+            # embedding = torch.zeros(self.num_mode, self.input_size)
+            # idx = torch.rand(self.num_mode, self.input_size).argsort(dim=1)[:, :self.mode_size]
+            # embedding.scatter_(1, idx, 1)
+            d = torch.distributions.bernoulli.Bernoulli(probs=self.mode_param_rate)
+            embedding = d.sample((self.num_mode, self.input_size))
         self.register_buffer('embedding', embedding)
 
     def forward(self, input):

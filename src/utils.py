@@ -222,36 +222,3 @@ def collate(input):
     return input
 
 
-
-# def make_codebook(N, M, K):
-#     search_range = 1000
-#     codebook = set()
-#     sum = np.zeros(N, dtype=np.int64)
-#     for i in range(K):
-#         sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
-#         sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
-#         seq_c = itertools.combinations(sorted_seq, M)
-#         ind_c = itertools.combinations(sorted_ind, M)
-#         p = 0
-#         while True:
-#             prev_size = len(codebook)
-#             seq_s = np.array(list(itertools.islice(seq_c, p, p + search_range)))
-#             ind_s = np.array(list(itertools.islice(ind_c, p, p + search_range)))
-#             seq_sum = seq_s.sum(axis=1)
-#             ind_s = ind_s[sorted(range(len(seq_sum)), key=lambda k: seq_sum[k])]
-#             for idx in ind_s:
-#                 code_c = np.zeros(N, dtype=np.int64)
-#                 code_c[idx] = 1
-#                 str_code = ''.join(str(cc) for cc in code_c.tolist())
-#                 codebook.add(str_code)
-#                 if len(codebook) > prev_size:
-#                     sum += code_c
-#                     break
-#             if len(codebook) > prev_size:
-#                 break
-#             p += search_range
-#     codebook = sorted(list(codebook))
-#     for i in range(len(codebook)):
-#         codebook[i] = [int(c) for c in codebook[i]]
-#     codebook = np.array(codebook)
-#     return codebook

@@ -978,61 +978,71 @@ import itertools
 #     return _findc(csum, clen, [], [], 0)
 
 
-def make_codebook(N, M, K):
-    search_range = 100
-    codebook = set()
-    sum = np.zeros(N, dtype=np.int64)
-    for i in range(K):
-        print(i)
-        sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
-        sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
-        seq_c = itertools.combinations(sorted_seq, M)
-        ind_c = itertools.combinations(sorted_ind, M)
-        p = 0
-        while True:
-            print(p)
-            prev_size = len(codebook)
-            seq_s = np.array(list(itertools.islice(seq_c, p, p + search_range)))
-            ind_s = np.array(list(itertools.islice(ind_c, p, p + search_range)))
-            seq_sum = seq_s.sum(axis=1)
-            ind_s = ind_s[sorted(range(len(seq_sum)), key=lambda k: seq_sum[k])]
-            for idx in ind_s:
-                code_c = np.zeros(N, dtype=np.int64)
-                code_c[idx] = 1
-                str_code = ''.join(str(cc) for cc in code_c.tolist())
-                codebook.add(str_code)
-                if len(codebook) > prev_size:
-                    sum += code_c
-                    break
-            if len(codebook) > prev_size:
-                break
-            p += search_range
-    codebook = sorted(list(codebook))
-    for i in range(len(codebook)):
-        codebook[i] = [int(c) for c in codebook[i]]
-    codebook = np.array(codebook)
-    return codebook
-
+# def make_codebook(N, M, K):
+#     search_range = 100
+#     codebook = set()
+#     sum = np.zeros(N, dtype=np.int64)
+#     for i in range(K):
+#         print(i)
+#         sorted_seq = sum[::-1] if i == 0 else np.sort(sum)
+#         sorted_ind = np.arange(N)[::-1] if i == 0 else np.argsort(sum)
+#         seq_c = itertools.combinations(sorted_seq, M)
+#         ind_c = itertools.combinations(sorted_ind, M)
+#         p = 0
+#         while True:
+#             print(p)
+#             prev_size = len(codebook)
+#             seq_s = np.array(list(itertools.islice(seq_c, p, p + search_range)))
+#             ind_s = np.array(list(itertools.islice(ind_c, p, p + search_range)))
+#             seq_sum = seq_s.sum(axis=1)
+#             ind_s = ind_s[sorted(range(len(seq_sum)), key=lambda k: seq_sum[k])]
+#             for idx in ind_s:
+#                 code_c = np.zeros(N, dtype=np.int64)
+#                 code_c[idx] = 1
+#                 str_code = ''.join(str(cc) for cc in code_c.tolist())
+#                 codebook.add(str_code)
+#                 if len(codebook) > prev_size:
+#                     sum += code_c
+#                     break
+#             if len(codebook) > prev_size:
+#                 break
+#             p += search_range
+#     codebook = sorted(list(codebook))
+#     for i in range(len(codebook)):
+#         codebook[i] = [int(c) for c in codebook[i]]
+#     codebook = np.array(codebook)
+#     return codebook
+#
+#
+# # if __name__ == "__main__":
+# #     M = 3
+# #     seq = np.array([3,2,1,1,3,4,1])
+# #     sorted_seq = np.sort(seq)
+# #     sorted_ind = np.argsort(seq)
+# #     print(seq)
+# #     print(sorted_seq)
+# #     print(sorted_ind)
+# #     min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
+# #     for s in range(min_sum, max_sum + 1):
+# #         for f in findc(sorted_seq, sorted_ind, s, M):
+# #             print(s, f)
+#
+# import matplotlib.pyplot as plt
+#
+# if __name__ == "__main__":
+#     N = 512
+#     M = 256
+#     K = 10
+#     A = list(range(N))
+#     codebook = make_codebook(N, M, K)
+#     print(codebook)
 
 # if __name__ == "__main__":
-#     M = 3
-#     seq = np.array([3,2,1,1,3,4,1])
-#     sorted_seq = np.sort(seq)
-#     sorted_ind = np.argsort(seq)
-#     print(seq)
-#     print(sorted_seq)
-#     print(sorted_ind)
-#     min_sum, max_sum = sorted_seq[:M].sum(), sorted_seq[-M:].sum()
-#     for s in range(min_sum, max_sum + 1):
-#         for f in findc(sorted_seq, sorted_ind, s, M):
-#             print(s, f)
-
-import matplotlib.pyplot as plt
-
-if __name__ == "__main__":
-    N = 512
-    M = 256
-    K = 10
-    A = list(range(N))
-    codebook = make_codebook(N, M, K)
-    print(codebook)
+#     num_mode = 10
+#     input_size = 8
+#     mode_size = 4
+#     embedding = torch.zeros(num_mode, input_size)
+#     idx = torch.rand(num_mode, input_size).argsort(dim=1)[:, :mode_size]
+#     embedding.scatter_(1, idx, 1)
+#     print(idx)
+#     print(embedding)
