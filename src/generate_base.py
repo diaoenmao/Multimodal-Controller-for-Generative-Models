@@ -13,9 +13,9 @@ def main():
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['MNIST', 'Omniglot']
     if model_mode == 'vae':
-        model_names = [['cvae', 'dcvae']]
+        model_names = [['cvae', 'dccvae']]
     else:
-        model_names = [['cgan', 'dcgan']]
+        model_names = [['cgan', 'dccgan']]
     init_seeds = [[0]]
     num_epochs = [[200]]
     s = '#!/bin/bash\n'

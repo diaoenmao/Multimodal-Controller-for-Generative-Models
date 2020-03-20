@@ -315,7 +315,7 @@ class MultimodalController(nn.Module):
 
     def make_codebook(self):
         if self.controller_rate == 1:
-            codebook = torch.ones(self.num_mode, self.mode_size, dtype=torch.float)
+            codebook = torch.ones(self.num_mode, self.input_size, dtype=torch.float)
         else:
             d = torch.distributions.bernoulli.Bernoulli(probs=self.controller_rate)
             codebook = set()
