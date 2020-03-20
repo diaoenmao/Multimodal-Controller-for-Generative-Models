@@ -1,19 +1,21 @@
 import config
+
 config.init()
 import itertools
 
+
 def main():
-    round = 8
+    round = 20
     run_mode = 'train'
-    model_mode = 'vae'
-    filename = '{}_{}'.format(run_mode, model_mode)
-    gpu_ids = ['0','1','2','3']
+    model_mode = 'gan'
+    filename = '{}_c{}'.format(run_mode, model_mode)
+    gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
-    data_names = ['MNIST', 'FashionMNIST']
+    data_names = ['MNIST', 'Omniglot']
     if model_mode == 'vae':
-        model_names = [['vae', 'cvae', 'dcvae', 'dccvae']]
+        model_names = [['cvae', 'dcvae']]
     else:
-        model_names = [['gan', 'cgan', 'dcgan', 'dccgan']]
+        model_names = [['cgan', 'dcgan']]
     init_seeds = [[0]]
     num_epochs = [[200]]
     s = '#!/bin/bash\n'
@@ -22,11 +24,7 @@ def main():
         if data_name in ['MNIST', 'FashionMNIST']:
             control_names = [['1', '10', '100', '500', '1000', '0']]
         elif data_name == 'Omniglot':
-            control_names = [['1', '10']]
-        elif data_name == 'CUB200':
-            control_names = [['1', '10', '20', '0']]
-        elif data_name == 'CelebA':
-            control_names = [['0']]
+            control_names = [['1', '0']]
         else:
             raise ValueError('Not valid data name')
         control_names = list(itertools.product(*control_names))
@@ -34,7 +32,9 @@ def main():
         controls = script_name + [[data_name]] + model_names + init_seeds + num_epochs + control_names
         controls = list(itertools.product(*controls))
         for j in range(len(controls)):
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} --num_epochs {} --control_name {}&\n'.format(gpu_ids[j%len(gpu_ids)],*controls[j])
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} --num_epochs ' \
+                    '{} --control_name {}&\n'.format(
+                gpu_ids[j % len(gpu_ids)], *controls[j])
             if j % round == round - 1:
                 s = s[:-2] + '\n'
     print(s)
@@ -42,6 +42,7 @@ def main():
     run_file.write(s)
     run_file.close()
     exit()
-    
+
+
 if __name__ == '__main__':
     main()

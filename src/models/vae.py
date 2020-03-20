@@ -80,7 +80,7 @@ def cvae():
     normalization = 'bn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
-    classes_size = config.PARAM['classes_size']
+    num_mode = config.PARAM['classes_size']
     embedding_size = config.PARAM['embedding_size']
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
@@ -89,10 +89,10 @@ def cvae():
     config.PARAM['model'] = {}
     # Embedding
     config.PARAM['model']['encoder_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
+        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
+        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     # Encoder
     input_size = np.prod(img_shape) + embedding_size
@@ -138,7 +138,7 @@ def mcvae():
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
-    mode_param_rate = config.PARAM['mode_param_rate']
+    controller_rate = config.PARAM['controller_rate']
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
     encoder_hidden_size = [1024, 512, 256, 128]
@@ -152,7 +152,7 @@ def mcvae():
         config.PARAM['model']['encoder'].append(
             {'cell': 'MCLinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
              'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
+             'controller_rate': controller_rate})
         input_size = output_size
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # latent
@@ -167,14 +167,14 @@ def mcvae():
     config.PARAM['model']['decoder'].append(
         {'cell': 'MCLinearCell', 'input_size': latent_size, 'output_size': decoder_hidden_size[0], 'bias': True,
          'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
+             'controller_rate': controller_rate})
     input_size = decoder_hidden_size[0]
     for i in range(1, len(decoder_hidden_size)):
         output_size = decoder_hidden_size[i]
         config.PARAM['model']['decoder'].append(
             {'cell': 'MCLinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
              'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
+             'controller_rate': controller_rate})
         input_size = output_size
     output_size = np.prod(img_shape)
     config.PARAM['model']['decoder'].append(
@@ -251,7 +251,7 @@ def dccvae():
     normalization = 'none'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
-    classes_size = config.PARAM['classes_size']
+    num_mode = config.PARAM['classes_size']
     embedding_size = config.PARAM['embedding_size']
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
@@ -263,10 +263,10 @@ def dccvae():
     config.PARAM['model'] = {}
     # Embedding
     config.PARAM['model']['encoder_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
+        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['decoder_embedding'] = {
-        'cell': 'LinearCell', 'input_size': classes_size, 'output_size': embedding_size,
+        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     # Encoder
     input_size = img_shape[0] + embedding_size
@@ -332,7 +332,7 @@ def dcmcvae():
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
-    mode_param_rate = config.PARAM['mode_param_rate']
+    controller_rate = config.PARAM['controller_rate']
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
     encoder_hidden_size = [64, 128, 256, 512]
@@ -346,29 +346,23 @@ def dcmcvae():
     output_size = encoder_hidden_size[0]
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
-        {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
+        {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
          'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': normalization,
-         'activation': activation})
-    config.PARAM['model']['encoder'].append(
-        {'cell': 'MultimodalController', 'input_size': output_size, 'num_mode': num_mode,
-         'mode_param_rate': mode_param_rate})
+         'activation': activation, 'num_mode': num_mode,
+             'controller_rate': controller_rate})
     input_size = output_size
     for i in range(1, len(encoder_hidden_size)):
         output_size = encoder_hidden_size[i]
         config.PARAM['model']['encoder'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': input_size,
+            {'cell': 'ResMCConv2dCell', 'input_size': input_size, 'output_size': input_size,
              'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
-             'normalization': normalization, 'activation': activation})
+             'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
+             'controller_rate': controller_rate})
         config.PARAM['model']['encoder'].append(
-            {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
-        config.PARAM['model']['encoder'].append(
-            {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
+            {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
-             'activation': activation})
-        config.PARAM['model']['encoder'].append(
-            {'cell': 'MultimodalController', 'input_size': output_size, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
+             'activation': activation, 'num_mode': num_mode,
+             'controller_rate': controller_rate})
         input_size = output_size
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # Latent
@@ -383,31 +377,25 @@ def dcmcvae():
     input_size = latent_size
     output_size = np.prod(encode_shape)
     config.PARAM['model']['decoder'].append(
-        {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size,
-         'bias': True, 'normalization': 'none', 'activation': activation})
+        {'cell': 'MCLinearCell', 'input_size': input_size, 'output_size': output_size,
+         'bias': True, 'normalization': 'none', 'activation': activation, 'num_mode': num_mode,
+             'controller_rate': controller_rate})
     config.PARAM['model']['decoder'].append(
         {'cell': 'ResizeCell', 'resize': encode_shape})
     input_size = encode_shape[0]
     for i in range(1, len(decoder_hidden_size)):
         output_size = decoder_hidden_size[i]
         config.PARAM['model']['decoder'].append(
-            {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
-        config.PARAM['model']['decoder'].append(
-            {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size,
+            {'cell': 'MCConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size,
              'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
-             'activation': activation})
+             'activation': activation, 'num_mode': num_mode,
+             'controller_rate': controller_rate})
         config.PARAM['model']['decoder'].append(
-            {'cell': 'MultimodalController', 'input_size': output_size, 'num_mode': num_mode,
-             'mode_param_rate': mode_param_rate})
-        config.PARAM['model']['decoder'].append(
-            {'cell': 'ResConv2dCell', 'input_size': output_size, 'output_size': output_size,
+            {'cell': 'ResMCConv2dCell', 'input_size': output_size, 'output_size': output_size,
              'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True,
-             'normalization': normalization, 'activation': activation})
+             'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
+             'controller_rate': controller_rate})
         input_size = output_size
-    config.PARAM['model']['decoder'].append(
-        {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
-         'mode_param_rate': mode_param_rate})
     config.PARAM['model']['decoder'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': img_shape[0],
          'kernel_size': 2, 'stride': 2, 'padding': 0, 'bias': True, 'normalization': 'none',

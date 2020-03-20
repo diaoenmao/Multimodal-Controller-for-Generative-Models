@@ -1,11 +1,11 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'Omniglot',
+        'data_name': 'MNIST',
         'subset': 'label',
-        'model_name': 'mcvae',
-        # 'control': {'mode_data_size': '0'},
-        'control': {'mode_data_size': '0', 'mode_param_rate': '0.5'},
+        'model_name': 'dcmcgan',
+        'control': {'mode_data_size': '0'},
+        # 'control': {'mode_data_size': '0', 'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,
@@ -25,7 +25,7 @@ def init():
         'world_size': 1,
         'metric_names': {'train': ['Loss','NLL'], 'test': ['Loss','NLL']},
         'init_seed': 0,
-        'num_Experiments': 1,
+        'num_Experiments': 10,
         'log_interval': 0.25,
         'log_overwrite': False,
         'resume_mode': 0

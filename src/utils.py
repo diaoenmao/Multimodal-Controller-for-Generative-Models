@@ -98,8 +98,8 @@ def recur(fn, input, *args):
 
 def process_control_name():
     config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
-    if 'mode_param_rate' in config.PARAM['control']:
-        config.PARAM['mode_param_rate'] = float(config.PARAM['control']['mode_param_rate'])
+    if 'controller_rate' in config.PARAM['control']:
+        config.PARAM['controller_rate'] = float(config.PARAM['control']['controller_rate'])
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST']:
         config.PARAM['img_shape'] = [1, 32, 32]
         config.PARAM['generate_per_mode'] = 1000
