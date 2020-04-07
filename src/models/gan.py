@@ -66,7 +66,8 @@ class MCGAN(nn.Module):
 
 def cgan():
     normalization = 'bn'
-    activation = 'leakyrelu'
+    generator_activation = 'relu'
+    discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
     embedding_size = config.PARAM['embedding_size']
@@ -89,7 +90,7 @@ def cgan():
         output_size = generator_hidden_size[i]
         config.PARAM['model']['generator'].append(
             {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size,
-             'bias': True, 'normalization': normalization, 'activation': activation})
+             'bias': True, 'normalization': normalization, 'activation': generator_activation})
         input_size = output_size
     config.PARAM['model']['generator'].append(
         {'cell': 'LinearCell', 'input_size': input_size,
@@ -102,7 +103,7 @@ def cgan():
         output_size = discriminator_hidden_size[i]
         config.PARAM['model']['discriminator'].append(
             {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size,
-             'bias': True, 'normalization': normalization, 'activation': activation})
+             'bias': True, 'normalization': normalization, 'activation': discriminator_activation})
         input_size = output_size
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': input_size,
@@ -114,7 +115,8 @@ def cgan():
 
 def mcgan():
     normalization = 'bn'
-    activation = 'leakyrelu'
+    generator_activation = 'relu'
+    discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
     controller_rate = config.PARAM['controller_rate']
@@ -130,7 +132,7 @@ def mcgan():
         output_size = generator_hidden_size[i]
         config.PARAM['model']['generator'].append(
             {'cell': 'MCLinearCell', 'input_size': input_size, 'output_size': output_size,
-             'bias': True, 'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
+             'bias': True, 'normalization': normalization, 'activation': generator_activation, 'num_mode': num_mode,
              'controller_rate': controller_rate})
         input_size = output_size
     config.PARAM['model']['generator'].append(
@@ -144,7 +146,7 @@ def mcgan():
         output_size = discriminator_hidden_size[i]
         config.PARAM['model']['discriminator'].append(
             {'cell': 'MCLinearCell', 'input_size': input_size, 'output_size': output_size,
-             'bias': True, 'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
+             'bias': True, 'normalization': normalization, 'activation': discriminator_activation, 'num_mode': num_mode,
              'controller_rate': controller_rate})
         input_size = output_size
     config.PARAM['model']['discriminator'].append(

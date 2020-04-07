@@ -97,7 +97,6 @@ def recur(fn, input, *args):
 
 
 def process_control_name():
-    config.PARAM['mode_data_size'] = int(config.PARAM['control']['mode_data_size'])
     if 'controller_rate' in config.PARAM['control']:
         config.PARAM['controller_rate'] = float(config.PARAM['control']['controller_rate'])
     if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST']:
@@ -111,18 +110,6 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 1000
     else:
         raise ValueError('Not valid dataset')
-    # if config.PARAM['data_name'] in ['MNIST', 'FashionMNIST', 'EMNIST', 'Omniglot']:
-    #     if config.PARAM['model_name'] in ['cgan', 'mcgan']:
-    #         config.PARAM['latent_size'] = 100
-    #         config.PARAM['hidden_size'] = 100
-    #         config.PARAM['num_layers_generator'] = 5
-    #         config.PARAM['num_layers_discriminator'] = 4
-    #     elif config.PARAM['model_name'] in ['dccgan', 'dcmcgan']:
-    #         config.PARAM['latent_size'] = 100
-    #         config.PARAM['hidden_size'] = 50
-    #         config.PARAM['depth'] = 3
-    # else:
-    #     raise ValueError('Not valid dataset')
     config.PARAM['embedding_size'] = 32
     return
 
@@ -171,8 +158,6 @@ class Stats(object):
 
 def process_dataset(dataset):
     config.PARAM['classes_size'] = dataset.classes_size
-    if config.PARAM['subset'] == 'label':
-        make_mode_dataset(dataset)
     return
 
 
