@@ -66,7 +66,7 @@ class MCGAN(nn.Module):
 
 def cgan():
     normalization = 'bn'
-    generator_activation = 'relu'
+    generator_activation = 'leakyrelu'
     discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
@@ -74,7 +74,7 @@ def cgan():
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
     generator_hidden_size = [128, 256, 512, 1024]
-    discriminator_hidden_size = [1024, 512, 256, 128]
+    discriminator_hidden_size = [512, 256, 128]
     config.PARAM['model'] = {}
     # Embedding
     config.PARAM['model']['generator_embedding'] = {
@@ -115,7 +115,7 @@ def cgan():
 
 def mcgan():
     normalization = 'bn'
-    generator_activation = 'relu'
+    generator_activation = 'leakyrelu'
     discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
@@ -123,7 +123,7 @@ def mcgan():
     config.PARAM['latent_size'] = 64
     latent_size = config.PARAM['latent_size']
     generator_hidden_size = [128, 256, 512, 1024]
-    discriminator_hidden_size = [1024, 512, 256, 128]
+    discriminator_hidden_size = [512, 256, 128]
     config.PARAM['model'] = {}
     # Generator
     input_size = latent_size
@@ -215,7 +215,7 @@ class DCMCGAN(nn.Module):
 
 def dccgan():
     normalization = 'bn'
-    generator_activation = 'relu'
+    generator_activation = 'leakyrelu'
     discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
@@ -274,7 +274,7 @@ def dccgan():
 
 def dcmcgan():
     normalization = 'bn'
-    generator_activation = 'relu'
+    generator_activation = 'leakyrelu'
     discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']

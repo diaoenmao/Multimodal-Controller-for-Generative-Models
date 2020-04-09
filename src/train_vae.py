@@ -15,6 +15,7 @@ from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate
 from logger import Logger
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
 for k in config.PARAM:
@@ -121,7 +122,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
         optimizer.step()
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time

@@ -246,7 +246,7 @@ class DCMCVAE(nn.Module):
 
 
 def dccvae():
-    normalization = 'none'
+    normalization = 'bn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
@@ -326,7 +326,7 @@ def dccvae():
 
 
 def dcmcvae():
-    normalization = 'none'
+    normalization = 'bn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
