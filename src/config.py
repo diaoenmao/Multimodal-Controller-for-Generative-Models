@@ -1,10 +1,10 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'Omniglot',
+        'data_name': 'CIFAR100',
         'subset': 'label',
         'model_name': 'dcmcgan',
-        'control': {'controller_rate': '0.5'},
+        'control': {'controller_rate': '1'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,

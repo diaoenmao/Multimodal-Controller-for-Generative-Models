@@ -25,10 +25,16 @@ for k in config.PARAM:
     config.PARAM[k] = args[k]
 if args['control_name']:
     config.PARAM['control_name'] = args['control_name']
-    control_list = list(config.PARAM['control'].keys())
-    control_name_list = args['control_name'].split('_')
-    for i in range(len(control_name_list)):
-        config.PARAM['control'][control_list[i]] = control_name_list[i]
+    if config.PARAM['control_name'] != 'None':
+        control_list = list(config.PARAM['control'].keys())
+        control_name_list = args['control_name'].split('_')
+        for i in range(len(control_name_list)):
+            config.PARAM['control'][control_list[i]] = control_name_list[i]
+    else:
+        config.PARAM['control'] = {}
+else:
+    if config.PARAM['control'] == 'None':
+        config.PARAM['control'] = {}
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
@@ -39,10 +45,11 @@ config.PARAM['metric_names'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 
 
 def main():
     process_control_name()
-    seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_Experiments']))
-    for i in range(config.PARAM['num_Experiments']):
+    seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
+    for i in range(config.PARAM['num_experiments']):
         model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
                           config.PARAM['control_name']]
+        model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
