@@ -34,8 +34,7 @@ def fetch_dataset(data_name, subset):
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         config.PARAM['transform'] = {
-            'train': datasets.Compose(
-                [transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(), transforms.ToTensor()]),
+            'train': datasets.Compose([transforms.ToTensor()]),
             'test': datasets.Compose([transforms.ToTensor()])
         }
     elif data_name == 'ImageNet':

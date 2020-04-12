@@ -41,6 +41,8 @@ for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 1e-3
+config.PARAM['weight_decay'] = 0
+config.PARAM['batch_size']['train'] = 128
 config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL', 'InceptionScore']}
 
 
@@ -122,7 +124,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
         optimizer.step()
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
@@ -180,8 +182,7 @@ def make_optimizer(model):
         optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
                                   weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
-                               betas=(0.5, 0.999))
+        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

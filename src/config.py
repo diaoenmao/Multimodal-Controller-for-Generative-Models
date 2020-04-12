@@ -1,7 +1,7 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CIFAR100',
+        'data_name': 'CIFAR10',
         'subset': 'label',
         'model_name': 'dcmcgan',
         'control': {'controller_rate': '1'},
@@ -9,7 +9,7 @@ def init():
         'lr': 1e-3,
         'momentum': 0,
         'weight_decay': 0,
-        'scheduler_name': 'MultiStepLR',
+        'scheduler_name': 'None',
         'step_size': 1,
         'milestones': [100],
         'patience': 5,

@@ -7,6 +7,7 @@ import numpy as np
 from utils import recur, collate, to_device, resume
 from scipy.stats import entropy
 from torch.utils.data import DataLoader
+from torchvision.models.inception import inception_v3
 
 
 def NLL(output, target):
@@ -26,22 +27,20 @@ def PSNR(output, target, MAX=1.0):
 def InceptionScore(img, batch_size=32, splits=1):
     N = len(img)
     data_loader = DataLoader(img, batch_size=batch_size)
-    model = eval('models.classifier().to(config.PARAM["device"])')
-    load_tag = 'best'
-    model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier', '0']
-    model_tag = '_'.join(filter(None, model_tag))
-    last_epoch, model, _, _, _ = resume(model, model_tag, load_tag=load_tag, verbose=False)
+    model = inception_v3(pretrained=True, transform_input=False).to(config.PARAM['device'])
     model.train(False)
 
-    def get_pred(input):
-        output = model(input)
-        return F.softmax(output['label'], dim=-1).cpu().numpy()
+    up = nn.Upsample(size=(299, 299), mode='bilinear', align_corners=False)
 
-    preds = np.zeros((N, config.PARAM['classes_size']))
+    def get_pred(x):
+        x = up(x)
+        x = model(x)
+        return F.softmax(x, dim=-1).data.cpu().numpy()
+
+    preds = np.zeros((N, 1000))
     for i, input in enumerate(data_loader):
-        input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
-        input = to_device(input, config.PARAM['device'])
-        input_size_i = input['img'].size(0)
+        input = input.to(config.PARAM['device'])
+        input_size_i = input.size(0)
         preds[i * batch_size:i * batch_size + input_size_i] = get_pred(input)
     split_scores = []
     for k in range(splits):

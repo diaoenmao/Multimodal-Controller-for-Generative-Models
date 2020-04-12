@@ -80,7 +80,7 @@ def runExperiment():
 
 def test(data_loader, model, logger, epoch):
     save_per_mode = 10
-    save_num_mode = 100
+    save_num_mode = min(100, config.PARAM['classes_size'])
     sample_per_iter = 1000
     criterion = torch.nn.BCELoss()
     with torch.no_grad():
