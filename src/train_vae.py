@@ -158,7 +158,7 @@ def test(model, logger, epoch):
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i]
             z_generated_i = z_generated[i]
-            generated_i = model.generate(z_generated_i, C_generated_i)
+            generated_i = model.generate(C_generated_i, z_generated_i)
             generated_i = generated_i * 2 - 1
             generated.append(generated_i)
         generated = torch.cat(generated)

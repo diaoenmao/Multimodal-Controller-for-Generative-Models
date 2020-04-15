@@ -32,7 +32,7 @@ def InceptionScore(img, splits=10):
     N = len(img)
     batch_size = 256
     data_loader = DataLoader(img, batch_size=batch_size)
-    if config.PARAM['data_name'] in ['MNIST', 'Omniglot', 'CIFAR10']:
+    if config.PARAM['data_name'] in ['MNIST', 'Omniglot']:
         model = eval('models.classifier().to(config.PARAM["device"])')
         model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier']
         model_tag = '_'.join(filter(None, model_tag))

@@ -10,12 +10,13 @@ class DCCGAN(nn.Module):
         super(DCCGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C):
-        x = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
+    def generate(self, C, z=None):
+        if z is None:
+            z = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
         onehot = F.one_hot(C, config.PARAM['classes_size']).float()
         embedding = self.model['generator_embedding'](onehot)
         embedding = embedding.view(*embedding.size(), 1, 1)
-        x = torch.cat((x, embedding), dim=1)
+        x = torch.cat((z, embedding), dim=1)
         generated = self.model['generator'](x)
         return generated
 
@@ -40,10 +41,11 @@ class DCMCGAN(nn.Module):
         super(DCMCGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C):
-        x = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
+    def generate(self, C, z=None):
+        if z is None:
+            z = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
-        generated = self.model['generator'](x)
+        generated = self.model['generator'](z)
         return generated
 
     def discriminate(self, input, C):

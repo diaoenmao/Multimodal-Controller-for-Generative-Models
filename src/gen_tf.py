@@ -38,56 +38,34 @@ else:
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
-config.PARAM['metric_names'] = {'train': ['InceptionScore'], 'test': ['InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
 
 
 def main():
     process_control_name()
-    seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
-    for i in range(config.PARAM['num_experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
-                          config.PARAM['control_name']]
-        model_tag_list = [x for x in model_tag_list if x]
-        config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
-        print('Experiment: {}'.format(config.PARAM['model_tag']))
-        runExperiment()
+    config.PARAM['model_tag'] = 'TF_{}'.format(config.PARAM['data_name'])
+    print('Experiment: {}'.format(config.PARAM['model_tag']))
+    runExperiment()
     return
 
 
 def runExperiment():
-    seed = int(config.PARAM['model_tag'].split('_')[0])
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
-    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
-        'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
-    logger = Logger(logger_path)
-    logger.safe(True)
-    test(data_loader['train'], logger)
-    logger.safe(False)
-    save_result = {'config': config.PARAM, 'logger': logger}
-    save(save_result, './output/result/{}.pt'.format(config.PARAM['data_name']))
+    test(data_loader['train'])
     return
 
 
-def test(data_loader, logger):
+def test(data_loader):
     with torch.no_grad():
-        metric = Metric()
         generated = []
         for i, input in enumerate(data_loader):
             input = collate(input)
             generated.append(input['img'])
         generated = torch.cat(generated)
-        output = {'img': generated}
-        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
-        logger.append(evaluation, 'test')
-        info = {'info': ['Model: {}'.format(config.PARAM['model_tag'])]}
-        logger.append(info, 'test', mean=False)
-        logger.write('test', config.PARAM['metric_names']['test'])
+        generated = ((generated + 1) / 2 * 255).cpu().numpy()
+        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
     return
 
 

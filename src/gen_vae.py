@@ -35,7 +35,6 @@ else:
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
-config.PARAM['metric_names'] = {'test': ['InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
 
 

@@ -23,7 +23,9 @@ class DCCVAE(nn.Module):
         super(DCCVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, z, C):
+    def generate(self, C, z=None):
+        if z is None:
+            z = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
         onehot = F.one_hot(C, config.PARAM['classes_size']).float()
         decoder_embedding = self.model['decoder_embedding'](onehot)
         x = torch.cat((z, decoder_embedding), dim=1)
@@ -56,7 +58,9 @@ class DCMCVAE(nn.Module):
         super(DCMCVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, z, C):
+    def generate(self, C, z=None):
+        if z is None:
+            z = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
         generated = self.model['decoder'](z)
         return generated

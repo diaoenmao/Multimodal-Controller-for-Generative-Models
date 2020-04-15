@@ -15,6 +15,8 @@ from metrics import Metric
 from utils import save, load, to_device, process_control_name, process_dataset, collate
 from logger import Logger
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
 for k in config.PARAM:
@@ -41,8 +43,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['batch_size']['train'] = 64
-config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'],
-                                'test': ['Loss', 'Loss_D', 'Loss_G', 'InceptionScore']}
+config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 
 
 def main():
@@ -91,7 +92,7 @@ def runExperiment():
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['test'], model, logger, epoch)
+        test(model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler['generator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
             scheduler['discriminator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
@@ -108,8 +109,8 @@ def runExperiment():
                 'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
                                    'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
-            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']]:
-                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']]
+            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']][0]:
+                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']][0]
                 shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
                             './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
         logger.reset()
@@ -175,48 +176,28 @@ def train(data_loader, model, optimizer, logger, epoch):
     return
 
 
-def test(data_loader, model, logger, epoch):
+def test(model, logger, epoch):
     sample_per_iter = 1000
-    criterion = torch.nn.BCELoss()
     with torch.no_grad():
         metric = Metric()
         model.train(False)
-        for i, input in enumerate(data_loader):
-            input = collate(input)
-            input_size = len(input['img'])
-            input = to_device(input, config.PARAM['device'])
-            input['real'] = torch.ones(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
-            input['fake'] = torch.zeros(input['img'].size(0), requires_grad=False, device=config.PARAM['device'])
-            D_x = model.discriminate(input['img']) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
-                model.discriminate(input['img'], input[config.PARAM['subset']])
-            D_x_loss = criterion(D_x, input['real'])
-            generated = model.generate(input['img'].size(0)) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
-                model.generate(input[config.PARAM['subset']])
-            D_G_z1 = model.discriminate(generated.detach()) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
-                model.discriminate(generated.detach(), input[config.PARAM['subset']])
-            D_G_z1_loss = criterion(D_G_z1, input['fake'])
-            generated = model.generate(input['img'].size(0)) \
-                if config.PARAM['model_name'] in ['gan', 'dcgan'] else model.generate(input[config.PARAM['subset']])
-            D_G_z2 = model.discriminate(generated) if config.PARAM['model_name'] in ['gan', 'dcgan'] else \
-                model.discriminate(generated, input[config.PARAM['subset']])
-            D_G_z2_loss = criterion(D_G_z2, input['real'])
-            output = {'loss': abs((D_x_loss + D_G_z1_loss) - D_G_z2_loss), 'loss_D': D_x_loss + D_G_z1_loss,
-                      'loss_G': D_G_z2_loss}
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
-            logger.append(evaluation, 'test', input_size)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
-        C_generated = torch.split(C.repeat(config.PARAM['generate_per_mode']), sample_per_iter)
+        C = C.repeat(config.PARAM['generate_per_mode'])
+        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device']) \
+            if 'z' not in config.PARAM else config.PARAM['z']
+        C_generated = torch.split(C, sample_per_iter)
+        z_generated = torch.split(config.PARAM['z'], sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i]
-            generated_i = model.generate(C_generated_i)
+            z_generated_i = z_generated[i]
+            generated_i = model.generate(C_generated_i, z_generated_i)
             generated.append(generated_i)
         generated = torch.cat(generated)
         output = {'img': generated}
-        evaluation = metric.evaluate(['InceptionScore'], None, output)
-        logger.append(evaluation, 'test', 1)
-        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
+        logger.append(evaluation, 'test')
+        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
     return

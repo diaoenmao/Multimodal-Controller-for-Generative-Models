@@ -3,7 +3,7 @@ def init():
     PARAM = {
         'data_name': 'CIFAR10',
         'subset': 'label',
-        'model_name': 'dcmcvae',
+        'model_name': 'dcmcgan',
         'control': {'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
