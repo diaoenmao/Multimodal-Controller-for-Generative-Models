@@ -8,6 +8,8 @@ import numpy as np
 from utils import recur, save, load, to_device
 from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
+
+
 # from .inception_score import get_inception_score
 # from .fid import calculate_activation_statistics, calculate_frechet_distance
 
@@ -27,68 +29,43 @@ def PSNR(output, target, MAX=1.0):
 
 
 def InceptionScore(img, splits=10):
-    mode = 'tf'
     N = len(img)
-    if mode == 'torch':
-        batch_size = 256
-        data_loader = DataLoader(img, batch_size=batch_size)
-        if config.PARAM['data_name'] in ['MNIST', 'Omniglot','CIFAR10']:
-            model = eval('models.classifier().to(config.PARAM["device"])')
-            model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier']
-            model_tag = '_'.join(filter(None, model_tag))
-            checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
-            model.load_state_dict(checkpoint['model_dict'])
-            model.train(False)
-            preds = np.zeros((N, config.PARAM['classes_size']))
-            for i, input in enumerate(data_loader):
-                input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
-                input = to_device(input, config.PARAM['device'])
-                input_size_i = input['img'].size(0)
-                output = model(input)
-                preds[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['label'], dim=-1).cpu().numpy()
-        else:
-            model = inception_v3(pretrained=True, transform_input=False).to(config.PARAM['device'])
-            model.train(False)
-            up = nn.Upsample(size=(299, 299), mode='bilinear', align_corners=False)
-            preds = np.zeros((N, 1000))
-            for i, input in enumerate(data_loader):
-                input = input.to(config.PARAM['device'])
-                input_size_i = input.size(0)
-                input = up(input)
-                output = model(input)
-                preds[i * batch_size:i * batch_size + input_size_i] = F.softmax(output, dim=-1).cpu().numpy()
-        split_scores = []
-        for k in range(splits):
-            part = preds[k * (N // splits): (k + 1) * (N // splits), :]
-            kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
-            kl = np.mean(np.sum(kl, 1))
-            split_scores.append(np.exp(kl))
-        is_mean = np.mean(split_scores).item()
-        is_std = np.std(split_scores).item()
-    elif mode == 'tf':
-        img = (img + 1) / 2 * 255
-        img = img.cpu().numpy()
-        save(img, './metrics/tmp/img.npy', mode='numpy')
-        os.system('python ./metrics/inception_score_tf.py tmp')
-        is_mean, is_std = load('./metrics/tmp/is.npy', mode='numpy')
-        print(is_mean, is_std)
+    batch_size = 256
+    data_loader = DataLoader(img, batch_size=batch_size)
+    if config.PARAM['data_name'] in ['MNIST', 'Omniglot', 'CIFAR10']:
+        model = eval('models.classifier().to(config.PARAM["device"])')
+        model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier']
+        model_tag = '_'.join(filter(None, model_tag))
+        checkpoint = load('./metrics/res/classifier/{}_best.pt'.format(model_tag))
+        model.load_state_dict(checkpoint['model_dict'])
+        model.train(False)
+        preds = np.zeros((N, config.PARAM['classes_size']))
+        for i, input in enumerate(data_loader):
+            input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
+            input = to_device(input, config.PARAM['device'])
+            input_size_i = input['img'].size(0)
+            output = model(input)
+            preds[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['label'], dim=-1).cpu().numpy()
     else:
-        raise ValueError('Not valid mode')
+        model = inception_v3(pretrained=True, transform_input=False).to(config.PARAM['device'])
+        model.train(False)
+        up = nn.Upsample(size=(299, 299), mode='bilinear', align_corners=False)
+        preds = np.zeros((N, 1000))
+        for i, input in enumerate(data_loader):
+            input = input.to(config.PARAM['device'])
+            input_size_i = input.size(0)
+            input = up(input)
+            output = model(input)
+            preds[i * batch_size:i * batch_size + input_size_i] = F.softmax(output, dim=-1).cpu().numpy()
+    split_scores = []
+    for k in range(splits):
+        part = preds[k * (N // splits): (k + 1) * (N // splits), :]
+        kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
+        kl = np.mean(np.sum(kl, 1))
+        split_scores.append(np.exp(kl))
+    is_mean = np.mean(split_scores).item()
+    is_std = np.std(split_scores).item()
     return is_mean, is_std
-
-
-# def FID(images):
-#     # load from precalculated
-#     f = np.load('res/stats_tf/fid_stats_imagenet_train.npz')
-#     mu1, sigma1 = f['mu'][:], f['sigma'][:]
-#     f.close()
-#     # calc from image ndarray
-#     # images should be Numpy array of dimension (N, H, W, C). images should be in 0~255
-#     with tf.Session() as sess:
-#         sess.run(tf.global_variables_initializer())
-#         mu2, sigma2 = calculate_activation_statistics(images, sess, batch_size=100)
-#     fid = calculate_frechet_distance(mu1, sigma1, mu2, sigma2)
-#     return fid
 
 
 def Accuracy(output, target, topk=1):

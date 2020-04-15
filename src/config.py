@@ -3,8 +3,8 @@ def init():
     PARAM = {
         'data_name': 'CIFAR10',
         'subset': 'label',
-        'model_name': 'classifier',
-        'control': 'None',
+        'model_name': 'dcmcvae',
+        'control': {'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,

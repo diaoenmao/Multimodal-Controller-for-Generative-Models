@@ -11,11 +11,12 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from data import fetch_dataset, make_data_loader
-import metrics
+from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate
 from logger import Logger
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
 for k in config.PARAM:
@@ -103,8 +104,8 @@ def runExperiment():
                 'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
                 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
-            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']]:
-                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']]
+            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']][0]:
+                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']][0]
                 shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
                             './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
         logger.reset()
@@ -113,7 +114,7 @@ def runExperiment():
 
 
 def train(data_loader, model, optimizer, logger, epoch):
-    metric = metrics.Metric()
+    metric = Metric()
     model.train(True)
     for i, input in enumerate(data_loader):
         start_time = time.time()
@@ -124,7 +125,6 @@ def train(data_loader, model, optimizer, logger, epoch):
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
         optimizer.step()
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
@@ -146,14 +146,20 @@ def train(data_loader, model, optimizer, logger, epoch):
 def test(model, logger, epoch):
     sample_per_iter = 1000
     with torch.no_grad():
-        metric = metrics.Metric()
+        metric = Metric()
         model.train(False)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
-        C_generated = torch.split(C.repeat(config.PARAM['generate_per_mode']), sample_per_iter)
+        C = C.repeat(config.PARAM['generate_per_mode'])
+        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device']) \
+            if 'z' not in config.PARAM else config.PARAM['z']
+        C_generated = torch.split(C, sample_per_iter)
+        z_generated = torch.split(config.PARAM['z'], sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i]
-            generated_i = model.generate(C_generated_i)
+            z_generated_i = z_generated[i]
+            generated_i = model.generate(z_generated_i, C_generated_i)
+            generated_i = generated_i * 2 - 1
             generated.append(generated_i)
         generated = torch.cat(generated)
         output = {'img': generated}

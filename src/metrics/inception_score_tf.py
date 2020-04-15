@@ -104,7 +104,7 @@ softmax = None
 
 # Call this function with list of images. Each of elements should be a
 # numpy array with values ranging from 0 to 255.
-# numpy array shape should be in H x W x C
+# numpy array shape should be in C x H x W
 def get_inception_score(images, splits=10, bs=256):
     assert (isinstance(images, np.ndarray))
     assert (images.ndim == 4)
@@ -121,7 +121,7 @@ def get_inception_score(images, splits=10, bs=256):
         n_batches = int(math.ceil(float(len(images)) / float(bs)))
 
         # print('passing through inception network ...')
-        for i in tqdm(range(n_batches)):
+        for i in range(n_batches):
             # sys.stdout.write(".")
             # sys.stdout.flush()
             img = images[(i * bs):min((i + 1) * bs, len(images))]
@@ -264,13 +264,13 @@ if __name__ == '__main__':
 
         # read a folder
         arg = sys.argv[1]
-        if arg == 'tmp':
+        if arg == 'npy':
             model_tag = sys.argv[2]
-            images = np.load('./output/npyimg/{}.npy'.format(sys.argv[2]), allow_pickle=True)
+            images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
             is_mean, is_std = get_inception_score(images)
             result = (is_mean, is_std)
             print('Inception Score ({}): {}'.format(model_tag, result))
-            np.save('./output/result/is_{}.py'.format(model_tag), result)
+            np.save('./output/result/is_{}.npy'.format(model_tag), result)
         else:
             foldername = arg
             from glob import glob

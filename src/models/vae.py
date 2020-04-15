@@ -23,17 +23,17 @@ class DCCVAE(nn.Module):
         super(DCCVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C):
-        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+    def generate(self, z, C):
         onehot = F.one_hot(C, config.PARAM['classes_size']).float()
         decoder_embedding = self.model['decoder_embedding'](onehot)
-        x = torch.cat((x, decoder_embedding), dim=1)
+        x = torch.cat((z, decoder_embedding), dim=1)
         generated = self.model['decoder'](x)
         return generated
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        x = input['img']
+        input['img'] = (input['img'] + 1) / 2
+        x = input['img'].detach()
         onehot = F.one_hot(input['label'], config.PARAM['classes_size']).float()
         encoder_embedding = self.model['encoder_embedding'](onehot)
         encoder_embedding = encoder_embedding.view([*encoder_embedding.size(), 1, 1]).expand(
@@ -56,15 +56,15 @@ class DCMCVAE(nn.Module):
         super(DCMCVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C):
-        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+    def generate(self, z, C):
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
-        generated = self.model['decoder'](x)
+        generated = self.model['decoder'](z)
         return generated
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        x = input['img']
+        input['img'] = (input['img'] + 1) / 2
+        x = input['img'].detach()
         config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
         x = self.model['encoder'](x)
         x = x.view(x.size(0), -1)

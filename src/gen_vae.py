@@ -3,14 +3,15 @@ import config
 config.init()
 import argparse
 import datetime
+import os
 import torch
 import torch.backends.cudnn as cudnn
 import models
 from data import fetch_dataset, make_data_loader
-from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
-from logger import Logger
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
 for k in config.PARAM:
@@ -34,7 +35,7 @@ else:
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL', 'InceptionScore']}
+config.PARAM['metric_names'] = {'test': ['InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
 
 
@@ -57,66 +58,37 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
-    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
-        'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
-    logger = Logger(logger_path)
-    logger.safe(True)
-    test(data_loader['test'], model, logger, last_epoch)
-    logger.safe(False)
-    save_result = {
-        'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
-    save(save_result, './output/result/{}.pt'.format(config.PARAM['model_tag']))
+    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
+    test(model)
     return
 
 
-def test(data_loader, model, logger, epoch):
+def test(model):
     save_per_mode = 10
     save_num_mode = min(100, config.PARAM['classes_size'])
     sample_per_iter = 1000
     with torch.no_grad():
-        metric = Metric()
         model.train(False)
-        for i, input in enumerate(data_loader):
-            input = collate(input)
-            input_size = input['img'].numel()
-            input = to_device(input, config.PARAM['device'])
-            output = model(input)
-            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
-            logger.append(evaluation, 'test', input_size)
-        save_img(input['img'][:100],
-                 './output/img/input_{}.png'.format(config.PARAM['model_tag']), nrow=10)
-        save_img(output['img'][:100],
-                 './output/img/output_{}.png'.format(config.PARAM['model_tag']), nrow=10)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
-        C_saved = torch.split(C[:save_num_mode].repeat(save_per_mode), sample_per_iter)
-        saved = []
-        for i in range(len(C_saved)):
-            C_saved_i = C_saved[i]
-            saved_i = model.generate(C_saved_i)
-            saved.append(saved_i)
-        saved = torch.cat(saved)
-        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
-                 nrow=save_num_mode)
-        C_generated = torch.split(C.repeat(config.PARAM['generate_per_mode']), sample_per_iter)
+        C = C.repeat(config.PARAM['generate_per_mode'])
+        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+        C_generated = torch.split(C, sample_per_iter)
+        z_generated = torch.split(config.PARAM['z'], sample_per_iter)
         generated = []
+        saved = []
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i]
-            generated_i = model.generate(C_generated_i)
+            z_generated_i = z_generated[i]
+            generated_i = model.generate(z_generated_i, C_generated_i)
             generated.append(generated_i)
+            saved.append(generated_i[:save_per_mode])
         generated = torch.cat(generated)
-        output = {'img': generated}
-        evaluation = metric.evaluate(['InceptionScore'], None, output)
-        logger.append(evaluation, 'test', 1)
-        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
-        logger.append(info, 'test', mean=False)
-        logger.write('test', config.PARAM['metric_names']['test'])
+        saved = torch.cat(saved)
+        generated = (generated * 255).cpu().numpy()
+        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return
 
 

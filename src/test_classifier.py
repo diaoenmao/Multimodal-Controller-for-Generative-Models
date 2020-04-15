@@ -91,7 +91,7 @@ def test(data_loader, model, logger, epoch):
         generated = torch.cat(generated)
         output = {'img': generated}
         evaluation = metric.evaluate(['InceptionScore'], None, output)
-        logger.append(evaluation, 'test', 1)
+        logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
                          'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
