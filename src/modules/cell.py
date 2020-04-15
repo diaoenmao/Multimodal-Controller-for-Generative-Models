@@ -302,27 +302,58 @@ class ResMCConv2dCell(nn.Module):
         return output
 
 
+# class MultimodalController(nn.Module):
+#     def __init__(self, cell_info):
+#         super(MultimodalController, self).__init__()
+#         default_cell_info = {'controller_rate': 1, 'num_mode': 1}
+#         cell_info = {**default_cell_info, **cell_info}
+#         self.input_size = cell_info['input_size']
+#         self.controller_rate = cell_info['controller_rate']
+#         self.num_mode = cell_info['num_mode']
+#         self.mode_size = math.ceil(self.input_size * (1 - self.controller_rate) / self.num_mode)
+#         self.free_size = self.mode_size * self.num_mode
+#         self.shared_size = self.input_size - self.free_size
+#         embedding = torch.zeros(self.num_mode, self.input_size)
+#         if self.controller_rate > 0:
+#             embedding[:, :self.shared_size] = 1
+#         if self.free_size > 0:
+#             idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
+#             embedding[:, self.shared_size:].scatter_(0, idx, 1)
+#         self.register_buffer('embedding', embedding)
+#
+#     def forward(self, input):
+#         embedding = config.PARAM['indicator'].matmul(self.embedding)
+#         embedding = embedding.view(*embedding.size(), *([1] * (input.dim() - 2)))
+#         output = input * embedding.detach()
+#         return output
+
+
 class MultimodalController(nn.Module):
     def __init__(self, cell_info):
         super(MultimodalController, self).__init__()
-        default_cell_info = {'controller_rate': 1, 'num_mode': 1}
+        default_cell_info = {'num_mode': 1, 'controller_rate': 1}
         cell_info = {**default_cell_info, **cell_info}
         self.input_size = cell_info['input_size']
-        self.controller_rate = cell_info['controller_rate']
         self.num_mode = cell_info['num_mode']
-        self.mode_size = math.ceil(self.input_size * (1 - self.controller_rate) / self.num_mode)
-        self.free_size = self.mode_size * self.num_mode
-        self.shared_size = self.input_size - self.free_size
-        embedding = torch.zeros(self.num_mode, self.input_size)
-        if self.controller_rate > 0:
-            embedding[:, :self.shared_size] = 1
-        if self.free_size > 0:
-            idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
-            embedding[:, self.shared_size:].scatter_(0, idx, 1)
-        self.register_buffer('embedding', embedding)
+        self.controller_rate = cell_info['controller_rate']
+        codebook = self.make_codebook()
+        self.register_buffer('codebook', codebook)
+
+    def make_codebook(self):
+        if self.controller_rate == 1:
+            codebook = torch.ones(self.num_mode, self.input_size, dtype=torch.float)
+        else:
+            d = torch.distributions.bernoulli.Bernoulli(probs=self.controller_rate)
+            codebook = set()
+            while len(codebook) < self.num_mode:
+                codebook_c = d.sample((self.num_mode, self.input_size))
+                codebook_c = [tuple(c) for c in codebook_c.tolist()]
+                codebook.update(codebook_c)
+            codebook = torch.tensor(list(codebook)[:self.num_mode], dtype=torch.float)
+        return codebook
 
     def forward(self, input):
-        embedding = config.PARAM['indicator'].matmul(self.embedding)
-        embedding = embedding.view(*embedding.size(), *([1] * (input.dim() - 2)))
-        output = input * embedding.detach()
+        code = config.PARAM['indicator'].matmul(self.codebook)
+        code = code.view(*code.size(), *([1] * (input.dim() - 2)))
+        output = input * code.detach()
         return output

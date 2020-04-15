@@ -39,7 +39,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 1e-3
+config.PARAM['lr'] = 2e-4
 config.PARAM['metric_names'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
 
 
@@ -82,7 +82,7 @@ def runExperiment():
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    config.PARAM['pivot_metric'] = 'test/Loss'
+    config.PARAM['pivot_metric'] = 'train/Loss'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)

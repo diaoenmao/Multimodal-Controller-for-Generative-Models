@@ -46,7 +46,7 @@ def load(path, mode='torch'):
     return
 
 
-def save_img(img, path, nrow=10, padding=0, pad_value=0):
+def save_img(img, path, nrow=10, padding=2, pad_value=0):
     makedir_exist_ok(os.path.dirname(path))
     save_image(img, path, nrow=nrow, padding=padding, pad_value=pad_value)
     return
@@ -108,6 +108,9 @@ def process_control_name():
     elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
         config.PARAM['generate_per_mode'] = 1000
+    elif config.PARAM['data_name'] in ['Imagenet32x32']:
+        config.PARAM['img_shape'] = [3, 32, 32]
+        config.PARAM['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
     config.PARAM['embedding_size'] = 32

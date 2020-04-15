@@ -119,6 +119,7 @@ def test(data_loader, model, logger, epoch):
             saved_i = model.generate(C_saved_i)
             saved.append(saved_i)
         saved = torch.cat(saved)
+        saved = (saved + 1) / 2
         save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
                  nrow=save_num_mode)
         C_generated = torch.split(C.repeat(config.PARAM['generate_per_mode']), sample_per_iter)

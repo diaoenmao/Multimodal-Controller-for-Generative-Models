@@ -66,7 +66,7 @@ def runExperiment():
         'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['test'], model, logger, last_epoch)
+    test(data_loader['train'], model, logger, last_epoch)
     logger.safe(False)
     save_result = {
         'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
