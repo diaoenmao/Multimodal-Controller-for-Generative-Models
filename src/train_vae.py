@@ -44,7 +44,8 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
 config.PARAM['batch_size']['train'] = 128
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
+config.PARAM['metric_names'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
+
 
 def main():
     process_control_name()
@@ -85,12 +86,12 @@ def runExperiment():
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    config.PARAM['pivot_metric'] = 'test/NLL'
-    config.PARAM['pivot'] = -1e10
+    config.PARAM['pivot_metric'] = 'test/MSE'
+    config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['test'], model, logger, epoch)
+        test(data_loader['train'], model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
@@ -103,8 +104,8 @@ def runExperiment():
                 'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
                 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
-            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']][0]:
-                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']][0]
+            if config.PARAM['pivot'] > logger.mean[config.PARAM['pivot_metric']]:
+                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']]
                 shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
                             './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
         logger.reset()
@@ -139,15 +140,10 @@ def train(data_loader, model, optimizer, logger, epoch):
             evaluation = metric.evaluate(config.PARAM['metric_names']['train'], input, output)
             logger.append(evaluation, 'train', n=input_size)
             logger.write('train', config.PARAM['metric_names']['train'])
-    save_img((input['img'][:100] + 1) / 2,
-             './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-    save_img((output['img'][:100] + 1) / 2,
-             './output/img/output_{}.png'.format(config.PARAM['model_tag']))
     return
 
 
 def test(data_loader, model, logger, epoch):
-    sample_per_iter = 1000
     with torch.no_grad():
         metric = Metric()
         model.train(False)
@@ -157,25 +153,13 @@ def test(data_loader, model, logger, epoch):
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
+            evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
-        C = C.repeat(config.PARAM['generate_per_mode'])
-        if 'z' not in config.PARAM:
-            config.PARAM['z'] = torch.randn(
-                [C.size(0), config.PARAM['quantizer_embedding_size'], config.PARAM['img_shape'][1] // 4,
-                 config.PARAM['img_shape'][2] // 4], device=config.PARAM['device'])
-        C_generated = torch.split(C, sample_per_iter)
-        z_generated = torch.split(config.PARAM['z'], sample_per_iter)
-        generated = []
-        for i in range(len(C_generated)):
-            C_generated_i = C_generated[i]
-            z_generated_i = z_generated[i]
-            generated_i = model.generate(C_generated_i, z_generated_i)
-            generated.append(generated_i)
-        generated = torch.cat(generated)
-        output = {'img': generated}
-        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
+        if config.PARAM['show']:
+            save_img((input['img'][:100] + 1) / 2,
+                     './output/img/input_{}.png'.format(config.PARAM['model_tag']))
+            save_img((output['img'][:100] + 1) / 2,
+                     './output/img/output_{}.png'.format(config.PARAM['model_tag']))
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

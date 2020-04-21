@@ -118,6 +118,7 @@ def process_control_name():
         config.PARAM['conditional_embedding_size'] = 32
         config.PARAM['quantizer_embedding_size'] = 64
         config.PARAM['num_embedding'] = 512
+        config.PARAM['vq_commit'] = 0.25
     return
 
 

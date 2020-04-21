@@ -45,7 +45,7 @@ class DCCVQVAE(nn.Module):
         x = torch.cat((x, decoder_embedding), dim=1)
         decoded = self.model['decoder'](x)
         output['img'] = decoded
-        output['loss'] = F.mse_loss(decoded, input['img']) + 0.25 * vq_loss
+        output['loss'] = F.mse_loss(decoded, input['img']) + config.PARAM['vq_commit'] * vq_loss
         return output
 
 
@@ -71,7 +71,7 @@ class DCMCVQVAE(nn.Module):
         x, vq_loss, output['idx'] = self.model['quantizer'](x)
         decoded = self.model['decoder'](x)
         output['img'] = decoded
-        output['loss'] = F.mse_loss(decoded, input['img']) + 0.25 * vq_loss
+        output['loss'] = F.mse_loss(decoded, input['img']) + config.PARAM['vq_commit'] * vq_loss
         return output
 
 
@@ -94,13 +94,13 @@ def dccvqvae():
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     # Encoder
     input_size = img_shape[0] + conditional_embedding_size
-    output_size = hidden_size // 2
+    output_size = hidden_size
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
-    input_size = hidden_size // 2
+    input_size = hidden_size
     output_size = hidden_size
     config.PARAM['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
@@ -117,7 +117,7 @@ def dccvqvae():
     output_size = quantizer_embedding_size
     config.PARAM['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none',
+         'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': 'none',
          'activation': 'none'})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # Quantizer
@@ -129,7 +129,7 @@ def dccvqvae():
     output_size = hidden_size
     config.PARAM['model']['decoder'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': normalization,
+         'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
     input_size = hidden_size
     res_size = hidden_size
@@ -139,12 +139,12 @@ def dccvqvae():
             {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
              'normalization': normalization, 'activation': activation})
     input_size = hidden_size
-    output_size = hidden_size // 2
+    output_size = hidden_size
     config.PARAM['model']['decoder'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size,
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
-    input_size = hidden_size // 2
+    input_size = hidden_size
     output_size = img_shape[0]
     config.PARAM['model']['decoder'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size,
@@ -167,13 +167,13 @@ def dcmcvqvae():
     config.PARAM['model'] = {}
     # Encoder
     input_size = img_shape[0]
-    output_size = hidden_size // 2
+    output_size = hidden_size
     config.PARAM['model']['encoder'] = []
     config.PARAM['model']['encoder'].append(
         {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation, 'num_mode': num_mode, 'controller_rate': controller_rate})
-    input_size = hidden_size // 2
+    input_size = hidden_size
     output_size = hidden_size
     config.PARAM['model']['encoder'].append(
         {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
@@ -190,8 +190,8 @@ def dcmcvqvae():
     input_size = hidden_size
     output_size = quantizer_embedding_size
     config.PARAM['model']['encoder'].append(
-        {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none',
+        {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
+         'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': 'none',
          'activation': 'none', 'num_mode': num_mode, 'controller_rate': controller_rate})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
     # Quantizer
@@ -203,7 +203,7 @@ def dcmcvqvae():
     output_size = hidden_size
     config.PARAM['model']['decoder'].append(
         {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
-         'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': True, 'normalization': normalization,
+         'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation, 'num_mode': num_mode, 'controller_rate': controller_rate})
     input_size = hidden_size
     res_size = hidden_size
@@ -214,12 +214,12 @@ def dcmcvqvae():
              'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
              'controller_rate': controller_rate})
     input_size = hidden_size
-    output_size = hidden_size // 2
+    output_size = hidden_size
     config.PARAM['model']['decoder'].append(
         {'cell': 'MCConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size,
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation, 'num_mode': num_mode, 'controller_rate': controller_rate})
-    input_size = hidden_size // 2
+    input_size = hidden_size
     output_size = img_shape[0]
     config.PARAM['model']['decoder'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size,

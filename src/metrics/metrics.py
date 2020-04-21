@@ -10,6 +10,12 @@ from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
 
 
+def MSE(output, target):
+    with torch.no_grad():
+        mse = F.mse_loss(output, target, reduction='mean').item()
+    return mse
+
+
 def NLL(output, target):
     with torch.no_grad():
         output = (output + 1) / 2
@@ -82,6 +88,7 @@ class Metric(object):
                        'Loss_D': (lambda input, output: output['loss_D'].item()),
                        'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
                        'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
+                       'MSE': (lambda input, output: recur(MSE, output['img'], input['img'])),
                        'NLL': (lambda input, output: recur(NLL, output['img'], input['img'])),
                        'PSNR': (lambda input, output: recur(PSNR, output['img']))}
 

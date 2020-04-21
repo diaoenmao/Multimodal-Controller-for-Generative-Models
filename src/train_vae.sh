@@ -1,0 +1,25 @@
+#!/bin/bash
+CUDA_VISIBLE_DEVICES="0" python train_vae.py --data_name CIFAR10 --model_name dccvqvae --init_seed 0 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="1" python train_vae.py --data_name CIFAR10 --model_name dccvqvae --init_seed 2 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="2" python train_vae.py --data_name CIFAR10 --model_name dccvqvae --init_seed 4 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="3" python train_vae.py --data_name CIFAR10 --model_name dccvqvae --init_seed 6 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="0" python train_vae.py --data_name CIFAR10 --model_name dccvqvae --init_seed 8 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="1" python train_vae.py --data_name CIFAR10 --model_name dccvqvae --init_seed 10 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="2" python train_vae.py --data_name CIFAR10 --model_name dcmcvqvae --init_seed 0 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="3" python train_vae.py --data_name CIFAR10 --model_name dcmcvqvae --init_seed 2 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="0" python train_vae.py --data_name CIFAR10 --model_name dcmcvqvae --init_seed 4 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="1" python train_vae.py --data_name CIFAR10 --model_name dcmcvqvae --init_seed 6 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="2" python train_vae.py --data_name CIFAR10 --model_name dcmcvqvae --init_seed 8 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="3" python train_vae.py --data_name CIFAR10 --model_name dcmcvqvae --init_seed 10 --num_epochs 200 --num_experiments 2 --control_name 0.5
+CUDA_VISIBLE_DEVICES="0" python train_vae.py --data_name Omniglot --model_name dccvqvae --init_seed 0 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="1" python train_vae.py --data_name Omniglot --model_name dccvqvae --init_seed 2 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="2" python train_vae.py --data_name Omniglot --model_name dccvqvae --init_seed 4 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="3" python train_vae.py --data_name Omniglot --model_name dccvqvae --init_seed 6 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="0" python train_vae.py --data_name Omniglot --model_name dccvqvae --init_seed 8 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="1" python train_vae.py --data_name Omniglot --model_name dccvqvae --init_seed 10 --num_epochs 200 --num_experiments 2 --control_name None&
+CUDA_VISIBLE_DEVICES="2" python train_vae.py --data_name Omniglot --model_name dcmcvqvae --init_seed 0 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="3" python train_vae.py --data_name Omniglot --model_name dcmcvqvae --init_seed 2 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="0" python train_vae.py --data_name Omniglot --model_name dcmcvqvae --init_seed 4 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="1" python train_vae.py --data_name Omniglot --model_name dcmcvqvae --init_seed 6 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="2" python train_vae.py --data_name Omniglot --model_name dcmcvqvae --init_seed 8 --num_epochs 200 --num_experiments 2 --control_name 0.5&
+CUDA_VISIBLE_DEVICES="3" python train_vae.py --data_name Omniglot --model_name dcmcvqvae --init_seed 10 --num_epochs 200 --num_experiments 2 --control_name 0.5
