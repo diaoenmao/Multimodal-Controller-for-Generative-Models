@@ -13,7 +13,7 @@ def make_cell(cell_info):
         cell = Normalization(cell_info)
     elif cell_info['cell'] == 'Activation':
         cell = Activation(cell_info)
-    elif cell_info['cell'] == 'ResizeCell':
+    elif cell_info['cell'] == 'Resize':
         cell = ResizeCell(cell_info)
     elif cell_info['cell'] == 'LinearCell':
         cell = LinearCell(cell_info)
@@ -23,16 +23,18 @@ def make_cell(cell_info):
         cell = ConvTranspose2dCell(cell_info)
     elif cell_info['cell'] == 'ResConv2dCell':
         cell = ResConv2dCell(cell_info)
-    elif cell_info['cell'] == 'MultimodalController':
-        cell = MultimodalController(cell_info)
     elif cell_info['cell'] == 'MCLinearCell':
         cell = MCLinearCell(cell_info)
     elif cell_info['cell'] == 'MCConv2dCell':
         cell = MCConv2dCell(cell_info)
     elif cell_info['cell'] == 'MCConvTranspose2dCell':
         cell = MCConvTranspose2dCell(cell_info)
-    elif cell_info['cell'] == 'ResMCConv2dCell':
-        cell = ResMCConv2dCell(cell_info)
+    elif cell_info['cell'] == 'MCResConv2dCell':
+        cell = MCResConv2dCell(cell_info)
+    elif cell_info['cell'] == 'MultimodalController':
+        cell = MultimodalController(cell_info)
+    elif cell_info['cell'] == 'VectorQuantization':
+        cell = VectorQuantization(cell_info)
     else:
         raise ValueError('Not valid cell info: {}'.format(cell_info))
     return cell
@@ -97,9 +99,7 @@ class LinearCell(nn.Linear):
         default_cell_info = {'bias': True}
         cell_info = {**default_cell_info, **cell_info}
         super(LinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.normalization = Normalization(cell_info['normalization'], self.output_size, 1)
+        self.normalization = Normalization(cell_info['normalization'], cell_info['output_size'], 1)
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
@@ -111,15 +111,11 @@ class MCLinearCell(nn.Linear):
         default_cell_info = {'bias': True}
         cell_info = {**default_cell_info, **cell_info}
         super(MCLinearCell, self).__init__(cell_info['input_size'], cell_info['output_size'], bias=cell_info['bias'])
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.num_mode = cell_info['num_mode']
-        self.controller_rate = cell_info['controller_rate']
-        self.mc = MultimodalController(
-            {'cell': 'MultimodalController', 'input_size': self.output_size, 'num_mode': self.num_mode,
-             'controller_rate': self.controller_rate})
         self.normalization = Normalization(cell_info['normalization'], self.output_size, 1)
         self.activation = Activation(cell_info['activation'])
+        self.mc = MultimodalController(
+            {'cell': 'MultimodalController', 'input_size': cell_info['output_size'], 'num_mode': cell_info['num_mode'],
+             'controller_rate': cell_info['controller_rate']})
 
     def forward(self, input):
         return self.mc(self.activation(self.normalization(F.linear(input, self.weight, self.bias))))
@@ -134,9 +130,7 @@ class Conv2dCell(nn.Conv2d):
                                          stride=cell_info['stride'], padding=cell_info['padding'],
                                          dilation=cell_info['dilation'], groups=cell_info['groups'],
                                          bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.normalization = Normalization(cell_info['normalization'], cell_info['output_size'])
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
@@ -161,15 +155,11 @@ class MCConv2dCell(nn.Conv2d):
                                            stride=cell_info['stride'], padding=cell_info['padding'],
                                            dilation=cell_info['dilation'], groups=cell_info['groups'],
                                            bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.num_mode = cell_info['num_mode']
-        self.controller_rate = cell_info['controller_rate']
-        self.mc = MultimodalController(
-            {'cell': 'MultimodalController', 'input_size': self.output_size, 'num_mode': self.num_mode,
-             'controller_rate': self.controller_rate})
-        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.normalization = Normalization(cell_info['normalization'], cell_info['output_size'])
         self.activation = Activation(cell_info['activation'])
+        self.mc = MultimodalController(
+            {'cell': 'MultimodalController', 'input_size': cell_info['output_size'], 'num_mode': cell_info['num_mode'],
+             'controller_rate': cell_info['controller_rate']})
 
     def forward(self, input):
         _tuple = ntuple(2)
@@ -178,10 +168,10 @@ class MCConv2dCell(nn.Conv2d):
                                 (self.padding[1] + 1) // 2, self.padding[1] // 2,
                                 (self.padding[0] + 1) // 2, self.padding[0] // 2)
             return self.mc(self.activation(self.normalization(F.conv2d(F.pad(input, expanded_padding, mode='circular'),
-                                                               self.weight, self.bias, self.stride, _tuple(0),
-                                                               self.dilation, self.groups))))
+                                                                       self.weight, self.bias, self.stride, _tuple(0),
+                                                                       self.dilation, self.groups))))
         return self.mc(self.activation(self.normalization(F.conv2d(input, self.weight, self.bias, self.stride,
-                                                           self.padding, self.dilation, self.groups))))
+                                                                   self.padding, self.dilation, self.groups))))
 
 
 class ConvTranspose2dCell(nn.ConvTranspose2d):
@@ -195,9 +185,7 @@ class ConvTranspose2dCell(nn.ConvTranspose2d):
                                                   output_padding=cell_info['output_padding'],
                                                   dilation=cell_info['dilation'], groups=cell_info['groups'],
                                                   bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.normalization = Normalization(cell_info['normalization'], cell_info['output_size'])
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input, output_size=None):
@@ -221,15 +209,11 @@ class MCConvTranspose2dCell(nn.ConvTranspose2d):
                                                     output_padding=cell_info['output_padding'],
                                                     dilation=cell_info['dilation'], groups=cell_info['groups'],
                                                     bias=cell_info['bias'], padding_mode=cell_info['padding_mode'])
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.num_mode = cell_info['num_mode']
-        self.controller_rate = cell_info['controller_rate']
-        self.mc = MultimodalController(
-            {'cell': 'MultimodalController', 'input_size': self.output_size, 'num_mode': self.num_mode,
-             'controller_rate': self.controller_rate})
-        self.normalization = Normalization(cell_info['normalization'], self.output_size)
+        self.normalization = Normalization(cell_info['normalization'], cell_info['output_size'])
         self.activation = Activation(cell_info['activation'])
+        self.mc = MultimodalController(
+            {'cell': 'MultimodalController', 'input_size': cell_info['output_size'], 'num_mode': cell_info['num_mode'],
+             'controller_rate': cell_info['controller_rate']})
 
     def forward(self, input, output_size=None):
         if self.padding_mode != 'zeros':
@@ -244,18 +228,16 @@ class MCConvTranspose2dCell(nn.ConvTranspose2d):
 class ResConv2dCell(nn.Module):
     def __init__(self, cell_info):
         super(ResConv2dCell, self).__init__()
-        default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+        default_cell_info = {'kernel_size': 3, 'stride': 1, 'padding': 1, 'dilation': 1, 'groups': 1, 'bias': True,
                              'padding_mode': 'zeros'}
         cell_info = {**default_cell_info, **cell_info}
-        conv1_info = {**cell_info}
-        conv2_info = {**cell_info, 'input_size': cell_info['output_size'], 'stride': 1,
-                      'normalization': cell_info['normalization'], 'activation': 'none'}
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
+        conv1_info = {**cell_info, 'output_size': cell_info['res_size']}
+        conv2_info = {**cell_info, 'input_size': cell_info['res_size'], 'kernel_size': 1, 'stride': 1, 'padding': 0,
+                      'activation': 'none'}
         self.conv1 = Conv2dCell(conv1_info)
         self.conv2 = Conv2dCell(conv2_info)
         if cell_info['stride'] > 1 or cell_info['input_size'] != cell_info['output_size']:
-            self.shortcut = Conv2dCell({**cell_info, 'kernel_size': 1, 'padding': 0,
+            self.shortcut = Conv2dCell({**cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0,
                                         'normalization': cell_info['normalization'], 'activation': 'none'})
         else:
             self.shortcut = nn.Identity()
@@ -269,30 +251,26 @@ class ResConv2dCell(nn.Module):
         return output
 
 
-class ResMCConv2dCell(nn.Module):
+class MCResConv2dCell(nn.Module):
     def __init__(self, cell_info):
-        super(ResMCConv2dCell, self).__init__()
-        default_cell_info = {'stride': 1, 'padding': 0, 'dilation': 1, 'groups': 1, 'bias': True,
+        super(MCResConv2dCell, self).__init__()
+        default_cell_info = {'kernel_size': 3, 'stride': 1, 'padding': 1, 'dilation': 1, 'groups': 1, 'bias': True,
                              'padding_mode': 'zeros'}
         cell_info = {**default_cell_info, **cell_info}
-        conv1_info = {**cell_info}
-        conv2_info = {**cell_info, 'input_size': cell_info['output_size'], 'stride': 1,
-                      'normalization': cell_info['normalization'], 'activation': 'none'}
-        self.input_size = cell_info['input_size']
-        self.output_size = cell_info['output_size']
-        self.num_mode = cell_info['num_mode']
-        self.controller_rate = cell_info['controller_rate']
-        self.mc = MultimodalController(
-            {'cell': 'MultimodalController', 'input_size': self.output_size, 'num_mode': self.num_mode,
-             'controller_rate': self.controller_rate})
+        conv1_info = {**cell_info, 'output_size': cell_info['res_size']}
+        conv2_info = {**cell_info, 'input_size': cell_info['res_size'], 'kernel_size': 1, 'stride': 1, 'padding': 0,
+                      'activation': 'none'}
         self.conv1 = Conv2dCell(conv1_info)
         self.conv2 = Conv2dCell(conv2_info)
         if cell_info['stride'] > 1 or cell_info['input_size'] != cell_info['output_size']:
-            self.shortcut = Conv2dCell({**cell_info, 'kernel_size': 1, 'padding': 0,
+            self.shortcut = Conv2dCell({**cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0,
                                         'normalization': cell_info['normalization'], 'activation': 'none'})
         else:
             self.shortcut = nn.Identity()
         self.activation = Activation(cell_info['activation'])
+        self.mc = MultimodalController(
+            {'cell': 'MultimodalController', 'input_size': cell_info['output_size'], 'num_mode': cell_info['num_mode'],
+             'controller_rate': cell_info['controller_rate']})
 
     def forward(self, input):
         shortcut = self.shortcut(input)
@@ -302,30 +280,52 @@ class ResMCConv2dCell(nn.Module):
         return output
 
 
-# class MultimodalController(nn.Module):
-#     def __init__(self, cell_info):
-#         super(MultimodalController, self).__init__()
-#         default_cell_info = {'controller_rate': 1, 'num_mode': 1}
-#         cell_info = {**default_cell_info, **cell_info}
-#         self.input_size = cell_info['input_size']
-#         self.controller_rate = cell_info['controller_rate']
-#         self.num_mode = cell_info['num_mode']
-#         self.mode_size = math.ceil(self.input_size * (1 - self.controller_rate) / self.num_mode)
-#         self.free_size = self.mode_size * self.num_mode
-#         self.shared_size = self.input_size - self.free_size
-#         embedding = torch.zeros(self.num_mode, self.input_size)
-#         if self.controller_rate > 0:
-#             embedding[:, :self.shared_size] = 1
-#         if self.free_size > 0:
-#             idx = torch.arange(self.num_mode).repeat_interleave(self.mode_size, dim=0).view(1, -1)
-#             embedding[:, self.shared_size:].scatter_(0, idx, 1)
-#         self.register_buffer('embedding', embedding)
-#
-#     def forward(self, input):
-#         embedding = config.PARAM['indicator'].matmul(self.embedding)
-#         embedding = embedding.view(*embedding.size(), *([1] * (input.dim() - 2)))
-#         output = input * embedding.detach()
-#         return output
+class VectorQuantization(nn.Module):
+    def __init__(self, cell_info):
+        default_cell_info = {'decay': 0.99, 'eps': 1e-5}
+        cell_info = {**default_cell_info, **cell_info}
+        super(VectorQuantization, self).__init__()
+        self.embedding_dim = cell_info['embedding_dim']
+        self.num_embedding = cell_info['num_embedding']
+        self.decay = cell_info['decay']
+        self.eps = cell_info['eps']
+        embedding = torch.randn(self.embedding_dim, self.num_embedding)
+        self.register_buffer('embedding', embedding)
+        self.register_buffer('cluster_size', torch.zeros(self.num_embedding))
+        self.register_buffer('embedding_avg', embedding.clone())
+
+    def forward(self, input):
+        input = input.permute(0, 2, 3, 1).contiguous()
+        input_shape = input.size()
+        flatten = input.view(-1, self.embedding_dim)
+        dist = (
+                flatten.pow(2).sum(1, keepdim=True)
+                - 2 * flatten @ self.embedding
+                + self.embedding.pow(2).sum(0, keepdim=True)
+        )
+        _, embedding_ind = dist.min(1)
+        embedding_onehot = F.one_hot(embedding_ind, self.num_embedding).type(flatten.dtype)
+        embedding_ind = embedding_ind.view(*input_shape[:-1])
+        quantize = self.embedding_code(embedding_ind)
+        if self.training:
+            self.cluster_size.data.mul_(self.decay).add_(
+                1 - self.decay, embedding_onehot.sum(0)
+            )
+            embedding_sum = flatten.transpose(0, 1) @ embedding_onehot
+            self.embedding_avg.data.mul_(self.decay).add_(1 - self.decay, embedding_sum)
+            n = self.cluster_size.sum()
+            cluster_size = (
+                    (self.cluster_size + self.eps) / (n + self.num_embedding * self.eps) * n
+            )
+            embedding_normalized = self.embedding_avg / cluster_size.unsqueeze(0)
+            self.embedding.data.copy_(embedding_normalized)
+        diff = F.mse_loss(quantize.detach(), input)
+        quantize = input + (quantize - input).detach()
+        quantize = quantize.permute(0, 3, 1, 2).contiguous()
+        return quantize, diff, embedding_ind
+
+    def embedding_code(self, embedding_ind):
+        return F.embedding(embedding_ind, self.embedding.transpose(0, 1))
 
 
 class MultimodalController(nn.Module):

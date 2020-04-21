@@ -72,7 +72,9 @@ def test(model):
         model.train(False)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
         C = C.repeat(config.PARAM['generate_per_mode'])
-        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+        config.PARAM['z'] = torch.randn(
+            [C.size(0), config.PARAM['quantizer_embedding_size'], config.PARAM['img_shape'][1] // 4,
+             config.PARAM['img_shape'][2] // 4], device=config.PARAM['device'])
         C_generated = torch.split(C, sample_per_iter)
         z_generated = torch.split(config.PARAM['z'], sample_per_iter)
         generated = []
@@ -80,12 +82,13 @@ def test(model):
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i]
             z_generated_i = z_generated[i]
-            generated_i = model.generate(z_generated_i, C_generated_i)
+            generated_i = model.generate(C_generated_i, z_generated_i)
             generated.append(generated_i)
             saved.append(generated_i[:save_per_mode])
         generated = torch.cat(generated)
         saved = torch.cat(saved)
-        generated = (generated * 255).cpu().numpy()
+        generated = ((generated + 1) / 2 * 255).cpu().numpy()
+        saved = (saved + 1) / 2
         save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
         save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return

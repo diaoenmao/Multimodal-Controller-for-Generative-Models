@@ -12,7 +12,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim as optim
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, resume, collate
+from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
 from logger import Logger
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
@@ -44,8 +44,7 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
 config.PARAM['batch_size']['train'] = 128
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['InceptionScore']}
-
+config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 def main():
     process_control_name()
@@ -86,12 +85,12 @@ def runExperiment():
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    config.PARAM['pivot_metric'] = 'test/InceptionScore'
+    config.PARAM['pivot_metric'] = 'test/NLL'
     config.PARAM['pivot'] = -1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(model, logger, epoch)
+        test(data_loader['test'], model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
@@ -140,18 +139,32 @@ def train(data_loader, model, optimizer, logger, epoch):
             evaluation = metric.evaluate(config.PARAM['metric_names']['train'], input, output)
             logger.append(evaluation, 'train', n=input_size)
             logger.write('train', config.PARAM['metric_names']['train'])
+    save_img((input['img'][:100] + 1) / 2,
+             './output/img/input_{}.png'.format(config.PARAM['model_tag']))
+    save_img((output['img'][:100] + 1) / 2,
+             './output/img/output_{}.png'.format(config.PARAM['model_tag']))
     return
 
 
-def test(model, logger, epoch):
+def test(data_loader, model, logger, epoch):
     sample_per_iter = 1000
     with torch.no_grad():
         metric = Metric()
         model.train(False)
+        for i, input in enumerate(data_loader):
+            input = collate(input)
+            input_size = input['img'].numel()
+            input = to_device(input, config.PARAM['device'])
+            output = model(input)
+            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
+            evaluation = metric.evaluate(config.PARAM['metric_names']['test'][:-1], input, output)
+            logger.append(evaluation, 'test', input_size)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
         C = C.repeat(config.PARAM['generate_per_mode'])
-        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device']) \
-            if 'z' not in config.PARAM else config.PARAM['z']
+        if 'z' not in config.PARAM:
+            config.PARAM['z'] = torch.randn(
+                [C.size(0), config.PARAM['quantizer_embedding_size'], config.PARAM['img_shape'][1] // 4,
+                 config.PARAM['img_shape'][2] // 4], device=config.PARAM['device'])
         C_generated = torch.split(C, sample_per_iter)
         z_generated = torch.split(config.PARAM['z'], sample_per_iter)
         generated = []
@@ -159,7 +172,6 @@ def test(model, logger, epoch):
             C_generated_i = C_generated[i]
             z_generated_i = z_generated[i]
             generated_i = model.generate(C_generated_i, z_generated_i)
-            generated_i = generated_i * 2 - 1
             generated.append(generated_i)
         generated = torch.cat(generated)
         output = {'img': generated}

@@ -113,7 +113,11 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
-    config.PARAM['embedding_size'] = 32
+    if config.PARAM['model_name'] in ['dccvqvae', 'dcmcvqvae']:
+        config.PARAM['hidden_size'] = 128
+        config.PARAM['conditional_embedding_size'] = 32
+        config.PARAM['quantizer_embedding_size'] = 64
+        config.PARAM['num_embedding'] = 512
     return
 
 
@@ -208,5 +212,3 @@ def collate(input):
     for k in input:
         input[k] = torch.stack(input[k], 0)
     return input
-
-

@@ -10,12 +10,10 @@ from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
 
 
-# from .inception_score import get_inception_score
-# from .fid import calculate_activation_statistics, calculate_frechet_distance
-
-
 def NLL(output, target):
     with torch.no_grad():
+        output = (output + 1) / 2
+        target = (target + 1) / 2
         NLL = F.binary_cross_entropy(output, target, reduction='sum').item() / output.size(0)
     return NLL
 

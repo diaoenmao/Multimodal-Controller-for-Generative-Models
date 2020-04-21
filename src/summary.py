@@ -21,10 +21,16 @@ for k in config.PARAM:
     config.PARAM[k] = args[k]
 if args['control_name']:
     config.PARAM['control_name'] = args['control_name']
-    control_list = list(config.PARAM['control'].keys())
-    control_name_list = args['control_name'].split('_')
-    for i in range(len(control_name_list)):
-        config.PARAM['control'][control_list[i]] = control_name_list[i]
+    if config.PARAM['control_name'] != 'None':
+        control_list = list(config.PARAM['control'].keys())
+        control_name_list = args['control_name'].split('_')
+        for i in range(len(control_name_list)):
+            config.PARAM['control'][control_list[i]] = control_name_list[i]
+    else:
+        config.PARAM['control'] = {}
+else:
+    if config.PARAM['control'] == 'None':
+        config.PARAM['control'] = {}
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
