@@ -113,7 +113,7 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
-    if config.PARAM['model_name'] in ['dccvqvae', 'dcmcvqvae']:
+    if config.PARAM['model_name'] in ['dccvqvae', 'dcmcvqvae', 'cgatedpixelcnn', 'mcgatedpixelcnn']:
         config.PARAM['hidden_size'] = 128
         config.PARAM['conditional_embedding_size'] = 32
         config.PARAM['quantizer_embedding_size'] = 64

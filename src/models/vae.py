@@ -16,18 +16,16 @@ class DCCVQVAE(nn.Module):
         super(DCCVQVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C, z=None):
-        if z is None:
-            z = torch.randn([C.size(0), config.PARAM['quantizer_embedding_size'], config.PARAM['img_shape'][1] // 4,
-                             config.PARAM['img_shape'][2] // 4], device=config.PARAM['device'])
-        onehot = F.one_hot(C, config.PARAM['classes_size']).float()
-        x, _, _ = self.model['quantizer'](z)
-        decoder_embedding = self.model['decoder_embedding'](onehot)
-        decoder_embedding = decoder_embedding.view([*decoder_embedding.size(), 1, 1]).expand(
-            [*decoder_embedding.size(), *x.size()[2:]])
-        x = torch.cat((z, decoder_embedding), dim=1)
-        generated = self.model['decoder'](x)
-        return generated
+    def encode(self, input):
+        x = input['img']
+        onehot = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        encoder_embedding = self.model['encoder_embedding'](onehot)
+        encoder_embedding = encoder_embedding.view([*encoder_embedding.size(), 1, 1]).expand(
+            [*encoder_embedding.size(), *x.size()[2:]])
+        x = torch.cat((x, encoder_embedding), dim=1)
+        x = self.model['encoder'](x)
+        _, _, code = self.model['quantizer'](x)
+        return code
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
@@ -54,14 +52,12 @@ class DCMCVQVAE(nn.Module):
         super(DCMCVQVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C, z=None):
-        if z is None:
-            z = torch.randn([C.size(0), config.PARAM['quantizer_embedding_size'], config.PARAM['img_shape'][1] // 4,
-                             config.PARAM['img_shape'][2] // 4], device=config.PARAM['device'])
-        config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
-        x, _, _ = self.model['quantizer'](z)
-        generated = self.model['decoder'](x)
-        return generated
+    def encode(self, input):
+        x = input['img']
+        config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        x = self.model['encoder'](x)
+        _, _, code = self.model['quantizer'](x)
+        return code
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}

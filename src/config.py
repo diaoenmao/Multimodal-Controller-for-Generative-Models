@@ -1,7 +1,7 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'Omniglot',
+        'data_name': 'CIFAR10',
         'subset': 'label',
         'model_name': 'dcmcvqvae',
         'control': {'controller_rate': '0.5'},

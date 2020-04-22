@@ -7,7 +7,7 @@ import itertools
 def main():
     round = 24
     run_mode = 'train'
-    model_mode = 'vae'
+    model_mode = 'pixelcnn'
     filename = '{}_{}'.format(run_mode, model_mode)
     gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
