@@ -343,7 +343,7 @@ if __name__ == "__main__":
         images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
         images = np.transpose(images, (0, 2, 3, 1))
         # load from precalculated
-        f = np.load('./metrics/res/stats_tf/fid_stats_{}_train.npz'.format(data_name.lower()))
+        f = np.load('./metrics_tf/res/stats_tf/fid_stats_{}_train.npz'.format(data_name.lower()))
         mu1, sigma1 = f['mu'][:], f['sigma'][:]
         f.close()
         # calc from image ndarray

@@ -188,8 +188,7 @@ class MCGatedPixelCNN(nn.Module):
         return output
 
     def generate(self, x, C):
-        input = {'code': x}
-        config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
+        input = {'code': x, 'label': C}
         for i in range(x.size(1)):
             for j in range(x.size(2)):
                 output = self.forward(input)

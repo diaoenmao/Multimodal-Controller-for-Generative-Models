@@ -7,8 +7,11 @@ import os
 import torch
 import torch.backends.cudnn as cudnn
 import models
+import numpy as np
 from data import fetch_dataset, make_data_loader
+from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
+from logger import Logger
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -36,6 +39,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['metric_names'] = {'test': ['InceptionScore']}
 
 
 def main():
@@ -57,41 +61,21 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    load_tag = 'best'
-    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    test(model)
+    generated = np.load('./output/npy/{}.npy'.format(config.PARAM['model_tag']), allow_pickle=True)
+    result = test(generated)
+    save(result, './output/result/is_{}.pt'.format(config.PARAM['model_tag']))
     return
 
 
-def test(model):
-    save_per_mode = 10
-    save_num_mode = min(100, config.PARAM['classes_size'])
-    sample_per_iter = 1000
+def test(generated):
     with torch.no_grad():
-        model.train(False)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
-        C = C.repeat(config.PARAM['generate_per_mode'])
-        config.PARAM['z'] = torch.randn(
-            [C.size(0), config.PARAM['quantizer_embedding_size'], config.PARAM['img_shape'][1] // 4,
-             config.PARAM['img_shape'][2] // 4], device=config.PARAM['device'])
-        C_generated = torch.split(C, sample_per_iter)
-        z_generated = torch.split(config.PARAM['z'], sample_per_iter)
-        generated = []
-        saved = []
-        for i in range(len(C_generated)):
-            C_generated_i = C_generated[i]
-            z_generated_i = z_generated[i]
-            generated_i = model.generate(C_generated_i, z_generated_i)
-            generated.append(generated_i)
-            saved.append(generated_i[:save_per_mode])
-        generated = torch.cat(generated)
-        saved = torch.cat(saved)
-        generated = ((generated + 1) / 2 * 255).cpu().numpy()
-        saved = (saved + 1) / 2
-        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
-        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
-    return
+        metric = Metric()
+        generated = torch.tensor(generated / 255 * 2 - 1)
+        output = {'img': generated}
+        evaluation = metric.evaluate(['InceptionScore'], None, output)
+        print(evaluation)
+        exit()
+    return result
 
 
 if __name__ == "__main__":

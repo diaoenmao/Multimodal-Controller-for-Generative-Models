@@ -27,6 +27,16 @@ class DCCVQVAE(nn.Module):
         _, _, code = self.model['quantizer'](x)
         return code
 
+    def decode(self, code, label):
+        onehot = F.one_hot(label, config.PARAM['classes_size']).float()
+        x = self.model['quantizer'].embedding_code(code).permute(0, 3, 1, 2).contiguous()
+        decoder_embedding = self.model['decoder_embedding'](onehot)
+        decoder_embedding = decoder_embedding.view([*decoder_embedding.size(), 1, 1]).expand(
+            [*decoder_embedding.size(), *x.size()[2:]])
+        x = torch.cat((x, decoder_embedding), dim=1)
+        generated = self.model['decoder'](x)
+        return generated
+
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
         x = input['img']
@@ -58,6 +68,12 @@ class DCMCVQVAE(nn.Module):
         x = self.model['encoder'](x)
         _, _, code = self.model['quantizer'](x)
         return code
+
+    def decode(self, code, label):
+        config.PARAM['indicator'] = F.one_hot(label, config.PARAM['classes_size']).float()
+        x = self.model['quantizer'].embedding_code(code).permute(0, 3, 1, 2).contiguous()
+        generated = self.model['decoder'](x)
+        return generated
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}

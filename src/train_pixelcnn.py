@@ -81,10 +81,10 @@ def runExperiment():
     optimizer = make_optimizer(prior)
     scheduler = make_scheduler(optimizer)
     if config.PARAM['resume_mode'] == 1:
-        last_epoch, model, optimizer, scheduler, logger = resume(model, config.PARAM['prior_tag'], optimizer, scheduler)
+        last_epoch, prior, optimizer, scheduler, logger = resume(prior, config.PARAM['prior_tag'], optimizer, scheduler)
     elif config.PARAM['resume_mode'] == 2:
         last_epoch = 1
-        _, model, _, _, _ = resume(model, config.PARAM['prior_tag'])
+        _, prior, _, _, _ = resume(prior, config.PARAM['prior_tag'])
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
         logger_path = 'output/runs/{}_{}'.format(config.PARAM['prior_tag'], current_time)
         logger = Logger(logger_path)
@@ -95,7 +95,7 @@ def runExperiment():
             'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['prior_tag'])
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
+        prior = torch.nn.DataParallel(prior, device_ids=list(range(config.PARAM['world_size'])))
     config.PARAM['pivot_metric'] = 'test/NLL'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
@@ -108,9 +108,9 @@ def runExperiment():
             scheduler.step()
         if config.PARAM['save_mode'] >= 0:
             logger.safe(False)
-            model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
+            prior_state_dict = prior.module.state_dict() if config.PARAM['world_size'] > 1 else prior.state_dict()
             save_result = {
-                'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+                'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': prior_state_dict,
                 'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
                 'logger': logger}
             save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['prior_tag']))

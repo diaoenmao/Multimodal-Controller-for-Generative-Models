@@ -8,7 +8,7 @@ import numpy as np
 from utils import recur, save, load, to_device
 from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
-
+from scipy.stats import entropy
 
 def MSE(output, target):
     with torch.no_grad():
@@ -38,7 +38,7 @@ def InceptionScore(img, splits=10):
         model = eval('models.classifier().to(config.PARAM["device"])')
         model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier']
         model_tag = '_'.join(filter(None, model_tag))
-        checkpoint = load('./metrics/res/classifier/{}_best.pt'.format(model_tag))
+        checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
         model.load_state_dict(checkpoint['model_dict'])
         model.train(False)
         preds = np.zeros((N, config.PARAM['classes_size']))
@@ -62,9 +62,12 @@ def InceptionScore(img, splits=10):
     split_scores = []
     for k in range(splits):
         part = preds[k * (N // splits): (k + 1) * (N // splits), :]
-        kl = part * (np.log(part) - np.log(np.expand_dims(np.mean(part, 0), 0)))
-        kl = np.mean(np.sum(kl, 1))
-        split_scores.append(np.exp(kl))
+        py = np.mean(part, axis=0)
+        scores = []
+        for i in range(part.shape[0]):
+            pyx = part[i, :]
+            scores.append(entropy(pyx, py))
+        split_scores.append(np.exp(np.mean(scores)))
     is_mean = np.mean(split_scores).item()
     is_std = np.std(split_scores).item()
     return is_mean, is_std

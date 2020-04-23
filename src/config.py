@@ -1,7 +1,7 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CIFAR10',
+        'data_name': 'Omniglot',
         'subset': 'label',
         'model_name': 'dcmcvqvae',
         'control': {'controller_rate': '0.5'},
@@ -15,7 +15,7 @@ def init():
         'patience': 5,
         'threshold': 1e-3,
         'factor': 0.1,
-        'batch_size': {'train': 128, 'test': 256},
+        'batch_size': {'train': 128, 'test': 512},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',
