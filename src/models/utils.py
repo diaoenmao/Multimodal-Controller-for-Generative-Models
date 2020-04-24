@@ -49,3 +49,9 @@ def denormalize(input):
     return input
 
 
+def create(model):
+    for m in model.modules():
+        module_name = m.__class__.__name__
+        if module_name == 'MultimodalController':
+            m.register_buffer('codebook', m.make_codebook())
+    return
