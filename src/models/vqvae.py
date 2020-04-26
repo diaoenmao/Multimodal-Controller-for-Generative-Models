@@ -5,12 +5,6 @@ import torch.nn.functional as F
 from .utils import make_model
 
 
-def loss(input, output):
-    CE = F.binary_cross_entropy(output['img'], input['img'], reduction='sum') / input['img'].size(0)
-    KLD = -0.5 * torch.mean(1 + output['logvar'] - output['mu'].pow(2) - output['logvar'].exp())
-    return CE + KLD
-
-
 class DCCVQVAE(nn.Module):
     def __init__(self):
         super(DCCVQVAE, self).__init__()

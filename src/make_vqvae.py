@@ -13,8 +13,8 @@ def main():
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['CIFAR10', 'Omniglot']
     model_names = [['dccvqvae', 'dcmcvqvae']]
-    experiments_step = 1
-    num_experiments = 1
+    experiments_step = 2
+    num_experiments = 12
     init_seeds = [list(range(0, num_experiments, experiments_step))]
     num_epochs = [[200]]
     num_experiments = [[experiments_step]]
@@ -26,12 +26,10 @@ def main():
         controls = list(itertools.product(*controls))
         for j in range(len(controls)):
             controls[j] = list(controls[j])
-            if controls[j][2] == 'dccvqvae':
-                controls[j].append('None')
-            elif controls[j][2] == 'dcmcvqvae':
+            if 'mc' in controls[j][2]:
                 controls[j].append('0.5')
             else:
-                raise ValueError('Not valid model name')
+                controls[j].append('None')
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} --num_epochs ' \
                     '{} --num_experiments {} --control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], *controls[j])

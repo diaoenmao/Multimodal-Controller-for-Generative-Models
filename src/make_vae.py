@@ -7,12 +7,12 @@ import itertools
 def main():
     round = 24
     run_mode = 'train'
-    model_mode = 'pixelcnn'
+    model_mode = 'vae'
     filename = '{}_{}'.format(run_mode, model_mode)
     gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['CIFAR10', 'Omniglot']
-    model_names = [['dccvqvae', 'dcmcvqvae']]
+    model_names = [['dccvae', 'dcmcvae']]
     experiments_step = 2
     num_experiments = 12
     init_seeds = [list(range(0, num_experiments, experiments_step))]
