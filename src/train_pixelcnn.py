@@ -44,7 +44,7 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 1e-3
 config.PARAM['weight_decay'] = 0
 config.PARAM['batch_size']['train'] = 128
-config.PARAM['metric_names'] = {'train': ['NLL'], 'test': ['NLL']}
+config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
 def main():
