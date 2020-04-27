@@ -196,7 +196,7 @@ def dcmcvqvae():
     input_size = hidden_size
     output_size = quantizer_embedding_size
     config.PARAM['model']['encoder'].append(
-        {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size,
+        {'cell': 'MCConv2dCell', 'input_size': input_size, 'output_size': output_size,
          'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': 'none',
          'activation': 'none', 'num_mode': num_mode, 'controller_rate': controller_rate})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])

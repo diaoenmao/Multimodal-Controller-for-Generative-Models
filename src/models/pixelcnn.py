@@ -137,7 +137,7 @@ class MCGatedMaskedConv2d(nn.Module):
         v2h = self.vert_to_horiz(h_vert)
         out = self.gate(v2h + h_horiz)
         if self.residual:
-            out_h = self.mc2(self.horiz_resid(out)) + x_h
+            out_h = self.mc2(self.horiz_resid(out) + x_h)
         else:
             out_h = self.mc2(self.horiz_resid(out))
         return out_v, out_h

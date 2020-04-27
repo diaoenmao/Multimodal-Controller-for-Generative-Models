@@ -41,7 +41,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 2e-4
+config.PARAM['lr'] = 1e-3
 config.PARAM['weight_decay'] = 0
 config.PARAM['batch_size']['train'] = 128
 config.PARAM['metric_names'] = {'train': ['NLL'], 'test': ['NLL']}
