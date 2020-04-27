@@ -90,9 +90,9 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        save_img((input['img'][:100] + 1) / 2,
+        save_img(input['img'][:100],
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-        save_img((output['img'][:100] + 1) / 2,
+        save_img(output['img'][:100],
                  './output/img/output_{}.png'.format(config.PARAM['model_tag']))
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}

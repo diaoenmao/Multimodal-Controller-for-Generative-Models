@@ -62,8 +62,7 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     generated = np.load('./output/npy/{}.npy'.format(config.PARAM['model_tag']), allow_pickle=True)
-    result = test(generated)
-    save(result, './output/result/is_{}.pt'.format(config.PARAM['model_tag']))
+    test(generated)
     return
 
 
@@ -73,9 +72,10 @@ def test(generated):
         generated = torch.tensor(generated / 255 * 2 - 1)
         output = {'img': generated}
         evaluation = metric.evaluate(['InceptionScore'], None, output)
-        print(evaluation)
-        exit()
-    return result
+    result = evaluation['InceptionScore']
+    print('Inception Score ({}): {}'.format(config.PARAM['model_tag'], result))
+    np.save('./output/result/is_{}.npy'.format(config.PARAM['model_tag']), result)
+    return evaluation
 
 
 if __name__ == "__main__":

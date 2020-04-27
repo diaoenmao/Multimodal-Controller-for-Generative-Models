@@ -87,8 +87,8 @@ def test(model):
         for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
             saved.append(generated[i:i + save_num_mode])
         saved = torch.cat(saved)
-        generated = ((generated + 1) / 2 * 255).cpu().numpy()
-        saved = (saved + 1) / 2
+        generated = (generated * 255).cpu().numpy()
+        saved = saved
         save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
         save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return

@@ -1,20 +1,20 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CIFAR10',
+        'data_name': 'Omniglot',
         'subset': 'label',
-        'model_name': 'dcmcvae',
+        'model_name': 'dcmcvqvae',
         'control': {'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,
         'weight_decay': 0,
-        'scheduler_name': 'None',
+        'scheduler_name': 'ReduceLROnPlateau',
         'step_size': 1,
         'milestones': [100],
-        'patience': 5,
+        'patience': 10,
         'threshold': 1e-3,
-        'factor': 0.1,
+        'factor': 0.5,
         'batch_size': {'train': 128, 'test': 512},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
@@ -27,6 +27,6 @@ def init():
         'num_experiments': 1,
         'log_interval': 0.25,
         'log_overwrite': False,
-        'show': False,
+        'show': True,
         'resume_mode': 0
     }

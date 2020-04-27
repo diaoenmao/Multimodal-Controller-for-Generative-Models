@@ -195,7 +195,7 @@ def cgatedpixelcnn():
     num_mode = config.PARAM['classes_size']
     num_embedding = config.PARAM['num_embedding']
     n_layers = 15
-    hidden_size = 64
+    hidden_size = 128
     model = ConditionalGatedPixelCNN(input_dim=num_embedding, dim=hidden_size, n_layers=n_layers, n_classes=num_mode)
     return model
 
@@ -205,7 +205,7 @@ def mcgatedpixelcnn():
     num_embedding = config.PARAM['num_embedding']
     controller_rate = config.PARAM['controller_rate']
     n_layers = 15
-    hidden_size = 64
+    hidden_size = 128
     model = MCGatedPixelCNN(input_dim=num_embedding, dim=hidden_size, n_layers=n_layers, n_classes=num_mode,
                             controller_rate=controller_rate)
     return model

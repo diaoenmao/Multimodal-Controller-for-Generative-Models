@@ -258,22 +258,25 @@ class MCResConv2dCell(nn.Module):
                              'padding_mode': 'zeros'}
         cell_info = {**default_cell_info, **cell_info}
         conv1_info = {**cell_info, 'output_size': cell_info['res_size']}
-        conv2_info = {**cell_info, 'input_size': cell_info['res_size'], 'kernel_size': 1, 'stride': 1, 'padding': 0,
+        conv2_info = {**cell_info, 'input_size': cell_info['res_size'], 'kernel_size': 3, 'stride': 1, 'padding': 1,
                       'activation': 'none'}
         self.conv1 = MCConv2dCell(conv1_info)
-        self.conv2 = MCConv2dCell(conv2_info)
+        self.conv2 = Conv2dCell(conv2_info)
         if cell_info['stride'] > 1 or cell_info['input_size'] != cell_info['output_size']:
             self.shortcut = MCConv2dCell({**cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0,
                                           'normalization': cell_info['normalization'], 'activation': 'none'})
         else:
             self.shortcut = nn.Identity()
         self.activation = Activation(cell_info['activation'])
+        self.mc = MultimodalController(
+            {'cell': 'MultimodalController', 'input_size': cell_info['output_size'], 'num_mode': cell_info['num_mode'],
+             'controller_rate': cell_info['controller_rate']})
 
     def forward(self, input):
         shortcut = self.shortcut(input)
         x = self.conv1(input)
         x = self.conv2(x)
-        output = self.activation(x + shortcut)
+        output = self.mc(self.activation(x + shortcut))
         return output
 
 
