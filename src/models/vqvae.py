@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from .utils import make_model
 
 
-class DCCVQVAE(nn.Module):
+class CVQVAE(nn.Module):
     def __init__(self):
-        super(DCCVQVAE, self).__init__()
+        super(CVQVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def encode(self, input):
@@ -51,9 +51,9 @@ class DCCVQVAE(nn.Module):
         return output
 
 
-class DCMCVQVAE(nn.Module):
+class MCVQVAE(nn.Module):
     def __init__(self):
-        super(DCMCVQVAE, self).__init__()
+        super(MCVQVAE, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def encode(self, input):
@@ -81,7 +81,7 @@ class DCMCVQVAE(nn.Module):
         return output
 
 
-def dccvqvae():
+def cvqvae():
     normalization = 'bn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
@@ -157,11 +157,11 @@ def dccvqvae():
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': 'none',
          'activation': 'tanh'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
-    model = DCCVQVAE()
+    model = CVQVAE()
     return model
 
 
-def dcmcvqvae():
+def mcvqvae():
     normalization = 'bn'
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
@@ -232,5 +232,5 @@ def dcmcvqvae():
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': 'none',
          'activation': 'tanh'})
     config.PARAM['model']['decoder'] = tuple(config.PARAM['model']['decoder'])
-    model = DCMCVQVAE()
+    model = MCVQVAE()
     return model

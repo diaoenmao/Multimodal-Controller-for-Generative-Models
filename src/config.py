@@ -3,7 +3,7 @@ def init():
     PARAM = {
         'data_name': 'CIFAR10',
         'subset': 'label',
-        'model_name': 'dcmcvqvae',
+        'model_name': 'mcvqvae',
         'control': {'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
@@ -27,6 +27,6 @@ def init():
         'num_experiments': 1,
         'log_interval': 0.25,
         'log_overwrite': False,
-        'show': True,
+        'show': False,
         'resume_mode': 0
     }

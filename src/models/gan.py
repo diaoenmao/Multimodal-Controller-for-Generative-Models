@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from .utils import make_model
 
 
-class DCCGAN(nn.Module):
+class CSNGAN(nn.Module):
     def __init__(self):
-        super(DCCGAN, self).__init__()
+        super(CSNGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def generate(self, C, z=None):
@@ -36,9 +36,9 @@ class DCCGAN(nn.Module):
         return x
 
 
-class DCMCGAN(nn.Module):
+class MCSNGAN(nn.Module):
     def __init__(self):
-        super(DCMCGAN, self).__init__()
+        super(MCSNGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
     def generate(self, C, z=None):
