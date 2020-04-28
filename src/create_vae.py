@@ -60,25 +60,13 @@ def runExperiment():
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
     _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    model_tag_list = config.PARAM['model_tag'].split('_')
-    if 'mc' in config.PARAM['model_name']:
-        prior = models.mcgatedpixelcnn()
-        model_tag_list[3] = 'mcgatedpixelcnn'
-    else:
-        prior = models.cgatedpixelcnn()
-        model_tag_list[3] = 'cgatedpixelcnn'
-    config.PARAM['prior_tag'] = '_'.join(filter(None, model_tag_list))
-    prior = prior.to(config.PARAM['device'])
-    _, prior, _, _, _ = resume(prior, config.PARAM['prior_tag'], load_tag=load_tag)
     models.utils.create(model)
-    models.utils.create(prior)
     model = model.to(config.PARAM['device'])
-    prior = prior.to(config.PARAM['device'])
-    test(model, prior)
+    test(model)
     return
 
 
-def test(model, prior):
+def test(model):
     save_per_mode = 10
     save_num_mode = min(100, config.PARAM['classes_size'])
     sample_per_iter = 1000
@@ -87,18 +75,16 @@ def test(model, prior):
         C = torch.arange(save_num_mode).to(config.PARAM['device'])
         C = C.repeat(save_per_mode)
         C_created = torch.split(C, sample_per_iter)
-        x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
-                        dtype=torch.long, device=config.PARAM['device'])
+        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
         x_created = torch.split(x, sample_per_iter)
         created = []
         for i in range(len(C_created)):
             x_created_i = x_created[i]
             C_created_i = C_created[i]
-            code_i = prior.generate(x_created_i, C_created_i)
-            created_i = model.decode(code_i, C_created_i)
+            created_i = model.generate(x_created_i, C_created_i)
             created.append(created_i)
         created = torch.cat(created)
-        created = (created + 1) / 2
+        created = created
         save_img(created, './output/img/created_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return
 
