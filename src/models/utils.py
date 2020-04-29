@@ -55,3 +55,10 @@ def create(model):
         if module_name == 'MultimodalController':
             m.register_buffer('codebook', m.make_codebook())
     return
+
+
+def make_SpectralNormalization(m):
+    if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
+        return torch.nn.utils.spectral_norm(m)
+    else:
+        return m

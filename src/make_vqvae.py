@@ -5,16 +5,16 @@ import itertools
 
 
 def main():
-    round = 24
+    round = 12
     run_mode = 'train'
     model_mode = 'vqvae'
     filename = '{}_{}'.format(run_mode, model_mode)
     gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['CIFAR10', 'Omniglot']
-    model_names = [['vqvae', 'cvqvae', 'mcvqvae']]
+    model_names = [['cvqvae', 'mcvqvae']]
     experiments_step = 2
-    num_experiments = 1
+    num_experiments = 12
     init_seeds = [list(range(0, num_experiments, experiments_step))]
     num_epochs = [[200]]
     num_experiments = [[experiments_step]]

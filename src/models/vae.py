@@ -136,8 +136,7 @@ def cvae():
     config.PARAM['model']['decoder'].append(
         {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size,
          'bias': True, 'normalization': normalization, 'activation': activation})
-    config.PARAM['model']['decoder'].append(
-        {'cell': 'ResizeCell', 'resize': encode_shape})
+    config.PARAM['model']['decoder'].append({'cell': 'ResizeCell', 'resize': encode_shape})
     input_size = hidden_size[2]
     res_size = hidden_size[2]
     output_size = hidden_size[2]
@@ -222,8 +221,7 @@ def mcvae():
     config.PARAM['model']['decoder'].append(
         {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size,
          'bias': True, 'normalization': normalization, 'activation': activation})
-    config.PARAM['model']['decoder'].append(
-        {'cell': 'ResizeCell', 'resize': encode_shape})
+    config.PARAM['model']['decoder'].append({'cell': 'ResizeCell', 'resize': encode_shape})
     config.PARAM['model']['decoder'].append(
         {'cell': 'MultimodalController', 'input_size': hidden_size[2], 'num_mode': num_mode,
          'controller_rate': controller_rate})

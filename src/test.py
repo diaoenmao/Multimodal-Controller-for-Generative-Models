@@ -1046,3 +1046,18 @@ import itertools
 #     embedding.scatter_(1, idx, 1)
 #     print(idx)
 #     print(embedding)
+
+
+# def make_SpectralNormalization(m):
+#     if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
+#         return torch.nn.utils.spectral_norm(m)
+#     else:
+#         return m
+#
+#
+# if __name__ == "__main__":
+#     m = models.make_model({'cell': 'ResConv2dCell', 'input_size': 10, 'res_size': 20, 'output_size': 20, 'kernel_size': 3,
+#              'stride': 1, 'padding': 1, 'bias': True, 'normalization': 'none',
+#              'activation': 'leakyrelu', 'interpolate': 0.5})
+#     m.apply(make_SpectralNormalization)
+#     print(m.conv2.weight_u.size())
