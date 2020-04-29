@@ -13,8 +13,8 @@ def reparameterize(mu, logvar):
 
 
 def loss(input, output):
-    CE = F.binary_cross_entropy(output['img'], input['img'], reduction='sum') / input['img'].size(0)
-    KLD = -0.5 * torch.mean(1 + output['logvar'] - output['mu'].pow(2) - output['logvar'].exp())
+    CE = F.binary_cross_entropy(output['img'], input['img'], reduction='sum')
+    KLD = -0.5 * torch.sum(1 + output['logvar'] - output['mu'].pow(2) - output['logvar'].exp())
     return CE + KLD
 
 
@@ -81,9 +81,9 @@ def cvae():
     activation = 'relu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
+    conditional_embedding_size = config.PARAM['conditional_embedding_size']
     hidden_size = config.PARAM['hidden_size']
     latent_size = config.PARAM['latent_size']
-    conditional_embedding_size = config.PARAM['conditional_embedding_size']
     encode_shape = config.PARAM['encode_shape']
     config.PARAM['model'] = {}
     # Embedding

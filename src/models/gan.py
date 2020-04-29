@@ -10,13 +10,11 @@ class CSNGAN(nn.Module):
         super(CSNGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C, z=None):
-        if z is None:
-            z = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
+    def generate(self, x, C):
         onehot = F.one_hot(C, config.PARAM['classes_size']).float()
         embedding = self.model['generator_embedding'](onehot)
         embedding = embedding.view(*embedding.size(), 1, 1)
-        x = torch.cat((z, embedding), dim=1)
+        x = torch.cat((x, embedding), dim=1)
         generated = self.model['generator'](x)
         return generated
 
@@ -41,11 +39,9 @@ class MCSNGAN(nn.Module):
         super(MCSNGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
-    def generate(self, C, z=None):
-        if z is None:
-            z = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
+    def generate(self, x, C):
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
-        generated = self.model['generator'](z)
+        generated = self.model['generator'](x)
         return generated
 
     def discriminate(self, input, C):
@@ -61,27 +57,26 @@ class MCSNGAN(nn.Module):
         return x
 
 
-def dccgan():
+def csngan():
     normalization = 'bn'
     generator_activation = 'relu'
     discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
-    embedding_size = config.PARAM['embedding_size']
-    config.PARAM['latent_size'] = 100
     latent_size = config.PARAM['latent_size']
-    generator_hidden_size = [512, 256, 128, 64]
-    discriminator_hidden_size = [64, 128, 256, 512]
+    generator_hidden_size = config.PARAM['generator_hidden_size']
+    discriminator_hidden_size = config.PARAM['discriminator_hidden_size']
+    conditional_embedding_size = config.PARAM['conditional_embedding_size']
     config.PARAM['model'] = {}
     # Embedding
     config.PARAM['model']['generator_embedding'] = {
-        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': embedding_size,
+        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': conditional_embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     config.PARAM['model']['discriminator_embedding'] = {
-        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': embedding_size,
+        'cell': 'LinearCell', 'input_size': num_mode, 'output_size': conditional_embedding_size,
         'bias': False, 'normalization': 'none', 'activation': 'none'}
     # Generator
-    input_size = latent_size + embedding_size
+    input_size = latent_size + conditional_embedding_size
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': input_size,
@@ -100,7 +95,7 @@ def dccgan():
          'kernel_size': 1, 'stride': 1, 'padding': 0, 'bias': False, 'normalization': 'none', 'activation': 'tanh'})
     config.PARAM['model']['generator'] = tuple(config.PARAM['model']['generator'])
     # Discriminator
-    input_size = img_shape[0] + embedding_size
+    input_size = img_shape[0] + conditional_embedding_size
     config.PARAM['model']['discriminator'] = []
     config.PARAM['model']['discriminator'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': discriminator_hidden_size[0], 'kernel_size': 4,
@@ -116,21 +111,20 @@ def dccgan():
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': 1, 'kernel_size': 2, 'stride': 2, 'padding': 0,
          'bias': False, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
-    model = DCCGAN()
+    model = MCSNGAN()
     return model
 
 
-def dcmcgan():
+def mcsngan():
     normalization = 'bn'
     generator_activation = 'relu'
     discriminator_activation = 'leakyrelu'
     img_shape = config.PARAM['img_shape']
     num_mode = config.PARAM['classes_size']
     controller_rate = config.PARAM['controller_rate']
-    config.PARAM['latent_size'] = 100
     latent_size = config.PARAM['latent_size']
-    generator_hidden_size = [512, 256, 128, 64]
-    discriminator_hidden_size = [64, 128, 256, 512]
+    generator_hidden_size = config.PARAM['generator_hidden_size']
+    discriminator_hidden_size = config.PARAM['discriminator_hidden_size']
     config.PARAM['model'] = {}
     # Generator
     input_size = latent_size
@@ -171,5 +165,5 @@ def dcmcgan():
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': 1, 'kernel_size': 2, 'stride': 2, 'padding': 0,
          'bias': False, 'normalization': 'none', 'activation': 'sigmoid'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
-    model = DCMCGAN()
+    model = MCSNGAN()
     return model
