@@ -15,7 +15,7 @@ def init():
         'patience': 10,
         'threshold': 1e-3,
         'factor': 0.5,
-        'batch_size': {'train': 128, 'test': 512},
+        'batch_size': {'train': 128, 'test': 128},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',

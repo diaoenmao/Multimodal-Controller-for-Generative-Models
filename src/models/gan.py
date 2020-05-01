@@ -15,7 +15,6 @@ class CSNGAN(nn.Module):
     def generate(self, x, C):
         onehot = F.one_hot(C, config.PARAM['classes_size']).float()
         embedding = self.model['generator_embedding'](onehot)
-        embedding = embedding.view(*embedding.size(), 1, 1)
         x = torch.cat((x, embedding), dim=1)
         generated = self.model['generator'](x)
         return generated
@@ -26,12 +25,12 @@ class CSNGAN(nn.Module):
         embedding = self.model['discriminator_embedding'](onehot)
         embedding = embedding.view([*embedding.size(), 1, 1]).expand([*embedding.size(), *x.size()[2:]])
         x = torch.cat((x, embedding), dim=1)
-        x = self.model['discriminator'](x)
-        discriminated = x.view(x.size(0))
+        discriminated = self.model['discriminator'](x)
         return discriminated
 
     def forward(self, input):
-        x = self.generate(input['label'])
+        z = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
+        x = self.generate(z, input['label'])
         x = self.discriminate(x, input['label'])
         return x
 
@@ -41,7 +40,7 @@ class MCSNGAN(nn.Module):
         super(MCSNGAN, self).__init__()
         self.model = make_model(config.PARAM['model'])
         make_SpectralNormalization(self.model['discriminator'])
-        
+
     def generate(self, x, C):
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
         generated = self.model['generator'](x)
@@ -50,12 +49,12 @@ class MCSNGAN(nn.Module):
     def discriminate(self, input, C):
         x = input
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
-        x = self.model['discriminator'](x)
-        discriminated = x.view(x.size(0))
+        discriminated = self.model['discriminator'](x)
         return discriminated
 
     def forward(self, input):
-        x = self.generate(input['label'])
+        z = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
+        x = self.generate(z, input['label'])
         x = self.discriminate(x, input['label'])
         return x
 
@@ -89,11 +88,12 @@ def csngan():
          'normalization': generator_normalization, 'activation': generator_activation})
     config.PARAM['model']['generator'].append({'cell': 'ResizeCell', 'resize': encode_shape})
     input_size = generator_hidden_size
+    res_size = generator_hidden_size
     output_size = generator_hidden_size
     for i in range(3):
         config.PARAM['model']['generator'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 3,
-             'stride': 1, 'padding': 1, 'bias': True, 'normalization': generator_normalization,
+            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': generator_normalization,
              'activation': generator_activation, 'interpolate': 2})
     input_size = generator_hidden_size
     output_size = img_shape[0]
@@ -104,23 +104,26 @@ def csngan():
     # Discriminator
     config.PARAM['model']['discriminator'] = []
     input_size = img_shape[0] + conditional_embedding_size
+    res_size = discriminator_hidden_size
     output_size = discriminator_hidden_size
     for i in range(2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 3,
-             'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
+            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
              'activation': discriminator_activation, 'interpolate': 0.5})
         input_size = output_size
     for i in range(2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 3,
-             'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
+            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
              'activation': discriminator_activation})
+    config.PARAM['model']['discriminator'].append({'nn': 'nn.AdaptiveAvgPool2d(1)'})
+    config.PARAM['model']['discriminator'].append({'cell': 'ResizeCell', 'resize': [-1]})
     input_size = discriminator_hidden_size
     output_size = 1
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
-         'normalization': 'none', 'activation': 'sigmoid'})
+         'normalization': 'none', 'activation': 'none'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
     model = CSNGAN()
     return model
@@ -158,13 +161,14 @@ def mcsngan():
     config.PARAM['model']['generator'].append({'cell': 'ResizeCell', 'resize': encode_shape})
     input_size = generator_hidden_size
     output_size = generator_hidden_size
+    res_size = generator_hidden_size
     config.PARAM['model']['generator'].append(
         {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
          'controller_rate': controller_rate})
     for i in range(3):
         config.PARAM['model']['generator'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 3,
-             'stride': 1, 'padding': 1, 'bias': True, 'normalization': generator_normalization,
+            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': generator_normalization,
              'activation': generator_activation, 'interpolate': 2})
     input_size = generator_hidden_size
     output_size = img_shape[0]
@@ -176,22 +180,25 @@ def mcsngan():
     config.PARAM['model']['discriminator'] = []
     input_size = img_shape[0] + conditional_embedding_size
     output_size = discriminator_hidden_size
+    res_size = discriminator_hidden_size
     for i in range(2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 3,
-             'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
+            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
              'activation': discriminator_activation, 'interpolate': 0.5})
     input_size = output_size
     for i in range(2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 3,
-             'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
+            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+             'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': discriminator_normalization,
              'activation': discriminator_activation})
+    config.PARAM['model']['discriminator'].append({'nn': 'nn.AdaptiveAvgPool2d(1)'})
+    config.PARAM['model']['discriminator'].append({'cell': 'ResizeCell', 'resize': [-1]})
     input_size = discriminator_hidden_size
     output_size = 1
     config.PARAM['model']['discriminator'].append(
         {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size, 'bias': True,
-         'normalization': 'none', 'activation': 'sigmoid'})
+         'normalization': 'none', 'activation': 'none'})
     config.PARAM['model']['discriminator'] = tuple(config.PARAM['model']['discriminator'])
     model = MCSNGAN()
     return model
