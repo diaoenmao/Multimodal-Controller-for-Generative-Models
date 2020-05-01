@@ -10,9 +10,9 @@ def make_cell(cell_info):
     if cell_info['cell'] == 'none':
         cell = nn.Identity()
     elif cell_info['cell'] == 'Normalization':
-        cell = Normalization(cell_info)
+        cell = Normalization(cell_info['mode'], cell_info['input_size'], cell_info['dim'])
     elif cell_info['cell'] == 'Activation':
-        cell = Activation(cell_info)
+        cell = Activation(cell_info['mode'])
     elif cell_info['cell'] == 'ResizeCell':
         cell = ResizeCell(cell_info)
     elif cell_info['cell'] == 'LinearCell':
@@ -229,15 +229,14 @@ class ResConv2dCell(nn.Module):
     def __init__(self, cell_info):
         super(ResConv2dCell, self).__init__()
         default_cell_info = {'kernel_size': 3, 'stride': 1, 'padding': 1, 'dilation': 1, 'groups': 1, 'bias': True,
-                             'padding_mode': 'zeros', 'interpolate': 0}
+                             'padding_mode': 'zeros'}
         cell_info = {**default_cell_info, **cell_info}
         conv1_info = {**cell_info, 'output_size': cell_info['res_size']}
         conv2_info = {**cell_info, 'input_size': cell_info['res_size'], 'kernel_size': 3, 'stride': 1, 'padding': 1,
                       'activation': 'none'}
         self.conv1 = Conv2dCell(conv1_info)
         self.conv2 = Conv2dCell(conv2_info)
-        self.interpolate = cell_info['interpolate']
-        if cell_info['input_size'] != cell_info['output_size'] or self.interpolate != 0:
+        if cell_info['input_size'] != cell_info['output_size']:
             self.shortcut = Conv2dCell({**cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0,
                                         'normalization': cell_info['normalization'], 'activation': 'none'})
         else:
@@ -245,8 +244,6 @@ class ResConv2dCell(nn.Module):
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
-        if self.interpolate != 0:
-            input = F.interpolate(input, scale_factor=self.interpolate)
         shortcut = self.shortcut(input)
         x = self.conv1(input)
         x = self.conv2(x)
@@ -258,15 +255,14 @@ class MCResConv2dCell(nn.Module):
     def __init__(self, cell_info):
         super(MCResConv2dCell, self).__init__()
         default_cell_info = {'kernel_size': 3, 'stride': 1, 'padding': 1, 'dilation': 1, 'groups': 1, 'bias': True,
-                             'padding_mode': 'zeros', 'interpolate': 0}
+                             'padding_mode': 'zeros'}
         cell_info = {**default_cell_info, **cell_info}
         conv1_info = {**cell_info, 'output_size': cell_info['res_size']}
         conv2_info = {**cell_info, 'input_size': cell_info['res_size'], 'kernel_size': 3, 'stride': 1, 'padding': 1,
                       'activation': 'none'}
         self.conv1 = MCConv2dCell(conv1_info)
         self.conv2 = MCConv2dCell(conv2_info)
-        self.interpolate = cell_info['interpolate']
-        if cell_info['input_size'] != cell_info['output_size'] or self.interpolate != 0:
+        if cell_info['input_size'] != cell_info['output_size']:
             self.shortcut = MCConv2dCell({**cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0,
                                           'normalization': cell_info['normalization'], 'activation': 'none'})
         else:
@@ -274,8 +270,6 @@ class MCResConv2dCell(nn.Module):
         self.activation = Activation(cell_info['activation'])
 
     def forward(self, input):
-        if self.interpolate != 0:
-            input = F.interpolate(input, scale_factor=self.interpolate)
         shortcut = self.shortcut(input)
         x = self.conv1(input)
         x = self.conv2(x)

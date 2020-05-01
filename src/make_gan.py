@@ -5,14 +5,14 @@ import itertools
 
 
 def main():
-    round = 24
+    round = 12
     run_mode = 'train'
-    model_mode = 'vae'
+    model_mode = 'gan'
     filename = '{}_{}'.format(run_mode, model_mode)
     gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['CIFAR10', 'Omniglot']
-    model_names = [['cvae', 'mcvae']]
+    model_names = [['csngan', 'mcsngan']]
     experiments_step = 1
     num_experiments = 1
     init_seeds = [list(range(0, num_experiments, experiments_step))]

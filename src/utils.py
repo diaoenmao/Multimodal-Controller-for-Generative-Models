@@ -127,6 +127,8 @@ def process_control_name():
                                         config.PARAM['img_shape'][1] // (2 ** len(config.PARAM['hidden_size'])),
                                         config.PARAM['img_shape'][2] // (2 ** len(config.PARAM['hidden_size']))]
     elif config.PARAM['model_name'] in ['csngan', 'mcsngan']:
+        config.PARAM['generator_activation'] = 'relu'
+        config.PARAM['discriminator_activation'] = 'leakyrelu'
         config.PARAM['latent_size'] = 128
         config.PARAM['generator_hidden_size'] = 256
         config.PARAM['discriminator_hidden_size'] = 128

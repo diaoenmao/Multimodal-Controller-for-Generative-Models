@@ -43,7 +43,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['batch_size']['train'] = 64
-config.PARAM['d_iter'] = 5
+config.PARAM['d_iter'] = 1
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 
 
@@ -66,106 +66,18 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    if config.PARAM['world_size'] > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    optimizer = {'generator': make_optimizer(model.model['generator']),
-                 'discriminator': make_optimizer(model.model['discriminator'])}
-    scheduler = {'generator': make_scheduler(optimizer['generator']),
-                 'discriminator': make_scheduler(optimizer['discriminator'])}
-    if config.PARAM['resume_mode'] == 1:
-        last_epoch, model, optimizer, scheduler, logger = resume(model, config.PARAM['model_tag'], optimizer, scheduler)
-    elif config.PARAM['resume_mode'] == 2:
-        last_epoch = 1
-        _, model, _, _, _ = resume(model, config.PARAM['model_tag'])
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/{}_{}'.format(config.PARAM['model_tag'], current_time)
-        logger = Logger(logger_path)
-    else:
-        last_epoch = 1
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
-            'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
-        logger = Logger(logger_path)
-    config.PARAM['pivot_metric'] = 'test/InceptionScore'
-    config.PARAM['pivot'] = -1e10
-    for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
-        logger.safe(True)
-        train(data_loader['train'], model, optimizer, logger, epoch)
-        test(model, logger, epoch)
-        if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler['generator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
-            scheduler['discriminator'].step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
-        else:
-            scheduler['generator'].step()
-            scheduler['discriminator'].step()
-        if config.PARAM['save_mode'] >= 0:
-            logger.safe(False)
-            model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
-            save_result = {
-                'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': model_state_dict,
-                'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
-                                   'discriminator': optimizer['discriminator'].state_dict()},
-                'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
-                                   'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
-            save(save_result, './output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']))
-            if config.PARAM['pivot'] < logger.mean[config.PARAM['pivot_metric']][0]:
-                config.PARAM['pivot'] = logger.mean[config.PARAM['pivot_metric']][0]
-                shutil.copy('./output/model/{}_checkpoint.pt'.format(config.PARAM['model_tag']),
-                            './output/model/{}_best.pt'.format(config.PARAM['model_tag']))
-        logger.reset()
+    last_epoch, model, optimizer, scheduler, logger = resume(model, config.PARAM['model_tag'])
+    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+    logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
+        'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
+    logger = Logger(logger_path)
+    logger.safe(True)
+    test(model, logger, last_epoch)
     logger.safe(False)
-    return
-
-
-def train(data_loader, model, optimizer, logger, epoch):
-    metric = Metric()
-    model.train(True)
-    for i, input in enumerate(data_loader):
-        start_time = time.time()
-        input = collate(input)
-        input_size = len(input['img'])
-        input = to_device(input, config.PARAM['device'])
-        ############################
-        # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
-        ###########################
-        for _ in range(config.PARAM['d_iter']):
-            # train with real
-            optimizer['discriminator'].zero_grad()
-            D_x = model.discriminate(input['img'], input[config.PARAM['subset']])
-            # train with fake
-            z1 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-            generated = model.generate(z1, input[config.PARAM['subset']])
-            D_G_z1 = model.discriminate(generated.detach(), input[config.PARAM['subset']])
-            D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
-            D_loss.backward()
-            optimizer['discriminator'].step()
-        ############################
-        # (2) Update G network: maximize log(D(G(z)))
-        ###########################
-        optimizer['generator'].zero_grad()
-        z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-        generated = model.generate(z2, input[config.PARAM['subset']])
-        D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
-        G_loss = -D_G_z2.mean()
-        G_loss.backward()
-        optimizer['generator'].step()
-        output = {'loss': D_loss - G_loss, 'loss_D': D_loss, 'loss_G': G_loss}
-        if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
-            batch_time = time.time() - start_time
-            lr = optimizer['generator'].param_groups[0]['lr']
-            epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
-            exp_finished_time = epoch_finished_time + datetime.timedelta(
-                seconds=round((config.PARAM['num_epochs'] - epoch) * batch_time * len(data_loader)))
-            info = {'info': ['Model: {}'.format(config.PARAM['model_tag']),
-                             'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
-                             'Learning rate: {}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
-                             'Experiment Finished Time: {}'.format(exp_finished_time)]}
-            logger.append(info, 'train', mean=False)
-            evaluation = metric.evaluate(config.PARAM['metric_names']['train'], input, output)
-            logger.append(evaluation, 'train', n=input_size)
-            logger.write('train', config.PARAM['metric_names']['train'])
+    save_result = {
+        'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
+    save(save_result, './output/result/{}.pt'.format(config.PARAM['model_tag']))
     return
 
 
@@ -194,44 +106,6 @@ def test(model, logger, epoch):
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
     return
-
-
-def make_optimizer(model):
-    if config.PARAM['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=config.PARAM['lr'],
-                              momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
-    elif config.PARAM['optimizer_name'] == 'RMSprop':
-        optimizer = optim.RMSprop(filter(lambda p: p.requires_grad, model.parameters()), lr=config.PARAM['lr'],
-                                  momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
-    elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=config.PARAM['lr'],
-                               weight_decay=config.PARAM['weight_decay'], betas=(0, 0.9))
-    else:
-        raise ValueError('Not valid optimizer name')
-    return optimizer
-
-
-def make_scheduler(optimizer):
-    if config.PARAM['scheduler_name'] == 'None':
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
-    elif config.PARAM['scheduler_name'] == 'StepLR':
-        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=config.PARAM['step_size'],
-                                              gamma=config.PARAM['factor'])
-    elif config.PARAM['scheduler_name'] == 'MultiStepLR':
-        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.PARAM['milestones'],
-                                                   gamma=config.PARAM['factor'])
-    elif config.PARAM['scheduler_name'] == 'CosineAnnealingLR':
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.PARAM['num_epochs'])
-    elif config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=config.PARAM['factor'],
-                                                         patience=config.PARAM['patience'], verbose=True,
-                                                         threshold=config.PARAM['threshold'],
-                                                         threshold_mode='rel')
-    elif config.PARAM['scheduler_name'] == 'CyclicLR':
-        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=config.PARAM['lr'], max_lr=10 * config.PARAM['lr'])
-    else:
-        raise ValueError('Not valid scheduler name')
-    return scheduler
 
 
 def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):

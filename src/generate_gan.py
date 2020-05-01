@@ -58,7 +58,6 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
     last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
@@ -83,18 +82,19 @@ def test(model):
         model.train(False)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
         C = C.repeat(config.PARAM['generate_per_mode'])
-        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size'], 1, 1], device=config.PARAM['device'])
         C_generated = torch.split(C, sample_per_iter)
-        z_generated = torch.split(config.PARAM['z'], sample_per_iter)
+        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+        x_generated = torch.split(x, sample_per_iter)
         generated = []
-        saved = []
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i]
-            z_generated_i = z_generated[i]
-            generated_i = model.generate(C_generated_i, z_generated_i)
+            x_generated_i = x_generated[i]
+            generated_i = model.generate(x_generated_i, C_generated_i)
             generated.append(generated_i)
-            saved.append(generated_i[:save_per_mode])
         generated = torch.cat(generated)
+        saved = []
+        for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
+            saved.append(generated[i:i + save_num_mode])
         saved = torch.cat(saved)
         generated = ((generated + 1) / 2 * 255).cpu().numpy()
         saved = (saved + 1) / 2

@@ -139,9 +139,9 @@ def train(data_loader, model, optimizer, logger, epoch):
             z1 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
             generated = model.generate(z1, input[config.PARAM['subset']])
             D_G_z1 = model.discriminate(generated.detach(), input[config.PARAM['subset']])
-            # D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
-            D_loss = torch.nn.BCEWithLogitsLoss()(D_x, torch.ones((D_x.size(0), 1), device=config.PARAM['device'])) + \
-                     torch.nn.BCEWithLogitsLoss()(D_G_z1,  torch.zeros((D_G_z1.size(0), 1), device=config.PARAM['device']))
+            D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
+            # D_loss = torch.nn.BCEWithLogitsLoss()(D_x, torch.ones((D_x.size(0), 1), device=config.PARAM['device'])) + \
+            #          torch.nn.BCEWithLogitsLoss()(D_G_z1,  torch.zeros((D_G_z1.size(0), 1), device=config.PARAM['device']))
             D_loss.backward()
             optimizer['discriminator'].step()
         ############################
@@ -152,8 +152,8 @@ def train(data_loader, model, optimizer, logger, epoch):
         z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
         generated = model.generate(z2, input[config.PARAM['subset']])
         D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
-        # G_loss = -D_G_z2.mean()
-        G_loss = torch.nn.BCEWithLogitsLoss()(D_G_z2, torch.ones((D_G_z2.size(0), 1), device=config.PARAM['device']))
+        G_loss = -D_G_z2.mean()
+        # G_loss = torch.nn.BCEWithLogitsLoss()(D_G_z2, torch.ones((D_G_z2.size(0), 1), device=config.PARAM['device']))
         G_loss.backward()
         optimizer['generator'].step()
         output = {'loss': D_loss - G_loss, 'loss_D': D_loss, 'loss_G': G_loss}
