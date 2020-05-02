@@ -43,7 +43,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['batch_size']['train'] = 64
-config.PARAM['d_iter'] = 1
+config.PARAM['d_iter'] = 5
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 
 
@@ -140,8 +140,6 @@ def train(data_loader, model, optimizer, logger, epoch):
             generated = model.generate(z1, input[config.PARAM['subset']])
             D_G_z1 = model.discriminate(generated.detach(), input[config.PARAM['subset']])
             D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
-            # D_loss = torch.nn.BCEWithLogitsLoss()(D_x, torch.ones((D_x.size(0), 1), device=config.PARAM['device'])) + \
-            #          torch.nn.BCEWithLogitsLoss()(D_G_z1,  torch.zeros((D_G_z1.size(0), 1), device=config.PARAM['device']))
             D_loss.backward()
             optimizer['discriminator'].step()
         ############################
@@ -153,7 +151,6 @@ def train(data_loader, model, optimizer, logger, epoch):
         generated = model.generate(z2, input[config.PARAM['subset']])
         D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
         G_loss = -D_G_z2.mean()
-        # G_loss = torch.nn.BCEWithLogitsLoss()(D_G_z2, torch.ones((D_G_z2.size(0), 1), device=config.PARAM['device']))
         G_loss.backward()
         optimizer['generator'].step()
         output = {'loss': D_loss - G_loss, 'loss_D': D_loss, 'loss_G': G_loss}
@@ -225,6 +222,8 @@ def make_scheduler(optimizer):
     elif config.PARAM['scheduler_name'] == 'MultiStepLR':
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.PARAM['milestones'],
                                                    gamma=config.PARAM['factor'])
+    elif config.PARAM['scheduler_name'] == 'ExponentialLR':
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     elif config.PARAM['scheduler_name'] == 'CosineAnnealingLR':
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.PARAM['num_epochs'])
     elif config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':

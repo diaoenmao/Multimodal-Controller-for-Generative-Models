@@ -9,7 +9,7 @@ def init():
         'lr': 1e-3,
         'momentum': 0,
         'weight_decay': 0,
-        'scheduler_name': 'MultiStepLR',
+        'scheduler_name': 'ExponentialLR',
         'step_size': 1,
         'milestones': [100, 150],
         'patience': 10,
