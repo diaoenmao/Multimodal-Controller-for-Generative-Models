@@ -5,7 +5,7 @@ import itertools
 
 
 def main():
-    round = 24
+    round = 12
     run_mode = 'train'
     model_mode = 'vae'
     filename = '{}_{}'.format(run_mode, model_mode)
@@ -30,8 +30,8 @@ def main():
                 controls[j].append('0.5')
             else:
                 controls[j].append('None')
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} --num_epochs ' \
-                    '{} --num_experiments {} --control_name {}&\n'.format(
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} ' \
+                    '--num_epochs {} --num_experiments {} --control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], *controls[j])
             if j % round == round - 1:
                 s = s[:-2] + '\n'

@@ -60,7 +60,7 @@ def runExperiment():
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
     _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    models.utils.create(model)
+    model.apply(models.utils.create)
     model = model.to(config.PARAM['device'])
     test(model)
     return

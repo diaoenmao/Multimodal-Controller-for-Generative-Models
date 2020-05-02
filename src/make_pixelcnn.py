@@ -5,16 +5,16 @@ import itertools
 
 
 def main():
-    round = 24
+    round = 12
     run_mode = 'train'
     model_mode = 'pixelcnn'
     filename = '{}_{}'.format(run_mode, model_mode)
     gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['CIFAR10', 'Omniglot']
-    model_names = [['cvqvae', 'mcvqvae']]
-    experiments_step = 2
-    num_experiments = 12
+    model_names = [['cpixelcnn', 'mcpixelcnn']]
+    experiments_step = 1
+    num_experiments = 1
     init_seeds = [list(range(0, num_experiments, experiments_step))]
     num_epochs = [[200]]
     num_experiments = [[experiments_step]]
@@ -30,8 +30,8 @@ def main():
                 controls[j].append('0.5')
             else:
                 controls[j].append('None')
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} --num_epochs ' \
-                    '{} --num_experiments {} --control_name {}&\n'.format(
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} ' \
+                    '--num_epochs {} --num_experiments {} --control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], *controls[j])
             if j % round == round - 1:
                 s = s[:-2] + '\n'

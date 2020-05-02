@@ -65,31 +65,21 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag='best')
-    model_tag_list = config.PARAM['model_tag'].split('_')
-    if 'mc' in config.PARAM['model_name']:
-        prior = models.mcgatedpixelcnn()
-        model_tag_list[3] = 'mcgatedpixelcnn'
-    else:
-        prior = models.cgatedpixelcnn()
-        model_tag_list[3] = 'cgatedpixelcnn'
-    config.PARAM['prior_tag'] = '_'.join(filter(None, model_tag_list))
-    prior = prior.to(config.PARAM['device'])
-    last_epoch, prior, _, _, _ = resume(prior, config.PARAM['prior_tag'])
+    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag='best')
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
     logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
         'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['train'], model, prior, logger, last_epoch)
+    test(data_loader['train'], model, logger, last_epoch)
     logger.safe(False)
     save_result = {
         'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
-    save(save_result, './output/result/{}.pt'.format(config.PARAM['prior_tag']))
+    save(save_result, './output/result/{}.pt'.format(config.PARAM['model_tag']))
     return
 
 
-def test(data_loader, model, prior, logger, epoch):
+def test(data_loader, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
         model.train(False)
@@ -97,14 +87,12 @@ def test(data_loader, model, prior, logger, epoch):
             input = collate(input)
             input_size = input['img'].numel()
             input = to_device(input, config.PARAM['device'])
-            input['code'] = model.encode(input).detach()
-            input['img'] = None
-            output = prior(input)
+            output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         logger.append(evaluation, 'test')
-        info = {'info': ['Model: {}'.format(config.PARAM['prior_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', config.PARAM['metric_names']['test'])
     return

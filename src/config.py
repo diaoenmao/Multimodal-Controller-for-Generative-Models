@@ -3,7 +3,7 @@ def init():
     PARAM = {
         'data_name': 'CIFAR10',
         'subset': 'label',
-        'model_name': 'mcvqvae',
+        'model_name': 'mcvae',
         'control': {'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
@@ -15,7 +15,7 @@ def init():
         'patience': 10,
         'threshold': 1e-3,
         'factor': 0.5,
-        'batch_size': {'train': 128, 'test': 128},
+        'batch_size': {'train': 128, 'test': 512},
         'shuffle': {'train': True, 'test': False},
         'num_workers': 0,
         'device': 'cuda',
@@ -27,6 +27,5 @@ def init():
         'num_experiments': 1,
         'log_interval': 0.25,
         'log_overwrite': False,
-        'show': False,
         'resume_mode': 0
     }

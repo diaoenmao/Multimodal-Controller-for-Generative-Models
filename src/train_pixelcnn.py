@@ -43,7 +43,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
-config.PARAM['batch_size']['train'] = 128
+config.PARAM['batch_size'] = {'train': 128, 'test': 256}
 config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
@@ -68,6 +68,7 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
+    model.apply(models.utils.init_param)
     optimizer = make_optimizer(model)
     scheduler = make_scheduler(optimizer)
     if config.PARAM['resume_mode'] == 1:
@@ -185,6 +186,8 @@ def make_scheduler(optimizer):
     elif config.PARAM['scheduler_name'] == 'MultiStepLR':
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=config.PARAM['milestones'],
                                                    gamma=config.PARAM['factor'])
+    elif config.PARAM['scheduler_name'] == 'ExponentialLR':
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     elif config.PARAM['scheduler_name'] == 'CosineAnnealingLR':
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.PARAM['num_epochs'])
     elif config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':

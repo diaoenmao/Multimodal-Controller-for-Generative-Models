@@ -42,8 +42,9 @@ for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
-config.PARAM['batch_size']['train'] = 64
 config.PARAM['d_iter'] = 5
+config.PARAM['g_iter'] = 1
+config.PARAM['batch_size'] = {'train': 64, 'test': 256}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 
 
@@ -68,6 +69,7 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
+    model.apply(models.utils.init_param)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
     optimizer = {'generator': make_optimizer(model.model['generator']),
@@ -145,14 +147,15 @@ def train(data_loader, model, optimizer, logger, epoch):
         ############################
         # (2) Update G network
         ###########################
-        optimizer['discriminator'].zero_grad()
-        optimizer['generator'].zero_grad()
-        z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-        generated = model.generate(z2, input[config.PARAM['subset']])
-        D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
-        G_loss = -D_G_z2.mean()
-        G_loss.backward()
-        optimizer['generator'].step()
+        for _ in range(config.PARAM['g_iter']):
+            optimizer['discriminator'].zero_grad()
+            optimizer['generator'].zero_grad()
+            z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
+            generated = model.generate(z2, input[config.PARAM['subset']])
+            D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
+            G_loss = -D_G_z2.mean()
+            G_loss.backward()
+            optimizer['generator'].step()
         output = {'loss': D_loss - G_loss, 'loss_D': D_loss, 'loss_G': G_loss}
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
@@ -200,13 +203,13 @@ def test(model, logger, epoch):
 
 def make_optimizer(model):
     if config.PARAM['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=config.PARAM['lr'],
+        optimizer = optim.SGD(model.parameters(), lr=config.PARAM['lr'],
                               momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'RMSprop':
-        optimizer = optim.RMSprop(filter(lambda p: p.requires_grad, model.parameters()), lr=config.PARAM['lr'],
+        optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'],
                                   momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=config.PARAM['lr'],
+        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
                                weight_decay=config.PARAM['weight_decay'], betas=(0, 0.9))
     else:
         raise ValueError('Not valid optimizer name')

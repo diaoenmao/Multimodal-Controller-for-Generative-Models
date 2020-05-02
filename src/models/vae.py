@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import make_model
+from .utils import make_model, init_param
 
 
 def reparameterize(mu, logvar):
@@ -114,11 +114,10 @@ def cvae():
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
     input_size = hidden_size[2]
-    res_size = hidden_size[2]
     output_size = hidden_size[2]
     for i in range(2):
         config.PARAM['model']['encoder'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
              'normalization': normalization, 'activation': activation})
     config.PARAM['model']['encoder'].append({'cell': 'ResizeCell', 'resize': [-1]})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
@@ -138,11 +137,10 @@ def cvae():
          'bias': True, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['decoder'].append({'cell': 'ResizeCell', 'resize': encode_shape})
     input_size = hidden_size[2]
-    res_size = hidden_size[2]
     output_size = hidden_size[2]
     for i in range(2):
         config.PARAM['model']['decoder'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
+            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
              'normalization': normalization, 'activation': activation})
     input_size = hidden_size[2]
     output_size = hidden_size[1]
@@ -198,12 +196,11 @@ def mcvae():
          'kernel_size': 4, 'stride': 2, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation, 'num_mode': num_mode, 'controller_rate': controller_rate})
     input_size = hidden_size[2]
-    res_size = hidden_size[2]
     output_size = hidden_size[2]
     for i in range(2):
         config.PARAM['model']['encoder'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
-             'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
+            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size,
+             'hidden_size': output_size, 'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
              'controller_rate': controller_rate})
     config.PARAM['model']['encoder'].append({'cell': 'ResizeCell', 'resize': [-1]})
     config.PARAM['model']['encoder'] = tuple(config.PARAM['model']['encoder'])
@@ -219,6 +216,9 @@ def mcvae():
     input_size = latent_size
     output_size = np.prod(encode_shape)
     config.PARAM['model']['decoder'].append(
+        {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
+         'controller_rate': controller_rate})
+    config.PARAM['model']['decoder'].append(
         {'cell': 'LinearCell', 'input_size': input_size, 'output_size': output_size,
          'bias': True, 'normalization': normalization, 'activation': activation})
     config.PARAM['model']['decoder'].append({'cell': 'ResizeCell', 'resize': encode_shape})
@@ -226,12 +226,11 @@ def mcvae():
         {'cell': 'MultimodalController', 'input_size': hidden_size[2], 'num_mode': num_mode,
          'controller_rate': controller_rate})
     input_size = hidden_size[2]
-    res_size = hidden_size[2]
     output_size = hidden_size[2]
     for i in range(2):
         config.PARAM['model']['decoder'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'res_size': res_size,
-             'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
+            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size,
+             'hidden_size': output_size, 'normalization': normalization, 'activation': activation, 'num_mode': num_mode,
              'controller_rate': controller_rate})
     input_size = hidden_size[2]
     output_size = hidden_size[1]

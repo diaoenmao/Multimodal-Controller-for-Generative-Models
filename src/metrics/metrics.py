@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
 from scipy.stats import entropy
 
+
 def MSE(output, target):
     with torch.no_grad():
         mse = F.mse_loss(output, target, reduction='mean').item()
@@ -90,7 +91,8 @@ class Metric(object):
                        'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
                        'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
                        'MSE': (lambda input, output: recur(MSE, output['img'], input['img'])),
-                       'NLL': (lambda input, output: recur(NLL, output['logits'], input['img'])),
+                       'NLL': (lambda input, output: recur(NLL, output['logits'],
+                                                           ((input['img'] + 1) / 2 * 255).long().detach())),
                        'PSNR': (lambda input, output: recur(PSNR, output['img']))}
 
     def evaluate(self, metric_names, input, output):

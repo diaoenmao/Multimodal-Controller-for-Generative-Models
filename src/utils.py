@@ -113,20 +113,17 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
-    if config.PARAM['model_name'] in ['cvqvae', 'mcvqvae', 'cgatedpixelcnn', 'mcgatedpixelcnn']:
-        config.PARAM['hidden_size'] = 128
-        config.PARAM['conditional_embedding_size'] = 32
-        config.PARAM['quantizer_embedding_size'] = 64
-        config.PARAM['num_embedding'] = 512
-        config.PARAM['vq_commit'] = 0.25
+    if config.PARAM['model_name'] in ['cpixelcnn', 'mcpixelcnn']:
+        config.PARAM['n_layers'] = 15
+        config.PARAM['hidden_size'] = 64
     elif config.PARAM['model_name'] in ['cvae', 'mcvae']:
         config.PARAM['hidden_size'] = [64, 128, 256]
         config.PARAM['latent_size'] = 128
         config.PARAM['conditional_embedding_size'] = 32
         config.PARAM['encode_shape'] = [config.PARAM['hidden_size'][-1],
-                                        config.PARAM['img_shape'][1] // (2 ** len(config.PARAM['hidden_size'])),
-                                        config.PARAM['img_shape'][2] // (2 ** len(config.PARAM['hidden_size']))]
-    elif config.PARAM['model_name'] in ['csngan', 'mcsngan']:
+                                        config.PARAM['img_shape'][1] // (2 ** 3),
+                                        config.PARAM['img_shape'][2] // (2 ** 3)]
+    elif config.PARAM['model_name'] in ['cgan', 'mcgan']:
         config.PARAM['generator_activation'] = 'relu'
         config.PARAM['discriminator_activation'] = 'leakyrelu'
         config.PARAM['latent_size'] = 128
@@ -230,3 +227,6 @@ def collate(input):
     for k in input:
         input[k] = torch.stack(input[k], 0)
     return input
+
+
+

@@ -12,7 +12,7 @@ def main():
     gpu_ids = ['0', '1', '2', '3']
     script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
     data_names = ['CIFAR10', 'Omniglot']
-    model_names = [['csngan', 'mcsngan']]
+    model_names = [['cgan', 'mcgan']]
     experiments_step = 1
     num_experiments = 1
     init_seeds = [list(range(0, num_experiments, experiments_step))]
@@ -30,8 +30,8 @@ def main():
                 controls[j].append('0.5')
             else:
                 controls[j].append('None')
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} --num_epochs ' \
-                    '{} --num_experiments {} --control_name {}&\n'.format(
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} ' \
+                    '--num_epochs {} --num_experiments {} --control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], *controls[j])
             if j % round == round - 1:
                 s = s[:-2] + '\n'
