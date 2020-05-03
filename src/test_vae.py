@@ -39,6 +39,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'test': ['Loss', 'MSE']}
 
 
@@ -84,15 +85,15 @@ def test(data_loader, model, logger, epoch):
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = input['img'].numel()
+            input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        save_img(input['img'][:100],
+        save_img((input['img'][:100] + 1) / 2,
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-        save_img(output['img'][:100],
+        save_img((output['img'][:100] + 1) / 2,
                  './output/img/output_{}.png'.format(config.PARAM['model_tag']))
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}

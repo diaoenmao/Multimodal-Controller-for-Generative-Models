@@ -43,9 +43,8 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
-config.PARAM['batch_size'] = {'train': 128, 'test': 512}
-config.PARAM['metric_names'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
-config.PARAM['show'] = False
+config.PARAM['batch_size'] = {'train': 128, 'test': 256}
+config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
 def main():
@@ -88,7 +87,7 @@ def runExperiment():
         logger = Logger(logger_path)
     if config.PARAM['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
-    config.PARAM['pivot_metric'] = 'test/MSE'
+    config.PARAM['pivot_metric'] = 'test/NLL'
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
@@ -121,7 +120,7 @@ def train(data_loader, model, optimizer, logger, epoch):
     for i, input in enumerate(data_loader):
         start_time = time.time()
         input = collate(input)
-        input_size = input['img'].size(0)
+        input_size = input['img'].numel()
         input = to_device(input, config.PARAM['device'])
         optimizer.zero_grad()
         output = model(input)
@@ -151,17 +150,12 @@ def test(data_loader, model, logger, epoch):
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = input['img'].size(0)
+            input_size = input['img'].numel()
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        if config.PARAM['show']:
-            save_img((input['img'][:100] + 1) / 2,
-                     './output/img/input_{}.png'.format(config.PARAM['model_tag']))
-            save_img((output['img'][:100] + 1) / 2,
-                     './output/img/output_{}.png'.format(config.PARAM['model_tag']))
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)

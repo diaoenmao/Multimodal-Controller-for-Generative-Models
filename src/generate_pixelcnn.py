@@ -46,10 +46,12 @@ def main():
                           config.PARAM['control_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
+        ae_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['ae_name']]
+        ae_tag_list = [x for x in ae_tag_list if x]
+        config.PARAM['ae_tag'] = '_'.join(filter(None, ae_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
     return
-
 
 def runExperiment():
     seed = int(config.PARAM['model_tag'].split('_')[0])
@@ -57,29 +59,33 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
+    ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
+    _, ae, _, _, _ = resume(ae, config.PARAM['ae_tag'], load_tag='best')
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
-    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    test(model)
+    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
+    test(ae, model)
     return
 
 
-def test(model):
+def test(ae, model):
     save_per_mode = 10
     save_num_mode = min(100, config.PARAM['classes_size'])
-    sample_per_iter = 100
+    sample_per_iter = 1000
     with torch.no_grad():
         model.train(False)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
         C = C.repeat(config.PARAM['generate_per_mode'])
         C_generated = torch.split(C, sample_per_iter)
-        x = torch.zeros((C.size(0), *config.PARAM['img_shape']), device=config.PARAM['device'])
+        x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
+                        dtype=torch.long, device=config.PARAM['device'])
         x_generated = torch.split(x, sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
             x_generated_i = x_generated[i]
             C_generated_i = C_generated[i]
-            generated_i = model.generate(x_generated_i, C_generated_i)
+            code_i = model.generate(x_generated_i, C_generated_i)
+            generated_i = ae.decode(code_i)
             generated.append(generated_i)
         generated = torch.cat(generated)
         saved = []

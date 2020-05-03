@@ -41,6 +41,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
@@ -52,6 +53,9 @@ def main():
                           config.PARAM['control_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
+        ae_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['ae_name']]
+        ae_tag_list = [x for x in ae_tag_list if x]
+        config.PARAM['ae_tag'] = '_'.join(filter(None, ae_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
     return
@@ -64,14 +68,17 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
+    ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
+    _, ae, _, _, _ = resume(ae, config.PARAM['ae_tag'], load_tag='best')
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag='best')
+    load_tag = 'best'
+    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
-        'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
+    logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
+        'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['train'], model, logger, last_epoch)
+    test(data_loader['train'], ae, model, logger, last_epoch)
     logger.safe(False)
     save_result = {
         'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
@@ -79,14 +86,15 @@ def runExperiment():
     return
 
 
-def test(data_loader, model, logger, epoch):
+def test(data_loader, ae, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = input['img'].numel()
+            input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
+            input['img'] = ae.encode(input).detach()
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)

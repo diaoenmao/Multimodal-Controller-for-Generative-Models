@@ -47,13 +47,11 @@ config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
 config.PARAM['show'] = False
 
-
 def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
     for i in range(config.PARAM['num_experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
-                          config.PARAM['control_name']]
+        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))

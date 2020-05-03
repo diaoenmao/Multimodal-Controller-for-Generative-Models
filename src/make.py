@@ -1,18 +1,27 @@
+import argparse
 import config
 
 config.init()
 import itertools
 
+parser = argparse.ArgumentParser(description='Config')
+parser.add_argument('--run', default=None, type=str)
+parser.add_argument('--model', default=None, type=str)
+args = vars(parser.parse_args())
+
 
 def main():
     round = 12
-    run_mode = 'train'
-    model_mode = 'vae'
-    filename = '{}_{}'.format(run_mode, model_mode)
+    run = args['run']
+    model = args['model']
+    filename = '{}_{}'.format(run, model)
     gpu_ids = ['0', '1', '2', '3']
-    script_name = [['{}_{}.py'.format(run_mode, model_mode)]]
+    script_name = [['{}_{}.py'.format(run, model)]]
     data_names = ['CIFAR10', 'Omniglot']
-    model_names = [['cvae', 'mcvae']]
+    if model == 'vqvae':
+        model_names = [['vqvae']]
+    else:
+        model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
     experiments_step = 1
     num_experiments = 1
     init_seeds = [list(range(0, num_experiments, experiments_step))]

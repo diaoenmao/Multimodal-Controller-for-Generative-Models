@@ -91,8 +91,7 @@ class Metric(object):
                        'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
                        'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
                        'MSE': (lambda input, output: recur(MSE, output['img'], input['img'])),
-                       'NLL': (lambda input, output: recur(NLL, output['logits'],
-                                                           ((input['img'] + 1) / 2 * 255).long().detach())),
+                       'NLL': (lambda input, output: recur(NLL, output['logits'], input['img'])),
                        'PSNR': (lambda input, output: recur(PSNR, output['img']))}
 
     def evaluate(self, metric_names, input, output):

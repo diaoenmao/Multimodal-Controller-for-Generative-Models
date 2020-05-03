@@ -28,6 +28,7 @@ class CVAE(nn.Module):
         decoder_embedding = self.model['decoder_embedding'](onehot)
         x = torch.cat((x, decoder_embedding), dim=1)
         generated = self.model['decoder'](x)
+        generated = generated * 2 - 1
         return generated
 
     def forward(self, input):
@@ -47,6 +48,8 @@ class CVAE(nn.Module):
         decoded = self.model['decoder'](x)
         output['img'] = decoded
         output['loss'] = loss(input, output)
+        input['img'] = input['img'] * 2 - 1
+        output['img'] = output['img'] * 2 - 1
         return output
 
 
@@ -58,6 +61,7 @@ class MCVAE(nn.Module):
     def generate(self, x, C):
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
         generated = self.model['decoder'](x)
+        generated = generated * 2 - 1
         return generated
 
     def forward(self, input):
@@ -73,6 +77,8 @@ class MCVAE(nn.Module):
         decoded = self.model['decoder'](x)
         output['img'] = decoded
         output['loss'] = loss(input, output)
+        input['img'] = input['img'] * 2 - 1
+        output['img'] = output['img'] * 2 - 1
         return output
 
 

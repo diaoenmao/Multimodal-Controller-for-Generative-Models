@@ -104,7 +104,7 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 1000
     elif config.PARAM['data_name'] in ['Omniglot']:
         config.PARAM['img_shape'] = [1, 32, 32]
-        config.PARAM['generate_per_mode'] = 20
+        config.PARAM['generate_per_mode'] = 10
     elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
         config.PARAM['generate_per_mode'] = 1000
@@ -113,9 +113,16 @@ def process_control_name():
         config.PARAM['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
+    if config.PARAM['ae_name'] in ['vqvae']:
+        config.PARAM['hidden_size'] = 128
+        config.PARAM['conditional_embedding_size'] = 32
+        config.PARAM['quantizer_embedding_size'] = 64
+        config.PARAM['num_embedding'] = 512
+        config.PARAM['vq_commit'] = 0.25
     if config.PARAM['model_name'] in ['cpixelcnn', 'mcpixelcnn']:
         config.PARAM['n_layers'] = 15
-        config.PARAM['hidden_size'] = 64
+        config.PARAM['hidden_size'] = 128
+        config.PARAM['num_embedding'] = 512
     elif config.PARAM['model_name'] in ['cvae', 'mcvae']:
         config.PARAM['hidden_size'] = [64, 128, 256]
         config.PARAM['latent_size'] = 128
@@ -227,6 +234,3 @@ def collate(input):
     for k in input:
         input[k] = torch.stack(input[k], 0)
     return input
-
-
-
