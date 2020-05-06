@@ -41,7 +41,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['batch_size'] = {'train': 128, 'test': 256}
+config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 
 
@@ -65,7 +65,8 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    last_epoch, model, optimizer, scheduler, logger = resume(model, config.PARAM['model_tag'])
+    load_tag = 'best'
+    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
     logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
         'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])

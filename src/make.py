@@ -7,6 +7,7 @@ import itertools
 parser = argparse.ArgumentParser(description='Config')
 parser.add_argument('--run', default=None, type=str)
 parser.add_argument('--model', default=None, type=str)
+parser.add_argument('--file', default=None, type=str)
 args = vars(parser.parse_args())
 
 
@@ -14,9 +15,10 @@ def main():
     round = 12
     run = args['run']
     model = args['model']
-    filename = '{}_{}'.format(run, model)
+    file = model if args['file'] is None else args['file']
+    filename = '{}_{}'.format(run, file)
     gpu_ids = ['0', '1', '2', '3']
-    script_name = [['{}_{}.py'.format(run, model)]]
+    script_name = [['{}_{}.py'.format(run, file)]]
     data_names = ['CIFAR10', 'Omniglot']
     if model == 'vqvae':
         model_names = [['vqvae']]

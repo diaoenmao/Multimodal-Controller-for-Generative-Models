@@ -43,7 +43,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
-config.PARAM['batch_size'] = {'train': 128, 'test': 256}
+config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
@@ -55,6 +55,9 @@ def main():
                           config.PARAM['control_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
+        ae_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['ae_name']]
+        ae_tag_list = [x for x in ae_tag_list if x]
+        config.PARAM['ae_tag'] = '_'.join(filter(None, ae_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
     return
@@ -67,6 +70,8 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
+    ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
+    _, ae, _, _, _ = resume(ae, config.PARAM['ae_tag'], load_tag='best')
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     model.apply(models.utils.init_param)
     optimizer = make_optimizer(model)
@@ -91,8 +96,8 @@ def runExperiment():
     config.PARAM['pivot'] = 1e10
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
-        train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['train'], model, logger, epoch)
+        train(data_loader['train'], ae, model, optimizer, logger, epoch)
+        test(data_loader['train'], ae, model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
@@ -114,14 +119,16 @@ def runExperiment():
     return
 
 
-def train(data_loader, model, optimizer, logger, epoch):
+def train(data_loader, ae, model, optimizer, logger, epoch):
     metric = Metric()
     model.train(True)
     for i, input in enumerate(data_loader):
         start_time = time.time()
         input = collate(input)
-        input_size = input['img'].numel()
+        input_size = input['img'].size(0)
         input = to_device(input, config.PARAM['device'])
+        with torch.no_grad():
+            input['img'] = ae.encode(input).detach()
         optimizer.zero_grad()
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
@@ -144,14 +151,15 @@ def train(data_loader, model, optimizer, logger, epoch):
     return
 
 
-def test(data_loader, model, logger, epoch):
+def test(data_loader, ae, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = input['img'].numel()
+            input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
+            input['img'] = ae.encode(input).detach()
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)

@@ -56,11 +56,35 @@ def init_param(m):
     return m
 
 
+def convex_combination(embedding):
+    config.PARAM['concentration'] = torch.ones(config.PARAM['classes_size'])
+    m = torch.distributions.dirichlet.Dirichlet(config.PARAM['concentration'].to(config.PARAM['device']))
+    cc = m.sample((config.PARAM['classes_size'],))
+    cc_embedding = cc.matmul(embedding)
+    return cc_embedding
+
+
 def create(model):
-    for m in model.modules():
-        module_name = m.__class__.__name__
-        if module_name == 'MultimodalController':
-            m.register_buffer('codebook', m.make_codebook())
+    if 'VAE' in model.__class__.__name__:
+        for name, module in model.named_modules():
+            module_class_name = module.__class__.__name__
+            if module_class_name == 'MultimodalController':
+                module.register_buffer('codebook', module.make_codebook())
+                # module.codebook.data.copy_(covex_combination(module.codebook).data)
+            if isinstance(module, nn.Linear):
+                name_list = name.split('.')
+                if len(name_list) >= 2 and 'embedding' in name_list[1]:
+                    module.weight.data.copy_(convex_combination(module.weight.t()).t().data)
+    elif 'PixelCNN' in model.__class__.__name__:
+        for name, module in model.named_modules():
+            module_class_name = module.__class__.__name__
+            if module_class_name == 'MultimodalController':
+                module.register_buffer('codebook', module.make_codebook())
+                # module.codebook.data.copy_(convex_combination(module.codebook).data)
+            if isinstance(module, nn.Embedding):
+                name_list = name.split('.')
+                if len(name_list) >= 2 and 'class_cond_embedding' in name_list[1]:
+                    module.weight.data.copy_(convex_combination(module.weight.t()).t().data)
     return
 
 

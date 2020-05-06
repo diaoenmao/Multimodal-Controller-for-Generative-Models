@@ -60,13 +60,13 @@ def runExperiment():
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
     _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    model.apply(models.utils.create)
+    models.utils.create(model)
     model = model.to(config.PARAM['device'])
-    test(model)
+    create(model)
     return
 
 
-def test(model):
+def create(model):
     save_per_mode = 10
     save_num_mode = min(100, config.PARAM['classes_size'])
     sample_per_iter = 1000

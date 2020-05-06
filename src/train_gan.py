@@ -44,8 +44,10 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
-config.PARAM['batch_size'] = {'train': 64, 'test': 256}
+config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
+config.PARAM['scheduler_name'] = 'None'
+config.PARAM['loss_type'] = 'Hinge'
 
 
 def main():
@@ -141,7 +143,18 @@ def train(data_loader, model, optimizer, logger, epoch):
             z1 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
             generated = model.generate(z1, input[config.PARAM['subset']])
             D_G_z1 = model.discriminate(generated.detach(), input[config.PARAM['subset']])
-            D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
+            if config.PARAM['loss_type'] == 'BCE':
+                D_loss = torch.nn.functional.binary_cross_entropy_with_logits(D_x, torch.ones((input['img'].size(0), 1),
+                                                                                              device=config.PARAM[
+                                                                                                  'device'])) + \
+                         torch.nn.functional.binary_cross_entropy_with_logits(D_G_z1,
+                                                                              torch.zeros((input['img'].size(0), 1),
+                                                                                          device=config.PARAM[
+                                                                                              'device']))
+            elif config.PARAM['loss_type'] == 'Hinge':
+                D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
+            else:
+                raise ValueError('Not valid loss type')
             D_loss.backward()
             optimizer['discriminator'].step()
         ############################
@@ -153,10 +166,17 @@ def train(data_loader, model, optimizer, logger, epoch):
             z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
             generated = model.generate(z2, input[config.PARAM['subset']])
             D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
-            G_loss = -D_G_z2.mean()
+            if config.PARAM['loss_type'] == 'BCE':
+                G_loss = torch.nn.functional.binary_cross_entropy_with_logits(D_G_z2,
+                                                                              torch.ones((input['img'].size(0), 1),
+                                                                                         device=config.PARAM['device']))
+            elif config.PARAM['loss_type'] == 'Hinge':
+                G_loss = -D_G_z2.mean()
+            else:
+                raise ValueError('Not valid loss type')
             G_loss.backward()
             optimizer['generator'].step()
-        output = {'loss': D_loss - G_loss, 'loss_D': D_loss, 'loss_G': G_loss}
+        output = {'loss': abs(D_loss - G_loss), 'loss_D': D_loss, 'loss_G': G_loss}
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
             lr = optimizer['generator'].param_groups[0]['lr']
@@ -209,8 +229,12 @@ def make_optimizer(model):
         optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'],
                                   momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
-                               weight_decay=config.PARAM['weight_decay'], betas=(0, 0.9))
+        if config.PARAM['model_name'] in ['cgan', 'mcgan']:
+            optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
+                                   weight_decay=config.PARAM['weight_decay'], betas=(0.5, 0.999))
+        else:
+            optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
+                                   weight_decay=config.PARAM['weight_decay'], betas=(0, 0.99))
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

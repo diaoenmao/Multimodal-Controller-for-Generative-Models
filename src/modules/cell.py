@@ -75,7 +75,10 @@ def Activation(mode):
     elif mode == 'celu':
         return nn.CELU(inplace=True)
     elif mode == 'leakyrelu':
-        return nn.LeakyReLU(0.2, inplace=False)
+        if config.PARAM['model_name'] in ['cgan', 'mcgan']:
+            return nn.LeakyReLU(0.2, inplace=False)
+        else:
+            return nn.LeakyReLU(0.1, inplace=False)
     elif mode == 'sigmoid':
         return nn.Sigmoid()
     elif mode == 'softmax':
