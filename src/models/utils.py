@@ -83,7 +83,17 @@ def create(model):
                 # module.codebook.data.copy_(convex_combination(module.codebook).data)
             if isinstance(module, nn.Embedding):
                 name_list = name.split('.')
-                if len(name_list) >= 2 and 'class_cond_embedding' in name_list[1]:
+                if len(name_list) >= 2 and 'class_cond_embedding' in name_list[2]:
+                    module.weight.data.copy_(convex_combination(module.weight).data)
+    elif 'GAN' in model.__class__.__name__:
+        for name, module in model.named_modules():
+            module_class_name = module.__class__.__name__
+            if module_class_name == 'MultimodalController':
+                module.register_buffer('codebook', module.make_codebook())
+                # module.codebook.data.copy_(convex_combination(module.codebook).data)
+            if isinstance(module, nn.Linear):
+                name_list = name.split('.')
+                if len(name_list) >= 2 and 'embedding' in name_list[1]:
                     module.weight.data.copy_(convex_combination(module.weight.t()).t().data)
     return
 
