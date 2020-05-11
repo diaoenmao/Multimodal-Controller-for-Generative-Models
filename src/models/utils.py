@@ -55,8 +55,9 @@ def init_param(m):
         nn.init.constant_(m.bias.data, 0.0)
     if config.PARAM['model_name'] in ['cgan', 'mcgan']:
         if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.Linear)):
-            nn.init.xavier_normal(m.weight)
-            m.bias.data.zero_()
+            nn.init.xavier_normal_(m.weight)
+            if m.bias is not None:
+                nn.init.constant_(m.bias.data, 0.0)
     return m
 
 
