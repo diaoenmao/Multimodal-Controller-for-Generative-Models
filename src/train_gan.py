@@ -49,7 +49,6 @@ config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': [
 config.PARAM['scheduler_name'] = 'None'
 config.PARAM['loss_type'] = 'Hinge'
 
-
 def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))

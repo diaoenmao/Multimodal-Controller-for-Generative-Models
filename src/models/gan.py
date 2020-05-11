@@ -86,16 +86,18 @@ def cgan():
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
         {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 4,
-         'stride': 1, 'padding': 0, 'bias': True, 'normalization': generator_normalization,
-         'activation': generator_activation})
+         'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none', 'activation': 'none'})
     for i in range(1, 4):
         input_size = generator_hidden_size[i - 1]
         output_size = generator_hidden_size[i]
         config.PARAM['model']['generator'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
+            {'cell': 'FResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
              'normalization': generator_normalization, 'activation': generator_activation, 'mode': 'up'})
     input_size = generator_hidden_size[-1]
     output_size = img_shape[0]
+    config.PARAM['model']['generator'].append(
+        {'cell': 'Normalization', 'mode': generator_normalization, 'input_size': input_size, 'dim': 2})
+    config.PARAM['model']['generator'].append({'cell': 'Activation', 'mode': generator_activation})
     config.PARAM['model']['generator'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size, 'normalization': 'none',
          'activation': 'tanh'})
@@ -104,17 +106,21 @@ def cgan():
     config.PARAM['model']['discriminator'] = []
     input_size = img_shape[0] + conditional_embedding_size
     output_size = discriminator_hidden_size
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'FResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
+         'normalization': discriminator_normalization, 'activation': discriminator_activation, 'mode': 'down',
+         'head': True})
+    input_size = discriminator_hidden_size
+    output_size = discriminator_hidden_size
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'FResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
+         'normalization': discriminator_normalization, 'activation': discriminator_activation, 'mode': 'down'})
     for i in range(2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
-             'normalization': discriminator_normalization, 'activation': discriminator_activation, 'mode': 'down'})
-        input_size = output_size
-    for i in range(2):
-        config.PARAM['model']['discriminator'].append(
-            {'cell': 'ResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
+            {'cell': 'FResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
              'normalization': discriminator_normalization, 'activation': discriminator_activation})
-    config.PARAM['model']['discriminator'].append({'nn': 'nn.AdaptiveAvgPool2d(1)'})
-    config.PARAM['model']['discriminator'].append({'cell': 'ResizeCell', 'resize': [-1]})
+    config.PARAM['model']['discriminator'].append({'cell': 'Activation', 'mode': discriminator_activation})
+    config.PARAM['model']['discriminator'].append({'cell': 'GlobalSumPool2dCell'})
     input_size = discriminator_hidden_size
     output_size = 1
     config.PARAM['model']['discriminator'].append(
@@ -143,18 +149,24 @@ def mcgan():
     output_size = generator_hidden_size[0]
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
-        {'cell': 'MCConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 4,
-         'stride': 1, 'padding': 0, 'bias': True, 'normalization': generator_normalization,
-         'activation': generator_activation, 'num_mode': num_mode, 'controller_rate': controller_rate})
+        {'cell': 'ConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 4,
+         'stride': 1, 'padding': 0, 'bias': True, 'normalization': 'none', 'activation': 'none'})
     for i in range(1, 4):
         input_size = generator_hidden_size[i - 1]
         output_size = generator_hidden_size[i]
         config.PARAM['model']['generator'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size,
-             'hidden_size': output_size, 'normalization': generator_normalization, 'activation': generator_activation,
-             'mode': 'up', 'num_mode': num_mode, 'controller_rate': controller_rate})
+            {'cell': 'MCFResConv2dCell', 'input_size': input_size, 'output_size': output_size,
+             'hidden_size': output_size,
+             'normalization': generator_normalization, 'activation': generator_activation, 'mode': 'up',
+             'num_mode': num_mode, 'controller_rate': controller_rate})
     input_size = generator_hidden_size[-1]
     output_size = img_shape[0]
+    config.PARAM['model']['generator'].append(
+        {'cell': 'Normalization', 'mode': generator_normalization, 'input_size': input_size, 'dim': 2})
+    config.PARAM['model']['generator'].append({'cell': 'Activation', 'mode': generator_activation})
+    config.PARAM['model']['generator'].append(
+        {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
+         'controller_rate': controller_rate})
     config.PARAM['model']['generator'].append(
         {'cell': 'Conv2dCell', 'input_size': input_size, 'output_size': output_size, 'normalization': 'none',
          'activation': 'tanh'})
@@ -163,21 +175,26 @@ def mcgan():
     config.PARAM['model']['discriminator'] = []
     input_size = img_shape[0]
     output_size = discriminator_hidden_size
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'MCFResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
+         'normalization': discriminator_normalization, 'activation': discriminator_activation, 'mode': 'down',
+         'head': True, 'num_mode': num_mode, 'controller_rate': controller_rate})
+    input_size = discriminator_hidden_size
+    output_size = discriminator_hidden_size
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'MCFResConv2dCell', 'input_size': input_size, 'output_size': output_size, 'hidden_size': output_size,
+         'normalization': discriminator_normalization, 'activation': discriminator_activation, 'mode': 'down',
+         'num_mode': num_mode, 'controller_rate': controller_rate})
     for i in range(2):
         config.PARAM['model']['discriminator'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size,
+            {'cell': 'MCFResConv2dCell', 'input_size': input_size, 'output_size': output_size,
              'hidden_size': output_size, 'normalization': discriminator_normalization,
-             'activation': discriminator_activation, 'mode': 'down', 'num_mode': num_mode,
-             'controller_rate': controller_rate})
-        input_size = output_size
-    for i in range(2):
-        config.PARAM['model']['discriminator'].append(
-            {'cell': 'MCResConv2dCell', 'input_size': input_size, 'output_size': output_size,
-             'hidden_size': output_size, 'normalization': discriminator_normalization,
-             'activation': discriminator_activation, 'mode': 'pass', 'num_mode': num_mode,
-             'controller_rate': controller_rate})
-    config.PARAM['model']['discriminator'].append({'nn': 'nn.AdaptiveAvgPool2d(1)'})
-    config.PARAM['model']['discriminator'].append({'cell': 'ResizeCell', 'resize': [-1]})
+             'activation': discriminator_activation, 'num_mode': num_mode, 'controller_rate': controller_rate})
+    config.PARAM['model']['discriminator'].append({'cell': 'Activation', 'mode': discriminator_activation})
+    config.PARAM['model']['discriminator'].append(
+        {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
+         'controller_rate': controller_rate})
+    config.PARAM['model']['discriminator'].append({'cell': 'GlobalSumPool2dCell'})
     input_size = discriminator_hidden_size
     output_size = 1
     config.PARAM['model']['discriminator'].append(
