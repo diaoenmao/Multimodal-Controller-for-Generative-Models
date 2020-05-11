@@ -24,6 +24,7 @@ def main():
         model_names = [['vqvae']]
     else:
         model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
+        # model_names = [['mc{}'.format(args['model'])]]
     experiments_step = 1
     num_experiments = 1
     init_seeds = [list(range(0, num_experiments, experiments_step))]

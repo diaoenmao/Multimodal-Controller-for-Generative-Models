@@ -143,9 +143,6 @@ def mcgan():
     output_size = generator_hidden_size[0]
     config.PARAM['model']['generator'] = []
     config.PARAM['model']['generator'].append(
-        {'cell': 'MultimodalController', 'input_size': input_size, 'num_mode': num_mode,
-         'controller_rate': controller_rate})
-    config.PARAM['model']['generator'].append(
         {'cell': 'MCConvTranspose2dCell', 'input_size': input_size, 'output_size': output_size, 'kernel_size': 4,
          'stride': 1, 'padding': 0, 'bias': True, 'normalization': generator_normalization,
          'activation': generator_activation, 'num_mode': num_mode, 'controller_rate': controller_rate})

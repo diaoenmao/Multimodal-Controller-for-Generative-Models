@@ -339,6 +339,7 @@ if __name__ == "__main__":
     if sys.argv[1] == 'npy':
         inception_path = check_or_download_inception(None)
         model_tag = sys.argv[2]
+        path = './output/result/is_{}.npy'.format(model_tag)
         data_name = model_tag.split('_')[1]
         images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
         images = np.transpose(images, (0, 2, 3, 1))
@@ -355,7 +356,11 @@ if __name__ == "__main__":
         fid_score = calculate_frechet_distance(mu1, sigma1, mu2, sigma2)
         result = fid_score
         print('FID ({}): {}'.format(model_tag, result))
-        np.save('./output/result/fid_{}.npy'.format(model_tag), result)
+        try:
+            os.makedirs(path)
+        except OSError as e:
+            pass
+        np.save(path, result)
     else:
         from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 

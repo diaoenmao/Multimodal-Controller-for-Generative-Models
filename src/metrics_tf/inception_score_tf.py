@@ -266,11 +266,16 @@ if __name__ == '__main__':
         arg = sys.argv[1]
         if arg == 'npy':
             model_tag = sys.argv[2]
+            path = './output/result/is_{}.npy'.format(model_tag)
             images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
             is_mean, is_std = get_inception_score(images)
             result = (is_mean, is_std)
             print('Inception Score ({}): {}'.format(model_tag, result))
-            np.save('./output/result/is_{}.npy'.format(model_tag), result)
+            try:
+                os.makedirs(path)
+            except OSError as e:
+                pass
+            np.save(path, result)
         else:
             foldername = arg
             from glob import glob

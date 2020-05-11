@@ -74,7 +74,7 @@ def test(generated):
         evaluation = metric.evaluate(['InceptionScore'], None, output)
     result = evaluation['InceptionScore']
     print('Inception Score ({}): {}'.format(config.PARAM['model_tag'], result))
-    np.save('./output/result/is_{}.npy'.format(config.PARAM['model_tag']), result)
+    save('./output/result/is_{}.npy'.format(config.PARAM['model_tag'], result), mode='numpy')
     return evaluation
 
 

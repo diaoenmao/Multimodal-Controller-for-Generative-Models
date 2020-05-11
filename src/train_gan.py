@@ -229,12 +229,8 @@ def make_optimizer(model):
         optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'],
                                   momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        if config.PARAM['model_name'] in ['cgan', 'mcgan']:
-            optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
-                                   weight_decay=config.PARAM['weight_decay'], betas=(0.5, 0.999))
-        else:
-            optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
-                                   weight_decay=config.PARAM['weight_decay'], betas=(0, 0.99))
+        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
+                               weight_decay=config.PARAM['weight_decay'], betas=(0, 0.9))
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

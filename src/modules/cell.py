@@ -75,10 +75,7 @@ def Activation(mode):
     elif mode == 'celu':
         return nn.CELU(inplace=True)
     elif mode == 'leakyrelu':
-        if config.PARAM['model_name'] in ['cgan', 'mcgan']:
-            return nn.LeakyReLU(0.2, inplace=False)
-        else:
-            return nn.LeakyReLU(0.1, inplace=False)
+        return nn.LeakyReLU(0.2, inplace=True)
     elif mode == 'sigmoid':
         return nn.Sigmoid()
     elif mode == 'softmax':
@@ -253,14 +250,13 @@ class ResConv2dCell(nn.Module):
         self.activation = Activation(self.cell_info['activation'])
 
     def forward(self, input):
-        if self.cell_info['mode'] == 'up':
-            input = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False)
-        shortcut = self.shortcut(input)
-        x = self.conv_1(input)
+        x = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) \
+            if self.cell_info['mode'] == 'up' else input
+        shortcut = self.shortcut(x)
+        x = self.conv_1(x)
         x = self.conv_2(x)
-        output = self.activation(x + shortcut)
-        if self.cell_info['mode'] == 'down':
-            x = F.avg_pool2d(x, 2)
+        x = self.activation(x + shortcut)
+        output = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
         return output
 
 
@@ -282,14 +278,13 @@ class MCResConv2dCell(nn.Module):
         self.activation = Activation(self.cell_info['activation'])
 
     def forward(self, input):
-        if self.cell_info['mode'] == 'up':
-            input = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False)
-        shortcut = self.shortcut(input)
-        x = self.conv_1(input)
+        x = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) \
+            if self.cell_info['mode'] == 'up' else input
+        shortcut = self.shortcut(x)
+        x = self.conv_1(x)
         x = self.conv_2(x)
-        output = self.activation(x + shortcut)
-        if self.cell_info['mode'] == 'down':
-            x = F.avg_pool2d(x, 2)
+        x = self.activation(x + shortcut)
+        output = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
         return output
 
 

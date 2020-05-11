@@ -53,7 +53,18 @@ def init_param(m):
     if isinstance(m, (nn.BatchNorm2d)):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0.0)
+    if config.PARAM['model_name'] in ['cgan', 'mcgan']:
+        if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.Linear)):
+            nn.init.xavier_normal(m.weight)
+            m.bias.data.zero_()
     return m
+
+
+def make_SpectralNormalization(m):
+    if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
+        return torch.nn.utils.spectral_norm(m)
+    else:
+        return m
 
 
 def convex_combination(embedding):
@@ -96,10 +107,3 @@ def create(model):
                 if len(name_list) >= 2 and 'embedding' in name_list[1]:
                     module.weight.data.copy_(convex_combination(module.weight.t()).t().data)
     return
-
-
-def make_SpectralNormalization(m):
-    if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
-        return torch.nn.utils.spectral_norm(m)
-    else:
-        return m

@@ -65,7 +65,8 @@ def test(data_loader):
             generated.append(input['img'])
         generated = torch.cat(generated)
         generated = ((generated + 1) / 2 * 255).cpu().numpy()
-        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+        path = './output/result/is_{}.npy'.format(config.PARAM['model_tag'])
+        save(generated, path, mode='numpy')
     return
 
 
