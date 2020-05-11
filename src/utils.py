@@ -134,7 +134,7 @@ def process_control_name():
         config.PARAM['generator_normalization'] = 'bn'
         config.PARAM['discriminator_normalization'] = 'none'
         config.PARAM['generator_activation'] = 'relu'
-        config.PARAM['discriminator_activation'] = 'relu'
+        config.PARAM['discriminator_activation'] = 'leakyrelu'
         config.PARAM['latent_size'] = 128
         config.PARAM['generator_hidden_size'] = [256, 256, 256, 256]
         config.PARAM['discriminator_hidden_size'] = 128

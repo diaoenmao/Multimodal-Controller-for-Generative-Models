@@ -37,7 +37,6 @@ for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
 
-
 def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
@@ -60,16 +59,17 @@ def runExperiment():
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
     _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    models.utils.create(model)
-    model = model.to(config.PARAM['device'])
     create(model)
     return
 
 
 def create(model):
     save_per_mode = 10
+    config.PARAM['classes_size'] = 100
     save_num_mode = min(100, config.PARAM['classes_size'])
     sample_per_iter = 1000
+    models.utils.create(model)
+    model = model.to(config.PARAM['device'])
     with torch.no_grad():
         model.train(False)
         C = torch.arange(save_num_mode).to(config.PARAM['device'])

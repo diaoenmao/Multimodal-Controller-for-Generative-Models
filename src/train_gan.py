@@ -229,7 +229,7 @@ def make_optimizer(model):
                                   momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
-                               weight_decay=config.PARAM['weight_decay'], betas=(0, 0.9))
+                               weight_decay=config.PARAM['weight_decay'], betas=(0.5, 0.999))
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

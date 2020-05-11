@@ -15,8 +15,6 @@ def make_cell(cell_info):
         cell = Activation(cell_info['mode'])
     elif cell_info['cell'] == 'ResizeCell':
         cell = ResizeCell(cell_info)
-    elif cell_info['cell'] == 'GlobalSumPool2dCell':
-        cell = GlobalSumPool2dCell(cell_info)
     elif cell_info['cell'] == 'LinearCell':
         cell = LinearCell(cell_info)
     elif cell_info['cell'] == 'Conv2dCell':
@@ -25,8 +23,6 @@ def make_cell(cell_info):
         cell = ConvTranspose2dCell(cell_info)
     elif cell_info['cell'] == 'ResConv2dCell':
         cell = ResConv2dCell(cell_info)
-    elif cell_info['cell'] == 'FResConv2dCell':
-        cell = FResConv2dCell(cell_info)
     elif cell_info['cell'] == 'MCLinearCell':
         cell = MCLinearCell(cell_info)
     elif cell_info['cell'] == 'MCConv2dCell':
@@ -35,8 +31,6 @@ def make_cell(cell_info):
         cell = MCConvTranspose2dCell(cell_info)
     elif cell_info['cell'] == 'MCResConv2dCell':
         cell = MCResConv2dCell(cell_info)
-    elif cell_info['cell'] == 'MCFResConv2dCell':
-        cell = MCFResConv2dCell(cell_info)
     elif cell_info['cell'] == 'MultimodalController':
         cell = MultimodalController(cell_info)
     elif cell_info['cell'] == 'VectorQuantization':
@@ -63,7 +57,7 @@ def Normalization(mode, size, dim=2):
     return
 
 
-def Activation(mode, inplace=False):
+def Activation(mode, inplace=True):
     if mode == 'none':
         return nn.Identity()
     elif mode == 'tanh':
@@ -99,16 +93,6 @@ class ResizeCell(nn.Module):
 
     def forward(self, input):
         return input.view(input.size(0), *self.cell_info['resize'])
-
-
-class GlobalSumPool2dCell(nn.Module):
-    def __init__(self, cell_info):
-        super(GlobalSumPool2dCell, self).__init__()
-        default_cell_info = {}
-        self.cell_info = {**default_cell_info, **cell_info}
-
-    def forward(self, input):
-        return torch.sum(input, dim=(2, 3))
 
 
 class LinearCell(nn.Linear):
@@ -301,102 +285,6 @@ class MCResConv2dCell(nn.Module):
         x = self.conv_2(x)
         x = self.activation(x + shortcut)
         output = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
-        return output
-
-
-class FResConv2dCell(nn.Module):
-    def __init__(self, cell_info):
-        super(FResConv2dCell, self).__init__()
-        default_cell_info = {'kernel_size': 3, 'stride': 1, 'padding': 1, 'dilation': 1, 'groups': 1, 'bias': True,
-                             'padding_mode': 'zeros', 'mode': 'pass', 'head': False}
-        self.cell_info = {**default_cell_info, **cell_info}
-        conv_1_info = {**self.cell_info, 'output_size': self.cell_info['hidden_size'], 'normalization': 'none',
-                       'activation': 'none'}
-        conv_2_info = {**self.cell_info, 'input_size': self.cell_info['hidden_size'], 'normalization': 'none',
-                       'activation': 'none'}
-        self.conv_1 = Conv2dCell(conv_1_info)
-        self.conv_2 = Conv2dCell(conv_2_info)
-        if not self.cell_info['head']:
-            self.bn_1 = Normalization(self.cell_info['normalization'], self.cell_info['input_size'])
-        self.bn_2 = Normalization(self.cell_info['normalization'], self.cell_info['hidden_size'])
-        if self.cell_info['input_size'] != self.cell_info['output_size'] or self.cell_info['mode'] != 'pass':
-            self.shortcut = Conv2dCell(
-                {**self.cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0, 'normalization': 'none',
-                 'activation': 'none'})
-        else:
-            self.shortcut = nn.Identity()
-        self.activation = Activation(self.cell_info['activation'])
-
-    def forward(self, input):
-        shortcut = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) \
-            if self.cell_info['mode'] == 'up' else input
-        shortcut = self.shortcut(shortcut)
-        shortcut = F.avg_pool2d(shortcut, 2) if self.cell_info['mode'] == 'down' else shortcut
-        x = input
-        if not self.cell_info['head']:
-            x = self.bn_1(x)
-            x = self.activation(x)
-        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False) \
-            if self.cell_info['mode'] == 'up' else x
-        x = self.conv_1(x)
-        x = self.bn_2(x)
-        x = self.activation(x)
-        x = self.conv_2(x)
-        x = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
-        output = x + shortcut
-        return output
-
-
-class MCFResConv2dCell(nn.Module):
-    def __init__(self, cell_info):
-        super(MCFResConv2dCell, self).__init__()
-        default_cell_info = {'kernel_size': 3, 'stride': 1, 'padding': 1, 'dilation': 1, 'groups': 1, 'bias': True,
-                             'padding_mode': 'zeros', 'mode': 'pass', 'head': False}
-        self.cell_info = {**default_cell_info, **cell_info}
-        conv_1_info = {**self.cell_info, 'output_size': self.cell_info['hidden_size'], 'normalization': 'none',
-                       'activation': 'none'}
-        conv_2_info = {**self.cell_info, 'input_size': self.cell_info['hidden_size'], 'normalization': 'none',
-                       'activation': 'none'}
-        self.conv_1 = Conv2dCell(conv_1_info)
-        self.conv_2 = Conv2dCell(conv_2_info)
-        if not self.cell_info['head']:
-            self.bn_1 = Normalization(self.cell_info['normalization'], self.cell_info['input_size'])
-        self.bn_2 = Normalization(self.cell_info['normalization'], self.cell_info['hidden_size'])
-        if self.cell_info['input_size'] != self.cell_info['output_size'] or self.cell_info['mode'] != 'pass':
-            self.shortcut = Conv2dCell(
-                {**self.cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0, 'normalization': 'none',
-                 'activation': 'none'})
-        else:
-            self.shortcut = nn.Identity()
-        self.activation = Activation(self.cell_info['activation'])
-        if not self.cell_info['head']:
-            self.mc_1 = MultimodalController(
-                {'cell': 'MultimodalController', 'input_size': self.cell_info['input_size'],
-                 'num_mode': self.cell_info['num_mode'], 'controller_rate': self.cell_info['controller_rate']})
-        self.mc_2 = MultimodalController(
-            {'cell': 'MultimodalController', 'input_size': self.cell_info['hidden_size'],
-             'num_mode': self.cell_info['num_mode'], 'controller_rate': self.cell_info['controller_rate']})
-
-    def forward(self, input):
-        shortcut = self.mc_1(input) if not self.cell_info['head'] else input
-        shortcut = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) \
-            if self.cell_info['mode'] == 'up' else shortcut
-        shortcut = self.shortcut(shortcut)
-        shortcut = F.avg_pool2d(shortcut, 2) if self.cell_info['mode'] == 'down' else shortcut
-        x = input
-        if not self.cell_info['head']:
-            x = self.bn_1(x)
-            x = self.activation(x)
-            x = self.mc_1(x)
-        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False) \
-            if self.cell_info['mode'] == 'up' else x
-        x = self.conv_1(x)
-        x = self.bn_2(x)
-        x = self.activation(x)
-        x = self.mc_2(x)
-        x = self.conv_2(x)
-        x = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
-        output = x + shortcut
         return output
 
 

@@ -5,6 +5,7 @@ def init():
         'subset': 'label',
         'model_name': 'mcvae',
         'ae_name': 'vqvae',
+        'create_mode': 'random',
         'control': {'controller_rate': '0.5'},
         'optimizer_name': 'Adam',
         'lr': 1e-3,
