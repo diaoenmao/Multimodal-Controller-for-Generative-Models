@@ -76,7 +76,8 @@ def runExperiment():
 
 def test(model):
     save_per_mode = 10
-    save_num_mode = min(100, config.PARAM['classes_size'])
+    max_num_mode = 100
+    save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
     sample_per_iter = 1000
     with torch.no_grad():
         model.train(False)
@@ -90,13 +91,13 @@ def test(model):
             C_generated_i = C_generated[i]
             x_generated_i = x_generated[i]
             generated_i = model.generate(x_generated_i, C_generated_i)
-            generated.append(generated_i)
+            generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         saved = []
         for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
             saved.append(generated[i:i + save_num_mode])
         saved = torch.cat(saved)
-        generated = ((generated + 1) / 2 * 255).cpu().numpy()
+        generated = ((generated + 1) / 2 * 255).numpy()
         saved = (saved + 1) / 2
         save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
         save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)

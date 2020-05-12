@@ -90,7 +90,7 @@ def create(ae, model):
             C_created_i = C_created[i]
             code_i = model.generate(x_created_i, C_created_i)
             created_i = ae.decode(code_i)
-            created.append(created_i)
+            created.append(created_i.cpu())
         created = torch.cat(created)
         created = (created + 1) / 2
         save_img(created, './output/img/created_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)

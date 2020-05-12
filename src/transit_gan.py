@@ -7,6 +7,7 @@ import os
 import torch
 import torch.backends.cudnn as cudnn
 import models
+import numpy as np
 from data import fetch_dataset, make_data_loader
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
 
@@ -46,12 +47,10 @@ def main():
                           config.PARAM['control_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
-        ae_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['ae_name']]
-        ae_tag_list = [x for x in ae_tag_list if x]
-        config.PARAM['ae_tag'] = '_'.join(filter(None, ae_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
     return
+
 
 def runExperiment():
     seed = int(config.PARAM['model_tag'].split('_')[0])
@@ -59,44 +58,33 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
-    _, ae, _, _, _ = resume(ae, config.PARAM['ae_tag'], load_tag='best')
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
-    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    test(ae, model)
+    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
+    transit(model)
     return
 
 
-def test(ae, model):
-    save_per_mode = 10
+def transit(model):
+    root = 0
     max_num_mode = 100
     save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
-    sample_per_iter = 1000
+    max_num_step = 10
+    alphas = np.linspace(0, 1, max_num_step + 1)
     with torch.no_grad():
         model.train(False)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
-        C = C.repeat(config.PARAM['generate_per_mode'])
-        C_generated = torch.split(C, sample_per_iter)
-        x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
-                        dtype=torch.long, device=config.PARAM['device'])
-        x_generated = torch.split(x, sample_per_iter)
-        generated = []
-        for i in range(len(C_generated)):
-            x_generated_i = x_generated[i]
-            C_generated_i = C_generated[i]
-            code_i = model.generate(x_generated_i, C_generated_i)
-            generated_i = ae.decode(code_i)
-            generated.append(generated_i.cpu())
-        generated = torch.cat(generated)
-        saved = []
-        for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
-            saved.append(generated[i:i + save_num_mode])
-        saved = torch.cat(saved)
-        generated = ((generated + 1) / 2 * 255).numpy()
-        saved = (saved + 1) / 2
-        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
-        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
+        C = torch.arange(save_num_mode).to(config.PARAM['device'])
+        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+        transited = []
+        for i in range(len(alphas)):
+            models.utils.transit(model, root, alphas[i])
+            model = model.to(config.PARAM['device'])
+            transited_i = model.generate(x, C)
+            transited.append(transited_i.cpu())
+        transited = torch.stack(transited, dim=0)
+        transited = transited.view(-1, *transited.size()[2:])
+        transited = (transited + 1) / 2
+        save_img(transited, './output/img/transited_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return
 
 

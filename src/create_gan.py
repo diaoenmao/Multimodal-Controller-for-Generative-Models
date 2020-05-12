@@ -83,9 +83,9 @@ def create(model):
             x_created_i = x_created[i]
             C_created_i = C_created[i]
             created_i = model.generate(x_created_i, C_created_i)
-            created.append(created_i)
+            created.append(created_i.cpu())
         created = torch.cat(created)
-        created = created
+        created = (created + 1) / 2
         save_img(created, './output/img/created_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return
 

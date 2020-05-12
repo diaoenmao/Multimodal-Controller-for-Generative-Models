@@ -209,7 +209,7 @@ def test(model, logger, epoch):
             C_generated_i = C_generated[i]
             z_generated_i = z_generated[i]
             generated_i = model.generate(z_generated_i, C_generated_i)
-            generated.append(generated_i)
+            generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         output = {'img': generated}
         evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
