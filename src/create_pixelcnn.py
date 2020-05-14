@@ -71,7 +71,7 @@ def runExperiment():
 
 def create(ae, model):
     save_per_mode = 10
-    config.PARAM['classes_size'] = 20
+    config.PARAM['classes_size'] = 100
     save_num_mode = min(100, config.PARAM['classes_size'])
     sample_per_iter = 1000
     models.utils.create(model)
