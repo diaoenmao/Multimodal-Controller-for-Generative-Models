@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .utils import make_model, init_param
+from .utils import make_model
 
 
 def reparameterize(mu, logvar):

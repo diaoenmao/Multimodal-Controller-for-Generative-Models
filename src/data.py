@@ -96,5 +96,6 @@ def make_data_loader(dataset):
     for k in dataset:
         data_loader[k] = torch.utils.data.DataLoader(dataset=dataset[k], shuffle=config.PARAM['shuffle'][k],
                                                      batch_size=config.PARAM['batch_size'][k], pin_memory=True,
-                                                     num_workers=config.PARAM['num_workers'], collate_fn=input_collate)
+                                                     num_workers=config.PARAM['num_workers'], collate_fn=input_collate,
+                                                     drop_last=config.PARAM['drop_last'])
     return data_loader

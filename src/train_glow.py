@@ -43,9 +43,10 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
-config.PARAM['batch_size'] = {'train': 12, 'test': 12}
+config.PARAM['batch_size'] = {'train': 64, 'test': 64}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
-
+config.PARAM['drop_last'] = True
+config.PARAM['show'] = True
 
 def main():
     process_control_name()
@@ -152,11 +153,16 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
+            input['reverse'] = False
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['show']:
+            input['z'] = output['z']
+            input['eps_std'] = None
+            input['reverse'] = True
+            output = model(input)
             save_img((input['img'][:100] + 1) / 2,
                      './output/img/input_{}.png'.format(config.PARAM['model_tag']))
             save_img((output['img'][:100] + 1) / 2,

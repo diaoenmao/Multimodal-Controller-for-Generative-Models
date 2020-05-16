@@ -141,10 +141,11 @@ def process_control_name():
         config.PARAM['conditional_embedding_size'] = 32
     elif config.PARAM['model_name'] in ['cglow', 'mcglow']:
         config.PARAM['hidden_size'] = 512
-        config.PARAM['K'] = 32
+        config.PARAM['K'] = 8
         config.PARAM['L'] = 3
         config.PARAM['flow_permutation'] = 'invconv'
         config.PARAM['flow_coupling'] = 'affine'
+        config.PARAM['learn_top'] = True
     return
 
 

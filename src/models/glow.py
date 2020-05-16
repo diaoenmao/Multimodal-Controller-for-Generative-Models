@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import scipy.linalg as la
+from .utils import make_model
 
 
 class ActNorm2d(nn.Module):
@@ -28,9 +29,9 @@ class ActNorm2d(nn.Module):
 
     def _center(self, input):
         if not config.PARAM['reverse']:
-            return input + self.bias
+            return input + self.loc
         else:
-            return input - self.bias
+            return input - self.loc
 
     def _scale(self, input, logdet=None):
         height, width = input.size(2), input.size(3)
@@ -82,7 +83,7 @@ class InvertibleConv2d1x1(nn.Module):
     def make_weight(self, input):
         height, width = input.size(2), input.size(3)
         l = self.l * self.l_mask + self.eye
-        u = self.u * self.u_mask + torch.diag(self.sign_s * torch.exp(self.logabs_s))
+        u = self.triu_u * self.u_mask + torch.diag(self.sign_s * torch.exp(self.logabs_s))
         dlogdet = height * width * torch.sum(self.logabs_s)
         if not config.PARAM['reverse']:
             weight = self.p @ l @ u
@@ -93,11 +94,12 @@ class InvertibleConv2d1x1(nn.Module):
 
     def forward(self, input, logdet=None):
         weight, dlogdet = self.make_weight(input)
-        z = F.conv2d(input, weight)
         if not config.PARAM['reverse']:
+            z = F.conv2d(input, weight)
             if logdet is not None:
                 logdet = logdet + dlogdet
         else:
+            z = F.conv2d(input, weight)
             if logdet is not None:
                 logdet = logdet - dlogdet
         return z, logdet
@@ -207,12 +209,23 @@ def cat_feature(tensor_a, tensor_b):
 
 
 class Split2d(nn.Module):
-    def __init__(self, num_channels):
+    def __init__(self, num_channels, do_mc=False, num_mode=None, controller_rate=None):
         super(Split2d, self).__init__()
         self.conv = Conv2dZeros(num_channels // 2, num_channels)
+        self.do_mc = do_mc
+        if self.do_mc:
+            self.mc = make_model({'cell': 'MultimodalController', 'input_size': num_channels, 'num_mode': num_mode,
+                                  'controller_rate': controller_rate})
 
     def split2d_prior(self, z):
-        h = self.conv(z)
+        if not config.PARAM['reverse']:
+            h = self.conv(z)
+            if self.do_mc:
+                h = self.mc(h)
+        else:
+            if self.do_mc:
+                z = self.mc(z)
+            h = self.conv(z)
         return split_feature(h, "cross")
 
     def forward(self, input, logdet=0., eps_std=None):
@@ -268,11 +281,27 @@ class SqueezeLayer(nn.Module):
             return output, logdet
 
 
-def flow(in_channels, out_channels, hidden_channels):
-    return nn.Sequential(
-        Conv2d(in_channels, hidden_channels), nn.ReLU(inplace=False),
-        Conv2d(hidden_channels, hidden_channels, kernel_size=1, stride=1, padding=0), nn.ReLU(inplace=False),
-        Conv2dZeros(hidden_channels, out_channels))
+def flow(in_channels, out_channels, hidden_channels, do_mc=False, num_mode=None, controller_rate=None):
+    if do_mc:
+        f = nn.Sequential(
+            Conv2d(in_channels, hidden_channels),
+            nn.ReLU(inplace=False),
+            make_model({'cell': 'MultimodalController', 'input_size': hidden_channels, 'num_mode': num_mode,
+                        'controller_rate': controller_rate}),
+            Conv2d(hidden_channels, hidden_channels, kernel_size=1, stride=1, padding=0),
+            nn.ReLU(inplace=False),
+            make_model({'cell': 'MultimodalController', 'input_size': hidden_channels, 'num_mode': num_mode,
+                        'controller_rate': controller_rate}),
+            Conv2dZeros(hidden_channels, out_channels),
+        )
+    else:
+        f = nn.Sequential(
+            Conv2d(in_channels, hidden_channels),
+            nn.ReLU(inplace=False),
+            Conv2d(hidden_channels, hidden_channels, kernel_size=1, stride=1, padding=0),
+            nn.ReLU(inplace=False),
+            Conv2dZeros(hidden_channels, out_channels))
+    return f
 
 
 class FlowStep(nn.Module):
@@ -283,7 +312,8 @@ class FlowStep(nn.Module):
         "invconv": lambda obj, z, logdet: obj.invconv(z, logdet)
     }
 
-    def __init__(self, in_channels, hidden_channels, flow_permutation="invconv", flow_coupling="additive"):
+    def __init__(self, in_channels, hidden_channels, flow_permutation="invconv", flow_coupling="additive", do_mc=False,
+                 num_mode=None, controller_rate=None):
         assert flow_coupling in FlowStep.FlowCoupling, \
             "flow_coupling should be in `{}`".format(FlowStep.FlowCoupling)
         assert flow_permutation in FlowStep.FlowPermutation, \
@@ -293,6 +323,7 @@ class FlowStep(nn.Module):
         self.flow_permutation = flow_permutation
         self.flow_coupling = flow_coupling
         self.actnorm = ActNorm2d(in_channels)
+        self.do_mc = do_mc
         if flow_permutation == "invconv":
             self.invconv = InvertibleConv2d1x1(in_channels)
         elif flow_permutation == "shuffle":
@@ -300,9 +331,9 @@ class FlowStep(nn.Module):
         else:
             self.reverse = Permute2d(in_channels, shuffle=False)
         if flow_coupling == "additive":
-            self.flow = flow(in_channels // 2, in_channels // 2, hidden_channels)
+            self.flow = flow(in_channels // 2, in_channels // 2, hidden_channels, self.do_mc, num_mode, controller_rate)
         elif flow_coupling == "affine":
-            self.flow = flow(in_channels // 2, in_channels, hidden_channels)
+            self.flow = flow(in_channels // 2, in_channels, hidden_channels, self.do_mc, num_mode, controller_rate)
         else:
             raise ValueError('Not valid flow mode')
 
@@ -346,14 +377,14 @@ class FlowStep(nn.Module):
         else:
             raise ValueError('Not valid flow coupling mode')
         z = cat_feature(z1, z2)
-        z, logdet = FlowStep.FlowPermutation[self.flow_permutation](
-            self, z, logdet, True)
-        z, logdet = self.actnorm(z, logdet=logdet, reverse=True)
+        z, logdet = FlowStep.FlowPermutation[self.flow_permutation](self, z, logdet)
+        z, logdet = self.actnorm(z, logdet=logdet)
         return z, logdet
 
 
 class FlowNet(nn.Module):
-    def __init__(self, image_shape, hidden_channels, K, L, flow_permutation="invconv", flow_coupling="additive"):
+    def __init__(self, image_shape, hidden_channels, K, L, flow_permutation="invconv", flow_coupling="additive",
+                 do_mc=False, num_mode=None, controller_rate=None):
         """
                              K                                      K
         --> [Squeeze] -> [FlowStep] -> [Split] -> [Squeeze] -> [FlowStep]
@@ -366,6 +397,7 @@ class FlowNet(nn.Module):
         self.output_shapes = []
         self.K = K
         self.L = L
+        self.do_mc = do_mc
         C, H, W = image_shape
         for i in range(L):
             # 1. Squeeze
@@ -373,14 +405,16 @@ class FlowNet(nn.Module):
             self.layers.append(SqueezeLayer(factor=2))
             self.output_shapes.append([-1, C, H, W])
             # 2. K FlowStep
-            for _ in range(K):
+            for i in range(K):
                 self.layers.append(
                     FlowStep(in_channels=C, hidden_channels=hidden_channels, flow_permutation=flow_permutation,
-                             flow_coupling=flow_coupling))
+                             flow_coupling=flow_coupling, do_mc=self.do_mc, num_mode=num_mode,
+                             controller_rate=controller_rate))
                 self.output_shapes.append([-1, C, H, W])
             # 3. Split2d
             if i < L - 1:
-                self.layers.append(Split2d(num_channels=C))
+                self.layers.append(
+                    Split2d(num_channels=C, do_mc=self.do_mc, num_mode=num_mode, controller_rate=controller_rate))
                 self.output_shapes.append([-1, C // 2, H, W])
                 C = C // 2
 
@@ -422,6 +456,7 @@ class Glow(nn.Module):
         self.learn_top = learn_top
         self.y_classes = y_classes
         self.conditional = conditional
+        self.weight_y = 0.5
         self.flow = FlowNet(image_shape=image_shape, hidden_channels=hidden_channels, K=K, L=L,
                             flow_permutation=flow_permutation, flow_coupling=flow_coupling)
         # for prior
@@ -451,8 +486,9 @@ class Glow(nn.Module):
             h += yp
         return split_feature(h, "split")
 
-    def forward(self, z=None, eps_std=None):
+    def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
+        config.PARAM['reverse'] = input['reverse'] if 'reverse' in input else False
         if not config.PARAM['reverse']:
             x = input['img']
             y_onehot = F.one_hot(input['label'], config.PARAM['classes_size']).float()
@@ -463,13 +499,12 @@ class Glow(nn.Module):
             if self.conditional:
                 loss_classes = Glow.loss_class(output['logits'], input['label'])
             output['loss'] = loss_generative + self.weight_y * loss_classes
-            return
         else:
             z = input['z']
             eps_std = input['eps_std']
             y_onehot = F.one_hot(input['label'], config.PARAM['classes_size']).float()
             output['img'] = self.reverse_flow(z, y_onehot, eps_std)
-            return output
+        return output
 
     def normal_flow(self, x, y_onehot):
         config.PARAM['reverse'] = False
@@ -483,7 +518,7 @@ class Glow(nn.Module):
         # prior
         mean, logs = self.prior(y_onehot)
         objective += GaussianDiag.logp(mean, logs, z)
-        if self.y_condition:
+        if self.conditional:
             y_logits = self.project_class(z.mean(2).mean(2))
         else:
             y_logits = None
@@ -581,11 +616,165 @@ def cglow():
     L = config.PARAM['L']
     flow_permutation = config.PARAM['flow_permutation']
     flow_coupling = config.PARAM['flow_coupling']
-    learn_top = True
+    learn_top = config.PARAM['learn_top']
     y_classes = config.PARAM['classes_size']
     conditional = True
     model = Glow(image_shape, hidden_channels, K, L, flow_permutation, flow_coupling, learn_top, y_classes, conditional)
     return model
+
+
+class MCGlow(nn.Module):
+    BCE = nn.BCEWithLogitsLoss()
+    CE = nn.CrossEntropyLoss()
+
+    def __init__(self, image_shape, hidden_channels, K, L, flow_permutation, flow_coupling, learn_top, y_classes,
+                 controller_rate):
+        super(MCGlow, self).__init__()
+        self.image_shape = image_shape
+        self.hidden_channels = hidden_channels
+        self.K = K
+        self.L = L
+        self.flow_permutation = flow_permutation
+        self.flow_coupling = flow_coupling
+        self.learn_top = learn_top
+        self.y_classes = y_classes
+        self.controller_rate = controller_rate
+        self.weight_y = 0.5
+        self.flow = FlowNet(image_shape=image_shape, hidden_channels=hidden_channels, K=K, L=L,
+                            flow_permutation=flow_permutation, flow_coupling=flow_coupling, do_mc=True,
+                            num_mode=y_classes, controller_rate=controller_rate)
+        # for prior
+        if self.learn_top:
+            C = self.flow.output_shapes[-1][1]
+            self.top = Conv2dZeros(C * 2, C * 2)
+        # register prior hidden
+        self.register_parameter("prior_h", nn.Parameter(
+            torch.zeros([config.PARAM['batch_size']['train'] // config.PARAM['world_size'],
+                         self.flow.output_shapes[-1][1] * 2,
+                         self.flow.output_shapes[-1][2],
+                         self.flow.output_shapes[-1][3]])))
+
+    def prior(self):
+        h = self.prior_h.detach().clone()
+        assert torch.sum(h) == 0.0
+        if self.learn_top:
+            h = self.top(h)
+        return split_feature(h, "split")
+
+    def forward(self, input):
+        output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
+        config.PARAM['reverse'] = input['reverse'] if 'reverse' in input else False
+        if not config.PARAM['reverse']:
+            x = input['img']
+            config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+            output['z'], output['nll'] = self.normal_flow(x)
+            # loss
+            loss_generative = Glow.loss_generative(output['nll'])
+            output['loss'] = loss_generative
+        else:
+            z = input['z']
+            eps_std = input['eps_std']
+            config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+            output['img'] = self.reverse_flow(z, eps_std)
+        return output
+
+    def normal_flow(self, x):
+        config.PARAM['reverse'] = False
+        pixels = x.size(2) * x.size(3)
+        z = x + torch.normal(mean=torch.zeros_like(x),
+                             std=torch.ones_like(x) * (1. / 256.))
+        logdet = torch.zeros_like(x[:, 0, 0, 0])
+        logdet += float(-np.log(256.) * pixels)
+        # encode
+        z, objective = self.flow(z, logdet=logdet)
+        # prior
+        mean, logs = self.prior()
+        objective += GaussianDiag.logp(mean, logs, z)
+        # return
+        nll = (-objective) / float(np.log(2.) * pixels)
+        return z, nll
+
+    def reverse_flow(self, z, eps_std):
+        config.PARAM['reverse'] = True
+        with torch.no_grad():
+            mean, logs = self.prior()
+            if z is None:
+                z = GaussianDiag.sample(mean, logs, eps_std)
+            x = self.flow(z, eps_std=eps_std)
+        return x
+
+    def set_actnorm_init(self, initialized=True):
+        for name, m in self.named_modules():
+            if isinstance(m, ActNorm2d):
+                m.initialized = initialized
+        return
+
+    def generate_z(self, img):
+        self.eval()
+        B = config.PARAM['batch_size']['train']
+        x = img.unsqueeze(0).repeat(B, 1, 1, 1).cuda()
+        z, _, _ = self(x)
+        self.train()
+        return z[0].detach().cpu().numpy()
+
+    def generate_attr_deltaz(self, dataset):
+        assert "y_onehot" in dataset[0]
+        self.eval()
+        with torch.no_grad():
+            B = config.PARAM['batch_size']['train']
+            N = len(dataset)
+            attrs_pos_z = [[0, 0] for _ in range(self.y_classes)]
+            attrs_neg_z = [[0, 0] for _ in range(self.y_classes)]
+            for i in range(0, N, B):
+                j = min([i + B, N])
+                # generate z for data from i to j
+                xs = [dataset[k]["x"] for k in range(i, j)]
+                while len(xs) < B:
+                    xs.append(dataset[0]["x"])
+                xs = torch.stack(xs).cuda()
+                zs, _, _ = self(xs)
+                for k in range(i, j):
+                    z = zs[k - i].detach().cpu().numpy()
+                    # append to different attrs
+                    y = dataset[k]["y_onehot"]
+                    for ai in range(self.y_classes):
+                        if y[ai] > 0:
+                            attrs_pos_z[ai][0] += z
+                            attrs_pos_z[ai][1] += 1
+                        else:
+                            attrs_neg_z[ai][0] += z
+                            attrs_neg_z[ai][1] += 1
+                # break
+            deltaz = []
+            for ai in range(self.y_classes):
+                if attrs_pos_z[ai][1] == 0:
+                    attrs_pos_z[ai][1] = 1
+                if attrs_neg_z[ai][1] == 0:
+                    attrs_neg_z[ai][1] = 1
+                z_pos = attrs_pos_z[ai][0] / float(attrs_pos_z[ai][1])
+                z_neg = attrs_neg_z[ai][0] / float(attrs_neg_z[ai][1])
+                deltaz.append(z_pos - z_neg)
+        self.train()
+        return deltaz
+
+    @staticmethod
+    def loss_generative(nll):
+        # Generative loss
+        return torch.mean(nll)
+
+    @staticmethod
+    def loss_multi_classes(y_logits, y_onehot):
+        if y_logits is None:
+            return 0
+        else:
+            return Glow.BCE(y_logits, y_onehot.float())
+
+    @staticmethod
+    def loss_class(y_logits, y):
+        if y_logits is None:
+            return 0
+        else:
+            return Glow.CE(y_logits, y.long())
 
 
 def mcglow():
