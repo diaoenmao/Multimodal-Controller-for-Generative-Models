@@ -43,7 +43,10 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
-config.PARAM['batch_size'] = {'train': 128, 'test': 512}
+if config.PARAM['data_name'] in ['ImageNet32']:
+    config.PARAM['batch_size'] = {'train': 1024, 'test': 1024}
+else:
+    config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
 config.PARAM['show'] = False
 

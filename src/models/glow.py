@@ -279,8 +279,10 @@ class Block(nn.Module):
             else:
                 zero = torch.zeros_like(input)
                 h = self.prior(zero)
-                h_indicator = self.embedding(config.PARAM['indicator'].view([*config.PARAM['indicator'].size(), 1, 1]))
-                h += h_indicator
+                if not self.do_mc:
+                    h_indicator = self.embedding(
+                        config.PARAM['indicator'].view([*config.PARAM['indicator'].size(), 1, 1]))
+                    h += h_indicator
                 mean, log_sd = h.chunk(2, 1)
                 z = gaussian_sample(eps, mean, log_sd)
                 input = z
@@ -306,7 +308,7 @@ class CGlow(nn.Module):
             self.blocks.append(Block(in_channel, hidden_size, K, num_mode, split=True, affine=affine, conv_lu=conv_lu))
             in_channel *= 2
         self.blocks.append(Block(in_channel, hidden_size, K, num_mode, split=False, affine=affine, conv_lu=conv_lu))
-        self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
+        # self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
@@ -330,9 +332,10 @@ class CGlow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
         nll = self.loss_fn(log_p_sum, logdet)
-        output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
-        classification_loss = F.cross_entropy(output['logits'], input['label'])
-        output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
+        # output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
+        # classification_loss = F.cross_entropy(output['logits'], input['label'])
+        # output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
+        output['loss'] = nll
         output['z'] = z
         return output
 
@@ -399,7 +402,7 @@ class MCGlow(nn.Module):
         self.blocks.append(
             Block(in_channel, hidden_size, K, num_mode, split=False, affine=affine, conv_lu=conv_lu, do_mc=True,
                   controller_rate=controller_rate))
-        self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
+        # self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
@@ -423,9 +426,10 @@ class MCGlow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
         nll = self.loss_fn(log_p_sum, logdet)
-        output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
-        classification_loss = F.cross_entropy(output['logits'], input['label'])
-        output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
+        # output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
+        # classification_loss = F.cross_entropy(output['logits'], input['label'])
+        # output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
+        output['loss'] = nll
         output['z'] = z
         return output
 
