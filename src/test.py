@@ -1048,16 +1048,31 @@ import itertools
 #     print(embedding)
 
 
-def make_SpectralNormalization(m):
-    if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
-        return torch.nn.utils.spectral_norm(m)
-    else:
-        return m
+# def make_SpectralNormalization(m):
+#     if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
+#         return torch.nn.utils.spectral_norm(m)
+#     else:
+#         return m
+#
+#
+# if __name__ == "__main__":
+#     m = models.make_model({'cell': 'ResConv2dCell', 'input_size': 10, 'hidden_size': 20, 'output_size': 20, 'normalization': 'none',
+#              'activation': 'leakyrelu'})
+#     m.apply(make_SpectralNormalization)
+#     for name, param in m.named_parameters():
+#         print(name, param.size())
+
 
 
 if __name__ == "__main__":
-    m = models.make_model({'cell': 'ResConv2dCell', 'input_size': 10, 'hidden_size': 20, 'output_size': 20, 'normalization': 'none',
-             'activation': 'leakyrelu'})
-    m.apply(make_SpectralNormalization)
-    for name, param in m.named_parameters():
-        print(name, param.size())
+    data_name = 'ImageNet32'
+    subset = 'label'
+    dataset = fetch_dataset(data_name, subset)
+    data_loader = make_data_loader(dataset)
+    for i, input in enumerate(data_loader['train']):
+        input = collate(input)
+        print(input['img'].size())
+        print(input[subset].size())
+        break
+    save_img(input['img'], './output/img/test.png')
+    exit()

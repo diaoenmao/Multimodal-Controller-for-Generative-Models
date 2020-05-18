@@ -40,7 +40,7 @@ def load(path, mode='torch'):
     if mode == 'torch':
         return torch.load(path, map_location=lambda storage, loc: storage)
     elif mode == 'numpy':
-        return np.load(path)
+        return np.load(path, allow_pickle=True)
     else:
         raise ValueError('Not valid save mode')
     return
@@ -108,8 +108,11 @@ def process_control_name():
     elif config.PARAM['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
         config.PARAM['img_shape'] = [3, 32, 32]
         config.PARAM['generate_per_mode'] = 1000
-    elif config.PARAM['data_name'] in ['Imagenet32x32']:
+    elif config.PARAM['data_name'] in ['ImageNet32']:
         config.PARAM['img_shape'] = [3, 32, 32]
+        config.PARAM['generate_per_mode'] = 20
+    elif config.PARAM['data_name'] in ['ImageNet64']:
+        config.PARAM['img_shape'] = [3, 64, 64]
         config.PARAM['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
@@ -141,11 +144,10 @@ def process_control_name():
         config.PARAM['conditional_embedding_size'] = 32
     elif config.PARAM['model_name'] in ['cglow', 'mcglow']:
         config.PARAM['hidden_size'] = 512
-        config.PARAM['K'] = 8
+        config.PARAM['K'] = 16
         config.PARAM['L'] = 3
-        config.PARAM['flow_permutation'] = 'invconv'
-        config.PARAM['flow_coupling'] = 'affine'
-        config.PARAM['learn_top'] = True
+        config.PARAM['affine'] = True
+        config.PARAM['conv_lu'] = True
     return
 
 

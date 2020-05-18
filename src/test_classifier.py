@@ -34,6 +34,7 @@ else:
 control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
+config.PARAM['batch_size'] = {'train': 64, 'test': 256}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy', 'InceptionScore']}
 config.PARAM['control_name'] = '_'.join(control_name_list)
 
@@ -66,7 +67,7 @@ def runExperiment():
         'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['train'], model, logger, last_epoch)
+    test(data_loader['test'], model, logger, last_epoch)
     logger.safe(False)
     save_result = {
         'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}

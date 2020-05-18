@@ -1,13 +1,12 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'CIFAR10',
+        'data_name': 'ImageNet32',
         'subset': 'label',
-        'model_name': 'mcglow',
+        'model_name': 'vae',
         'ae_name': 'vqvae',
         'create_mode': 'random',
         'control': {'controller_rate': '0.5'},
-        'drop_last': False,
         'optimizer_name': 'Adam',
         'lr': 1e-3,
         'momentum': 0,

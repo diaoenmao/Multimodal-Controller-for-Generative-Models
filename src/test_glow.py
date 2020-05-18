@@ -38,8 +38,8 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['batch_size'] = {'train': 64, 'test': 64}
-config.PARAM['metric_names'] = {'test': ['Loss']}
+config.PARAM['batch_size'] = {'train': 64, 'test': 256}
+config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
 
 
 def main():
@@ -70,7 +70,7 @@ def runExperiment():
         'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['train'], model, logger, last_epoch)
+    test(data_loader['test'], model, logger, last_epoch)
     logger.safe(False)
     save_result = {
         'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
@@ -90,10 +90,9 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
+        input['reconstruct'] = True
         input['z'] = output['z']
-        input['eps_std'] = None
-        input['reverse'] = True
-        output = model(input)
+        output = model.reverse(input)
         save_img((input['img'][:100] + 1) / 2,
                  './output/img/input_{}.png'.format(config.PARAM['model_tag']))
         save_img((output['img'][:100] + 1) / 2,

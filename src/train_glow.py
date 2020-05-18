@@ -43,10 +43,10 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
-config.PARAM['batch_size'] = {'train': 64, 'test': 64}
+config.PARAM['batch_size'] = {'train': 64, 'test': 256}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
-config.PARAM['drop_last'] = True
-config.PARAM['show'] = True
+config.PARAM['show'] = False
+
 
 def main():
     process_control_name()
@@ -70,6 +70,11 @@ def runExperiment():
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     model.apply(models.utils.init_param)
+    with torch.no_grad():
+        input = next(iter(data_loader['train']))
+        input = collate(input)
+        input = to_device(input, config.PARAM['device'])
+        model(input)
     optimizer = make_optimizer(model)
     scheduler = make_scheduler(optimizer)
     if config.PARAM['resume_mode'] == 1:
@@ -93,7 +98,7 @@ def runExperiment():
     for epoch in range(last_epoch, config.PARAM['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['train'], model, logger, epoch)
+        test(data_loader['test'], model, logger, epoch)
         if config.PARAM['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker[config.PARAM['pivot_metric']], epoch=epoch)
         else:
@@ -153,16 +158,14 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
-            input['reverse'] = False
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['show']:
+            input['reconstruct'] = True
             input['z'] = output['z']
-            input['eps_std'] = None
-            input['reverse'] = True
-            output = model(input)
+            output = model.reverse(input)
             save_img((input['img'][:100] + 1) / 2,
                      './output/img/input_{}.png'.format(config.PARAM['model_tag']))
             save_img((output['img'][:100] + 1) / 2,

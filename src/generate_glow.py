@@ -3,17 +3,12 @@ import config
 config.init()
 import argparse
 import datetime
-import models
 import os
-import shutil
-import time
 import torch
 import torch.backends.cudnn as cudnn
-import torch.optim as optim
+import models
 from data import fetch_dataset, make_data_loader
-from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
-from logger import Logger
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -41,8 +36,6 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['batch_size'] = {'train': 128, 'test': 512}
-config.PARAM['metric_names'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
 def main():
@@ -53,9 +46,6 @@ def main():
                           config.PARAM['control_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
-        ae_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['ae_name']]
-        ae_tag_list = [x for x in ae_tag_list if x]
-        config.PARAM['ae_tag'] = '_'.join(filter(None, ae_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
     return
@@ -67,42 +57,46 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    data_loader = make_data_loader(dataset)
-    ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
-    _, ae, _, _, _ = resume(ae, config.PARAM['ae_tag'], load_tag='best')
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
-    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/train_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
-        'log_overwrite'] else 'output/runs/train_{}'.format(config.PARAM['model_tag'])
-    logger = Logger(logger_path)
-    logger.safe(True)
-    test(data_loader['test'], ae, model, logger, last_epoch)
-    logger.safe(False)
-    save_result = {
-        'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
-    save(save_result, './output/result/{}.pt'.format(config.PARAM['model_tag']))
+    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
+    test(model)
     return
 
 
-def test(data_loader, ae, model, logger, epoch):
+def test(model):
+    save_per_mode = 10
+    max_num_mode = 100
+    save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
+    sample_per_iter = 1000
+    temp = 0.7
     with torch.no_grad():
-        metric = Metric()
         model.train(False)
-        for i, input in enumerate(data_loader):
-            input = collate(input)
-            input_size = input['img'].size(0)
-            input = to_device(input, config.PARAM['device'])
-            input['img'] = ae.encode(input).detach()
-            output = model(input)
-            output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
-            logger.append(evaluation, 'test', input_size)
-        logger.append(evaluation, 'test')
-        info = {'info': ['Model: {}'.format(config.PARAM['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
-        logger.append(info, 'test', mean=False)
-        logger.write('test', config.PARAM['metric_names']['test'])
+        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        C = C.repeat(config.PARAM['generate_per_mode'])
+        C_generated = torch.split(C, sample_per_iter)
+        z_shapes = model.make_z_shapes()
+        x_generated = [[None for _ in range(len(z_shapes))] for _ in range(len(C_generated))]
+        for i in range(len(z_shapes)):
+            x_i = torch.randn([C.size(0), *z_shapes[i]], device=config.PARAM['device']) * temp
+            x_i = torch.split(x_i, sample_per_iter)
+            for j in range(len(C_generated)):
+                x_generated[j][i] = x_i[j]
+        generated = []
+        for i in range(len(C_generated)):
+            x_generated_i = x_generated[i]
+            C_generated_i = C_generated[i]
+            generated_i = model.generate(x_generated_i, C_generated_i)
+            generated.append(generated_i.cpu())
+        generated = torch.cat(generated)
+        saved = []
+        for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
+            saved.append(generated[i:i + save_num_mode])
+        saved = torch.cat(saved)
+        generated = ((generated + 1) / 2 * 255).numpy()
+        saved = (saved + 1) / 2
+        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
     return
 
 

@@ -4,7 +4,7 @@ from .cifar import CIFAR10, CIFAR100
 from .cub200 import CUB200
 from .omniglot import Omniglot
 from .svhn import SVHN
-from .imagenet import ImageNet
+from .imagenet import ImageNet32, ImageNet64, ImageNet
 from .folder import ImageFolder
 from .utils import *
 from .transforms import *
@@ -15,5 +15,5 @@ __all__ = ('MNIST','EMNIST', 'FashionMNIST',
            'CUB200',
            'Omniglot',
             'SVHN',
-           'ImageNet',
+           'ImageNet32', 'ImageNet64', 'ImageNet',
            'ImageFolder')

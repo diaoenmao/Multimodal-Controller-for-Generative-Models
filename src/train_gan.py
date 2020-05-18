@@ -44,7 +44,11 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
-config.PARAM['batch_size'] = {'train': 64, 'test': 512}
+if config.PARAM['data_name'] in ['ImageNet32']:
+    config.PARAM['batch_size'] = {'train': 64, 'test': 512}
+    config.PARAM['world_size'] = 1
+else:
+    config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 config.PARAM['scheduler_name'] = 'None'
 config.PARAM['loss_type'] = 'Hinge'

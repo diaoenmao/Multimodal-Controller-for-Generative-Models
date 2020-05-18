@@ -41,11 +41,11 @@ def fetch_dataset(data_name, subset):
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
-    elif data_name == 'ImageNet32x32':
-        dataset['train'] = datasets.ImageNet(root, split='train', subset=subset,
-                                             transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.ImageNet(root, split='test', subset=subset,
-                                            transform=datasets.Compose([transforms.ToTensor()]))
+    elif data_name in ['ImageNet32', 'ImageNet64', 'ImageNet']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         config.PARAM['transform'] = {
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -94,8 +94,7 @@ def input_collate(batch):
 def make_data_loader(dataset):
     data_loader = {}
     for k in dataset:
-        data_loader[k] = torch.utils.data.DataLoader(dataset=dataset[k], shuffle=config.PARAM['shuffle'][k],
+        data_loader[k] = torch.utils.data.DataLoader(dataset=dataset['train'], shuffle=config.PARAM['shuffle'][k],
                                                      batch_size=config.PARAM['batch_size'][k], pin_memory=True,
-                                                     num_workers=config.PARAM['num_workers'], collate_fn=input_collate,
-                                                     drop_last=config.PARAM['drop_last'])
+                                                     num_workers=config.PARAM['num_workers'], collate_fn=input_collate)
     return data_loader
