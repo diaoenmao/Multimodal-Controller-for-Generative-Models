@@ -15,16 +15,15 @@ def main():
     round = 12
     run = args['run']
     model = args['model']
-    file = model if args['file'] is None else args['file']
-    filename = '{}_{}'.format(run, file)
-    gpu_ids = ['0', '1', '2', '3']
-    script_name = [['{}_{}.py'.format(run, file)]]
+    filename = '{}_{}'.format(run, model)
+    num_gpu = 4
+    gpu_ids = [str(x) for x in list(range(num_gpu))]
+    script_name = [['{}_{}.py'.format(run, model)]]
     data_names = ['CIFAR10', 'Omniglot']
     if model == 'vqvae':
         model_names = [['vqvae']]
     else:
-        model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
-        # model_names = [['mc{}'.format(args['model'])]]
+        model_names = [['c{}'.format(args['model']), 'mc{}'.format(model)]]
     experiments_step = 1
     num_experiments = 1
     init_seeds = [list(range(0, num_experiments, experiments_step))]

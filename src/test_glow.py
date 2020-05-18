@@ -79,6 +79,7 @@ def runExperiment():
 
 
 def test(data_loader, model, logger, epoch):
+    config.PARAM['classification_loss_weight'] = 0
     with torch.no_grad():
         metric = Metric()
         model.train(False)

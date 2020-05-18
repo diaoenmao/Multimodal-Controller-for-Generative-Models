@@ -1,7 +1,7 @@
 def init():
     global PARAM
     PARAM = {
-        'data_name': 'ImageNet32',
+        'data_name': 'CIFAR10',
         'subset': 'label',
         'model_name': 'vae',
         'ae_name': 'vqvae',
@@ -11,7 +11,7 @@ def init():
         'lr': 1e-3,
         'momentum': 0,
         'weight_decay': 0,
-        'scheduler_name': 'ExponentialLR',
+        'scheduler_name': 'None',
         'step_size': 1,
         'milestones': [100, 150],
         'patience': 10,

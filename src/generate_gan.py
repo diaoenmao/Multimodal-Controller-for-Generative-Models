@@ -60,17 +60,8 @@ def runExperiment():
     process_dataset(dataset['train'])
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     load_tag = 'best'
-    last_epoch, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/test_{}_{}'.format(config.PARAM['model_tag'], current_time) if config.PARAM[
-        'log_overwrite'] else 'output/runs/test_{}'.format(config.PARAM['model_tag'])
-    logger = Logger(logger_path)
-    logger.safe(True)
+    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
     test(model)
-    logger.safe(False)
-    save_result = {
-        'config': config.PARAM, 'epoch': last_epoch, 'logger': logger}
-    save(save_result, './output/result/{}.pt'.format(config.PARAM['model_tag']))
     return
 
 

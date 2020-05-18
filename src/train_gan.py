@@ -45,13 +45,13 @@ config.PARAM['lr'] = 2e-4
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
 if config.PARAM['data_name'] in ['ImageNet32']:
-    config.PARAM['batch_size'] = {'train': 64, 'test': 512}
-    config.PARAM['world_size'] = 1
+    config.PARAM['batch_size'] = {'train': 1024, 'test': 1024}
+    config.PARAM['world_size'] = 4
 else:
     config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
-config.PARAM['scheduler_name'] = 'None'
 config.PARAM['loss_type'] = 'Hinge'
+
 
 def main():
     process_control_name()
@@ -76,7 +76,10 @@ def runExperiment():
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     model.apply(models.utils.init_param)
     if config.PARAM['world_size'] > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(config.PARAM['world_size'])))
+        model.model['generator'] = torch.nn.DataParallel(model.model['generator'],
+                                                         device_ids=list(range(config.PARAM['world_size'])))
+        model.model['discriminator'] = torch.nn.DataParallel(model.model['discriminator'],
+                                                             device_ids=list(range(config.PARAM['world_size'])))
     optimizer = {'generator': make_optimizer(model.model['generator']),
                  'discriminator': make_optimizer(model.model['discriminator'])}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
@@ -109,7 +112,7 @@ def runExperiment():
             scheduler['discriminator'].step()
         if config.PARAM['save_mode'] >= 0:
             logger.safe(False)
-            model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
+            model_state_dict = model.state_dict()
             save_result = {
                 'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': model_state_dict,
                 'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
@@ -132,7 +135,7 @@ def train(data_loader, model, optimizer, logger, epoch):
     for i, input in enumerate(data_loader):
         start_time = time.time()
         input = collate(input)
-        input_size = len(input['img'])
+        input_size = input['img'].size(0)
         input = to_device(input, config.PARAM['device'])
         ############################
         # (1) Update D network

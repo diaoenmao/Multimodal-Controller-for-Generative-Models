@@ -30,7 +30,7 @@ def save(input, path, protocol=2, mode='torch'):
     if mode == 'torch':
         torch.save(input, path, pickle_protocol=protocol)
     elif mode == 'numpy':
-        np.save(path, input)
+        np.save(path, input, allow_pickle=True)
     else:
         raise ValueError('Not valid save mode')
     return
@@ -148,6 +148,7 @@ def process_control_name():
         config.PARAM['L'] = 3
         config.PARAM['affine'] = True
         config.PARAM['conv_lu'] = True
+        config.PARAM['classification_loss_weight'] = 0.5
     return
 
 

@@ -45,7 +45,7 @@ config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
 config.PARAM['batch_size'] = {'train': 64, 'test': 256}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
-config.PARAM['show'] = False
+config.PARAM['show'] = True
 
 
 def main():

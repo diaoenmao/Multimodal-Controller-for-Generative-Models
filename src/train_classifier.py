@@ -115,7 +115,7 @@ def train(data_loader, model, optimizer, logger, epoch):
     for i, input in enumerate(data_loader):
         start_time = time.time()
         input = collate(input)
-        input_size = input['img'].numel()
+        input_size = input['img'].size(0)
         input = to_device(input, config.PARAM['device'])
         optimizer.zero_grad()
         output = model(input)
@@ -145,7 +145,7 @@ def test(data_loader, model, logger, epoch):
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
-            input_size = input['img'].numel()
+            input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']

@@ -137,31 +137,35 @@ class AffineCoupling(nn.Module):
         if do_mc:
             self.net = nn.Sequential(
                 nn.Conv2d(in_channel // 2, hidden_size, 3, padding=1),
+                ActNorm(hidden_size, logdet=False),
                 nn.ReLU(inplace=True),
                 make_model({'cell': 'MultimodalController', 'input_size': hidden_size, 'num_mode': num_mode,
                             'controller_rate': controller_rate}),
                 nn.Conv2d(hidden_size, hidden_size, 1),
+                ActNorm(hidden_size, logdet=False),
                 nn.ReLU(inplace=True),
                 make_model({'cell': 'MultimodalController', 'input_size': hidden_size, 'num_mode': num_mode,
                             'controller_rate': controller_rate}),
+                ZeroConv2d(hidden_size, in_channel if self.affine else in_channel // 2),
+            )
+            self.net[0].weight.data.normal_(0, 0.05)
+            self.net[0].bias.data.zero_()
+            self.net[4].weight.data.normal_(0, 0.05)
+            self.net[4].bias.data.zero_()
+        else:
+            self.net = nn.Sequential(
+                nn.Conv2d(in_channel // 2, hidden_size, 3, padding=1),
+                ActNorm(hidden_size, logdet=False),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(hidden_size, hidden_size, 1),
+                ActNorm(hidden_size, logdet=False),
+                nn.ReLU(inplace=True),
                 ZeroConv2d(hidden_size, in_channel if self.affine else in_channel // 2),
             )
             self.net[0].weight.data.normal_(0, 0.05)
             self.net[0].bias.data.zero_()
             self.net[3].weight.data.normal_(0, 0.05)
             self.net[3].bias.data.zero_()
-        else:
-            self.net = nn.Sequential(
-                nn.Conv2d(in_channel // 2, hidden_size, 3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(hidden_size, hidden_size, 1),
-                nn.ReLU(inplace=True),
-                ZeroConv2d(hidden_size, in_channel if self.affine else in_channel // 2),
-            )
-            self.net[0].weight.data.normal_(0, 0.05)
-            self.net[0].bias.data.zero_()
-            self.net[2].weight.data.normal_(0, 0.05)
-            self.net[2].bias.data.zero_()
 
     def forward(self, input):
         in_a, in_b = input.chunk(2, 1)
@@ -231,7 +235,8 @@ class Block(nn.Module):
             self.prior = ZeroConv2d(in_channel * 2, in_channel * 4)
         else:
             self.prior = ZeroConv2d(in_channel * 4, in_channel * 8)
-        self.embedding = ZeroConv2d(num_mode, in_channel * 8, kernel_size=1, stride=1, padding=0)
+        if not self.do_mc:
+            self.embedding = ZeroConv2d(num_mode, in_channel * 8, kernel_size=1, stride=1, padding=0)
 
     def forward(self, input):
         b_size, n_channel, height, width = input.shape
@@ -301,7 +306,7 @@ class CGlow(nn.Module):
             self.blocks.append(Block(in_channel, hidden_size, K, num_mode, split=True, affine=affine, conv_lu=conv_lu))
             in_channel *= 2
         self.blocks.append(Block(in_channel, hidden_size, K, num_mode, split=False, affine=affine, conv_lu=conv_lu))
-        # self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
+        self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
@@ -312,7 +317,6 @@ class CGlow(nn.Module):
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        input['img'] = (input['img'] + 1) / 2
         config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
         x = input['img']
         x = x + torch.rand_like(x) / 256
@@ -326,12 +330,10 @@ class CGlow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
         nll = self.loss_fn(log_p_sum, logdet)
-        # output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
-        # classification_loss = F.cross_entropy(output['logits'], input['label'])
-        # output['loss'] = nll + 0.5 * classification_loss
-        output['loss'] = nll
+        output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
+        classification_loss = F.cross_entropy(output['logits'], input['label'])
+        output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
         output['z'] = z
-        input['img'] = input['img'] * 2 - 1
         return output
 
     def reverse(self, input):
@@ -344,7 +346,7 @@ class CGlow(nn.Module):
                 x = block.reverse(z[-1], z[-1], reconstruct=input['reconstruct'])
             else:
                 x = block.reverse(x, z[-(i + 1)], reconstruct=input['reconstruct'])
-        output['img'] = x * 2 - 1
+        output['img'] = torch.clamp(x, -1, 1)
         return output
 
     def make_z_shapes(self):
@@ -397,7 +399,7 @@ class MCGlow(nn.Module):
         self.blocks.append(
             Block(in_channel, hidden_size, K, num_mode, split=False, affine=affine, conv_lu=conv_lu, do_mc=True,
                   controller_rate=controller_rate))
-        # self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
+        self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
@@ -408,7 +410,6 @@ class MCGlow(nn.Module):
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        input['img'] = (input['img'] + 1) / 2
         config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
         x = input['img']
         x = x + torch.rand_like(x) / 256
@@ -422,12 +423,10 @@ class MCGlow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
         nll = self.loss_fn(log_p_sum, logdet)
-        # output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
-        # classification_loss = F.cross_entropy(output['logits'], input['label'])
-        # output['loss'] = nll + 0.5 * classification_loss
-        output['loss'] = nll
+        output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
+        classification_loss = F.cross_entropy(output['logits'], input['label'])
+        output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
         output['z'] = z
-        input['img'] = input['img'] * 2 - 1
         return output
 
     def reverse(self, input):
@@ -440,7 +439,7 @@ class MCGlow(nn.Module):
                 x = block.reverse(z[-1], z[-1], reconstruct=input['reconstruct'])
             else:
                 x = block.reverse(x, z[-(i + 1)], reconstruct=input['reconstruct'])
-        output['img'] = x * 2 - 1
+        output['img'] = torch.clamp(x, -1, 1)
         return output
 
     def make_z_shapes(self):
