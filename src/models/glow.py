@@ -5,15 +5,10 @@ import numpy as np
 import torch.nn.functional as F
 import scipy.linalg as la
 from .utils import make_model
-from math import log, pi, exp
-
-
-def logabs(x):
-    return torch.log(torch.abs(x))
 
 
 def gaussian_log_p(x, mean, log_sd):
-    return -0.5 * log(2 * pi) - log_sd - 0.5 * (x - mean) ** 2 / torch.exp(2 * log_sd)
+    return -0.5 * (log_sd * 2. + ((x - mean) ** 2) / (torch.exp(log_sd * 2.) + 1e-10) + float(np.log(2 * np.pi)))
 
 
 def gaussian_sample(eps, mean, log_sd):
@@ -24,7 +19,7 @@ class ActNorm(nn.Module):
     def __init__(self, in_channel, logdet=True):
         super(ActNorm, self).__init__()
         self.loc = nn.Parameter(torch.zeros(1, in_channel, 1, 1))
-        self.scale = nn.Parameter(torch.ones(1, in_channel, 1, 1))
+        self.logscale = nn.Parameter(torch.ones(1, in_channel, 1, 1))
         self.initialized = False
         self.logdet = logdet
 
@@ -35,22 +30,21 @@ class ActNorm(nn.Module):
             mean = torch.mean(input, dim=[0, 2, 3], keepdim=True)
             std = torch.std(input, dim=[0, 2, 3], keepdim=True)
             self.loc.data.copy_(-mean)
-            self.scale.data.copy_(1 / (std + 1e-6))
+            self.logscale.data.copy_(torch.log(1 / (std + 1e-6)))
             self.initialized = True
 
     def forward(self, input):
         height, width = input.size(2), input.size(3)
         if not self.initialized:
             self.initialize(input)
-        log_abs = logabs(self.scale)
-        logdet = height * width * torch.sum(log_abs)
+        logdet = height * width * torch.sum(self.logscale)
         if self.logdet:
-            return self.scale * (input + self.loc), logdet
+            return torch.exp(self.logscale) * (input + self.loc), logdet
         else:
-            return self.scale * (input + self.loc)
+            return torch.exp(self.logscale) * (input + self.loc)
 
     def reverse(self, output):
-        return output / self.scale - self.loc
+        return output * torch.exp(-self.logscale) - self.loc
 
 
 class InvConv2d(nn.Module):
@@ -91,7 +85,7 @@ class InvConv2dLU(nn.Module):
         self.register_buffer('s_sign', torch.sign(w_s))
         self.register_buffer('l_eye', torch.eye(l_mask.shape[0]))
         self.w_l = nn.Parameter(w_l)
-        self.w_s = nn.Parameter(logabs(w_s))
+        self.w_s = nn.Parameter(torch.log(torch.abs(w_s)))
         self.w_u = nn.Parameter(w_u)
 
     def forward(self, input):
@@ -171,7 +165,7 @@ class AffineCoupling(nn.Module):
         in_a, in_b = input.chunk(2, 1)
         if self.affine:
             log_s, t = self.net(in_a).chunk(2, 1)
-            s = torch.sigmoid(log_s + 2)
+            s = torch.sigmoid(log_s + 2) + 1e-10
             out_b = (in_b + t) * s
             logdet = torch.sum(torch.log(s).view(input.size(0), -1), 1)
         else:
@@ -184,7 +178,7 @@ class AffineCoupling(nn.Module):
         out_a, out_b = output.chunk(2, 1)
         if self.affine:
             log_s, t = self.net(out_a).chunk(2, 1)
-            s = torch.sigmoid(log_s + 2)
+            s = torch.sigmoid(log_s + 2) + 1e-10
             in_b = out_b / s - t
         else:
             net_out = self.net(out_a)
@@ -308,13 +302,12 @@ class CGlow(nn.Module):
             self.blocks.append(Block(in_channel, hidden_size, K, num_mode, split=True, affine=affine, conv_lu=conv_lu))
             in_channel *= 2
         self.blocks.append(Block(in_channel, hidden_size, K, num_mode, split=False, affine=affine, conv_lu=conv_lu))
-        # self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
-        loss = -float(log(256.) * n_pixel)
+        loss = -float(np.log(256.) * n_pixel)
         loss = loss + logdet + log_p
-        loss = -loss / float(log(2.) * n_pixel)
+        loss = -loss / float(np.log(2.) * n_pixel)
         return loss.mean()
 
     def forward(self, input):
@@ -332,9 +325,6 @@ class CGlow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
         nll = self.loss_fn(log_p_sum, logdet)
-        # output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
-        # classification_loss = F.cross_entropy(output['logits'], input['label'])
-        # output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
         output['loss'] = nll
         output['z'] = z
         return output
@@ -405,9 +395,9 @@ class MCGlow(nn.Module):
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
-        loss = -float(log(256.) * n_pixel)
+        loss = -float(np.log(256.) * n_pixel)
         loss = loss + logdet + log_p
-        loss = -loss / float(log(2.) * n_pixel)
+        loss = -loss / float(np.log(2.) * n_pixel)
         return loss.mean()
 
     def forward(self, input):
@@ -425,9 +415,6 @@ class MCGlow(nn.Module):
             if log_p is not None:
                 log_p_sum = log_p_sum + log_p
         nll = self.loss_fn(log_p_sum, logdet)
-        # output['logits'] = F.adaptive_avg_pool2d(self.classifier(z_new), 1).squeeze()
-        # classification_loss = F.cross_entropy(output['logits'], input['label'])
-        # output['loss'] = nll + config.PARAM['classification_loss_weight'] * classification_loss
         output['loss'] = nll
         output['z'] = z
         return output

@@ -357,7 +357,7 @@ if __name__ == "__main__":
         result = fid_score
         print('FID ({}): {}'.format(model_tag, result))
         try:
-            os.makedirs(path)
+            os.makedirs('./output/result')
         except OSError as e:
             pass
         np.save(path, result)

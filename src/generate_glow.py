@@ -69,7 +69,7 @@ def test(model):
     max_num_mode = 100
     save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
     sample_per_iter = 1000
-    temp = 0.7
+    temp = 1
     with torch.no_grad():
         model.train(False)
         C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])

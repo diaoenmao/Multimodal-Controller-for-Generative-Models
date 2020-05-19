@@ -272,7 +272,7 @@ if __name__ == '__main__':
             result = (is_mean, is_std)
             print('Inception Score ({}): {}'.format(model_tag, result))
             try:
-                os.makedirs(path)
+                os.makedirs('./output/result')
             except OSError as e:
                 pass
             np.save(path, result)

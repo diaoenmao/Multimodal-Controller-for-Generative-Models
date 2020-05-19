@@ -41,14 +41,15 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 2e-4
+config.PARAM['lr'] = 1e-3
 config.PARAM['weight_decay'] = 0
 if config.PARAM['data_name'] in ['ImageNet32']:
-    config.PARAM['batch_size'] = {'train': 1024, 'test': 1024}
+    config.PARAM['batch_size'] = {'train': 256, 'test': 1024}
 else:
-    config.PARAM['batch_size'] = {'train': 128, 'test': 256}
+    config.PARAM['batch_size'] = {'train': 64, 'test': 256}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
-config.PARAM['show'] = False
+config.PARAM['show'] = True
+config.PARAM['scheduler_name'] = 'ExponentialLR'
 
 
 def main():
@@ -135,6 +136,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
         optimizer.step()
         if i % int((len(data_loader) * config.PARAM['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
