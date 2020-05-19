@@ -402,7 +402,6 @@ class MCGlow(nn.Module):
         self.blocks.append(
             Block(in_channel, hidden_size, K, num_mode, split=False, affine=affine, conv_lu=conv_lu, do_mc=True,
                   controller_rate=controller_rate))
-        # self.classifier = ZeroConv2d(4 * in_channel, num_mode, kernel_size=1, stride=1, padding=0)
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
