@@ -63,7 +63,7 @@ def main():
         controls = list(itertools.product(*controls))
         for j in range(len(controls)):
             controls[j] = list(controls[j])
-            if 'mc' in controls[j][1]:
+            if 'mc' in controls[j][3]:
                 controls[j].append('0.5')
             model_tag = '_'.join(controls[j])
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy {}&\n'.format(
