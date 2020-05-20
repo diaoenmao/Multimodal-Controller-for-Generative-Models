@@ -10,6 +10,7 @@ import time
 import torch
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
+from itertools import islice
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
@@ -41,15 +42,17 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 1e-3
-config.PARAM['weight_decay'] = 0
+config.PARAM['lr'] = 5e-4
+config.PARAM['weight_decay'] = 5e-5
 if config.PARAM['data_name'] in ['ImageNet32']:
     config.PARAM['batch_size'] = {'train': 256, 'test': 1024}
 else:
-    config.PARAM['batch_size'] = {'train': 64, 'test': 256}
+    config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
 config.PARAM['show'] = True
-config.PARAM['scheduler_name'] = 'ExponentialLR'
+config.PARAM['optimizer_name'] = 'Adamax'
+config.PARAM['scheduler_name'] = 'LambdaLR'
+config.PARAM['num_init_batches'] = 8
 
 
 def main():
@@ -74,11 +77,14 @@ def runExperiment():
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
     model.apply(models.utils.init_param)
+    init_batches = {'img': [], 'label': []}
     with torch.no_grad():
-        input = next(iter(data_loader['train']))
-        input = collate(input)
-        input = to_device(input, config.PARAM['device'])
-        model(input)
+        for input in islice(data_loader['train'], None, config.PARAM['num_init_batches']):
+            for k in init_batches:
+                init_batches[k].extend(input[k])
+        init_batches = collate(init_batches)
+        init_batches = to_device(init_batches, config.PARAM['device'])
+        model(init_batches)
     optimizer = make_optimizer(model)
     scheduler = make_scheduler(optimizer)
     if config.PARAM['resume_mode'] == 1:
@@ -133,6 +139,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         input_size = input['img'].size(0)
         input = to_device(input, config.PARAM['device'])
         optimizer.zero_grad()
+        input['reverse'] = False
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
@@ -163,14 +170,15 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
+            input['reverse'] = False
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['show']:
-            input['reconstruct'] = True
+            input['reverse'] = True
             input['z'] = output['z']
-            output = model.reverse(input)
+            output = model(input)
             save_img((input['img'][:100] + 1) / 2,
                      './output/img/input_{}.png'.format(config.PARAM['model_tag']))
             save_img((output['img'][:100] + 1) / 2,
@@ -191,6 +199,8 @@ def make_optimizer(model):
                                   weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
+    elif config.PARAM['optimizer_name'] == 'Adamax':
+        optimizer = optim.Adamax(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer
@@ -216,6 +226,10 @@ def make_scheduler(optimizer):
                                                          threshold_mode='rel')
     elif config.PARAM['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=config.PARAM['lr'], max_lr=10 * config.PARAM['lr'])
+    elif config.PARAM['scheduler_name'] == 'LambdaLR':
+        warmup = 5
+        lr_lambda = lambda epoch: min(1.0, (epoch + 1) / warmup)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
     else:
         raise ValueError('Not valid scheduler name')
     return scheduler

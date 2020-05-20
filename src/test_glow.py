@@ -87,11 +87,12 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
+            input['reverse'] = False
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        input['reconstruct'] = True
+        input['reverse'] = True
         input['z'] = output['z']
         output = model.reverse(input)
         save_img((input['img'][:100] + 1) / 2,

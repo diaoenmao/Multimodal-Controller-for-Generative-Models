@@ -74,7 +74,7 @@ def transit(model):
     with torch.no_grad():
         model.train(False)
         C = torch.arange(save_num_mode).to(config.PARAM['device'])
-        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
+        x = torch.randn([C.size(0), config.PARAM['latent_size']]).to(config.PARAM['device'])
         transited = []
         for i in range(len(alphas)):
             models.utils.transit(model, root, alphas[i])

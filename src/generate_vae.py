@@ -71,16 +71,13 @@ def test(model):
     sample_per_iter = 1000
     with torch.no_grad():
         model.train(False)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        C = torch.arange(config.PARAM['classes_size'])
         C = C.repeat(config.PARAM['generate_per_mode'])
         C_generated = torch.split(C, sample_per_iter)
-        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
-        x_generated = torch.split(x, sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
-            x_generated_i = x_generated[i]
-            C_generated_i = C_generated[i]
-            generated_i = model.generate(x_generated_i, C_generated_i)
+            C_generated_i = C_generated[i].to(config.PARAM['device'])
+            generated_i = model.generate(C_generated_i)
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         saved = []

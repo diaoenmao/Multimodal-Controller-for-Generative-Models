@@ -204,17 +204,17 @@ def test(model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
         model.train(False)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        C = torch.arange(config.PARAM['classes_size'])
         C = C.repeat(config.PARAM['generate_per_mode'])
-        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device']) \
+        config.PARAM['z'] = torch.randn([C.size(0), config.PARAM['latent_size']]) \
             if 'z' not in config.PARAM else config.PARAM['z']
         C_generated = torch.split(C, sample_per_iter)
         z_generated = torch.split(config.PARAM['z'], sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
-            C_generated_i = C_generated[i]
-            z_generated_i = z_generated[i]
-            generated_i = model.generate(z_generated_i, C_generated_i)
+            C_generated_i = C_generated[i].to(config.PARAM['device'])
+            z_generated_i = z_generated[i].to(config.PARAM['device'])
+            generated_i = model.generate(C_generated_i, z_generated_i)
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         output = {'img': generated}

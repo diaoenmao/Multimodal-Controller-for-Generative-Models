@@ -75,17 +75,13 @@ def test(ae, model):
     sample_per_iter = 1000
     with torch.no_grad():
         model.train(False)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        C = torch.arange(config.PARAM['classes_size'])
         C = C.repeat(config.PARAM['generate_per_mode'])
         C_generated = torch.split(C, sample_per_iter)
-        x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
-                        dtype=torch.long, device=config.PARAM['device'])
-        x_generated = torch.split(x, sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
-            x_generated_i = x_generated[i]
-            C_generated_i = C_generated[i]
-            code_i = model.generate(x_generated_i, C_generated_i)
+            C_generated_i = C_generated[i].to(config.PARAM['device'])
+            code_i = model.generate(C_generated_i)
             generated_i = ae.decode(code_i)
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)

@@ -78,17 +78,13 @@ def create(ae, model):
     model = model.to(config.PARAM['device'])
     with torch.no_grad():
         model.train(False)
-        C = torch.arange(save_num_mode).to(config.PARAM['device'])
+        C = torch.arange(save_num_mode)
         C = C.repeat(save_per_mode)
         C_created = torch.split(C, sample_per_iter)
-        x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
-                        dtype=torch.long, device=config.PARAM['device'])
-        x_created = torch.split(x, sample_per_iter)
         created = []
         for i in range(len(C_created)):
-            x_created_i = x_created[i]
-            C_created_i = C_created[i]
-            code_i = model.generate(x_created_i, C_created_i)
+            C_created_i = C_created[i].to(config.PARAM['device'])
+            code_i = model.generate(C_created_i)
             created_i = ae.decode(code_i)
             created.append(created_i.cpu())
         created = torch.cat(created)

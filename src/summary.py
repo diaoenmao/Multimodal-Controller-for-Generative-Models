@@ -35,7 +35,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-
+config.PARAM['batch_size'] = {'train': 2, 'test': 2}
 
 def main():
     process_control_name()
@@ -100,7 +100,7 @@ def summarize(data_loader, model):
                 summary['module'][key]['coordinates'].append(
                     [torch.arange(weight_size[i], device=config.PARAM['device']) for i in range(len(weight_size))])
             else:
-                raise ValueError('Not valid parametrized module')
+                return
             for name in summary['module'][key]['params']:
                 coordinates = summary['module'][key]['coordinates'][-1]
                 if name == 'weight':

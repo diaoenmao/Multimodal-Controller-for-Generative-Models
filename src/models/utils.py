@@ -73,7 +73,7 @@ def create_embedding(embedding):
     config.PARAM['concentration'] = torch.ones(embedding.size(0))
     m = torch.distributions.dirichlet.Dirichlet(config.PARAM['concentration'].to(config.PARAM['device']))
     convex_combination = m.sample((config.PARAM['classes_size'],))
-    created_embedding = convex_combination.matmul(embedding)
+    created_embedding = (convex_combination.matmul(embedding)).to(config.PARAM['device'])
     return created_embedding
 
 
@@ -106,7 +106,7 @@ def create_codebook(codebook):
             created_codebook_c[mutate_mask] = torch.fmod(created_codebook_c[mutate_mask] + 1, 2)
             created_codebook_c = tuple(created_codebook_c.tolist())
             created_codebook.add(created_codebook_c)
-    created_codebook = torch.tensor(list(created_codebook)[:classes_size], dtype=torch.float)
+    created_codebook = torch.tensor(list(created_codebook)[:classes_size], dtype=torch.float).to(config.PARAM['device'])
     return created_codebook
 
 

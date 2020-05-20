@@ -105,7 +105,10 @@ class ConditionalGatedPixelCNN(nn.Module):
         output['loss'] = F.cross_entropy(output['logits'], input['img'])
         return output
 
-    def generate(self, x, C):
+    def generate(self, C, x=None):
+        if x is None:
+            x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
+                            dtype=torch.long, device=config.PARAM['device'])
         input = {'img': x, 'label': C}
         for i in range(x.size(1)):
             for j in range(x.size(2)):
@@ -196,7 +199,10 @@ class MCGatedPixelCNN(nn.Module):
         output['loss'] = F.cross_entropy(output['logits'], input['img'])
         return output
 
-    def generate(self, x, C):
+    def generate(self, C, x=None):
+        if x is None:
+            x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
+                            dtype=torch.long, device=config.PARAM['device'])
         input = {'img': x, 'label': C}
         for i in range(x.size(1)):
             for j in range(x.size(2)):

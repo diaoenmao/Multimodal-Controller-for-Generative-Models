@@ -69,24 +69,16 @@ def test(model):
     max_num_mode = 100
     save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
     sample_per_iter = 1000
-    temp = 1
+    temperature = 1
     with torch.no_grad():
         model.train(False)
-        C = torch.arange(config.PARAM['classes_size']).to(config.PARAM['device'])
+        C = torch.arange(config.PARAM['classes_size'])
         C = C.repeat(config.PARAM['generate_per_mode'])
         C_generated = torch.split(C, sample_per_iter)
-        z_shapes = model.make_z_shapes()
-        x_generated = [[None for _ in range(len(z_shapes))] for _ in range(len(C_generated))]
-        for i in range(len(z_shapes)):
-            x_i = torch.randn([C.size(0), *z_shapes[i]], device=config.PARAM['device']) * temp
-            x_i = torch.split(x_i, sample_per_iter)
-            for j in range(len(C_generated)):
-                x_generated[j][i] = x_i[j]
         generated = []
         for i in range(len(C_generated)):
-            x_generated_i = x_generated[i]
-            C_generated_i = C_generated[i]
-            generated_i = model.generate(x_generated_i, C_generated_i)
+            C_generated_i = C_generated[i].to(config.PARAM['device'])
+            generated_i = model.generate(C_generated_i, temperature=temperature)
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         saved = []

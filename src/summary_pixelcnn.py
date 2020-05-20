@@ -35,7 +35,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-
+config.PARAM['batch_size'] = {'train': 2, 'test': 2}
 
 def main():
     process_control_name()

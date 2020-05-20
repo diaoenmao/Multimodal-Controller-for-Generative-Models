@@ -73,16 +73,13 @@ def create(model):
     model = model.to(config.PARAM['device'])
     with torch.no_grad():
         model.train(False)
-        C = torch.arange(save_num_mode).to(config.PARAM['device'])
+        C = torch.arange(save_num_mode)
         C = C.repeat(save_per_mode)
         C_created = torch.split(C, sample_per_iter)
-        x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
-        x_created = torch.split(x, sample_per_iter)
         created = []
         for i in range(len(C_created)):
-            x_created_i = x_created[i]
-            C_created_i = C_created[i]
-            created_i = model.generate(x_created_i, C_created_i)
+            C_created_i = C_created[i].to(config.PARAM['device'])
+            created_i = model.generate(C_created_i)
             created.append(created_i.cpu())
         created = torch.cat(created)
         created = (created + 1) / 2

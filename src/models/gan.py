@@ -12,7 +12,9 @@ class CGAN(nn.Module):
         self.model = make_model(config.PARAM['model'])
         self.model['discriminator'].apply(make_SpectralNormalization)
 
-    def generate(self, x, C):
+    def generate(self, C, x=None):
+        if x is None:
+            x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
         onehot = F.one_hot(C, config.PARAM['classes_size']).float()
         embedding = self.model['generator_embedding'](onehot)
         embedding = embedding.view([*embedding.size(), 1, 1])
@@ -42,7 +44,9 @@ class MCGAN(nn.Module):
         self.model = make_model(config.PARAM['model'])
         self.model['discriminator'].apply(make_SpectralNormalization)
 
-    def generate(self, x, C):
+    def generate(self, C, x=None):
+        if x is None:
+            x = torch.randn([C.size(0), config.PARAM['latent_size']], device=config.PARAM['device'])
         config.PARAM['indicator'] = F.one_hot(C, config.PARAM['classes_size']).float()
         x = x.view([*x.size(), 1, 1])
         generated = self.model['generator'](x)
