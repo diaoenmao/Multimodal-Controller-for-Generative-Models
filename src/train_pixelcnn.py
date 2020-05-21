@@ -124,6 +124,7 @@ def runExperiment():
 
 def train(data_loader, ae, model, optimizer, logger, epoch):
     metric = Metric()
+    ae.train(False)
     model.train(True)
     for i, input in enumerate(data_loader):
         start_time = time.time()
@@ -157,6 +158,7 @@ def train(data_loader, ae, model, optimizer, logger, epoch):
 def test(data_loader, ae, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
+        ae.train(False)
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
@@ -183,6 +185,8 @@ def make_optimizer(model):
                                   weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
         optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
+    elif config.PARAM['optimizer_name'] == 'Adamax':
+        optimizer = optim.Adamax(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'])
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer
@@ -208,6 +212,10 @@ def make_scheduler(optimizer):
                                                          threshold_mode='rel')
     elif config.PARAM['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=config.PARAM['lr'], max_lr=10 * config.PARAM['lr'])
+    elif config.PARAM['scheduler_name'] == 'LambdaLR':
+        warmup = 5
+        lr_lambda = lambda epoch: min(1.0, (epoch + 1) / warmup)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
     else:
         raise ValueError('Not valid scheduler name')
     return scheduler

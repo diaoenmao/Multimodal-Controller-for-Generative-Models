@@ -39,9 +39,9 @@ def main():
             'MCGAN': {
                 'control_names': [control_exp, [data_name[i]], ['label'], ['mcgan'], ['0.5']], 'metric': None},
             'CGLOW': {
-                'control_names': [control_exp, [data_name[i]], ['label'], ['cglow']], 'metric': 'test/Loss'},
+                'control_names': [['1'], [data_name[i]], ['label'], ['cglow']], 'metric': 'test/Loss'},
             'MCGLOW': {
-                'control_names': [control_exp, [data_name[i]], ['label'], ['mcglow'], ['0.5']], 'metric': 'test/Loss'},
+                'control_names': [['1'], [data_name[i]], ['label'], ['mcglow'], ['0.5']], 'metric': 'test/Loss'},
         }
         result = {}
         for result_name, info in result_control.items():
@@ -55,22 +55,39 @@ def main():
 def extract_result(info):
     control_names = info['control_names']
     metric = info['metric']
-    if metric is None:
-        return
     control_names_product = list(itertools.product(*control_names))
-    extracted = np.zeros(len(control_exp))
+    extracted = {'base': np.zeros(len(control_exp)), 'is': np.zeros((len(control_exp), 2)),
+                 'fid': np.zeros(len(control_exp))}
     for i in range(len(control_names_product)):
         control_name = list(control_names_product[i])
         model_tag = '_'.join(control_name)
-        result_path_i = '{}/{}.pt'.format(result_path, model_tag)
-        if os.path.exists(result_path_i):
-            result = load(result_path_i)
-            logger = result['logger']
+        if metric is not None:
+            base_result_path_i = '{}/{}.pt'.format(result_path, model_tag)
+            if os.path.exists(base_result_path_i):
+                result = load(base_result_path_i)
+                exp_idx = control_exp.index(control_names_product[i][0])
+                extracted['base'][exp_idx] = result['logger'].mean[metric]
+            else:
+                pass
+        is_result_path_i = '{}/is_{}.npy'.format(result_path, model_tag)
+        if os.path.exists(is_result_path_i):
+            result = np.load(is_result_path_i)
             exp_idx = control_exp.index(control_names_product[i][0])
-            extracted[exp_idx] = logger.mean[metric]
+            extracted['is'][exp_idx] = result
         else:
-            print('Not valid result path {}'.format(result_path_i))
-    result = {'mean': np.mean(extracted), 'stderr': np.std(extracted) / np.sqrt(num_Experiments)}
+            pass
+        fid_result_path_i = '{}/is_{}.npy'.format(result_path, model_tag)
+        if os.path.exists(fid_result_path_i):
+            result = load(fid_result_path_i, mode='numpy')
+            exp_idx = control_exp.index(control_names_product[i][0])
+            extracted['is'][exp_idx] = result
+        else:
+            pass
+    result = {
+        'base': {'mean': np.mean(extracted['base']), 'stderr': np.std(extracted['base']) / np.sqrt(num_Experiments)},
+        'is': {'mean': np.mean(extracted['is'], axis=0),
+               'stderr': np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)},
+        'fid': {'mean': np.mean(extracted['fid']), 'stderr': np.std(extracted['fid']) / np.sqrt(num_Experiments)}}
     return result
 
 

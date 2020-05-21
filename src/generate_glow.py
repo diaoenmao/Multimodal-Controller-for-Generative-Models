@@ -69,26 +69,27 @@ def test(model):
     max_num_mode = 100
     save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
     sample_per_iter = 1000
-    temperature = 1
+    temperature = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
     with torch.no_grad():
         model.train(False)
         C = torch.arange(config.PARAM['classes_size'])
         C = C.repeat(config.PARAM['generate_per_mode'])
         C_generated = torch.split(C, sample_per_iter)
-        generated = []
-        for i in range(len(C_generated)):
-            C_generated_i = C_generated[i].to(config.PARAM['device'])
-            generated_i = model.generate(C_generated_i, temperature=temperature)
-            generated.append(generated_i.cpu())
-        generated = torch.cat(generated)
-        saved = []
-        for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
-            saved.append(generated[i:i + save_num_mode])
-        saved = torch.cat(saved)
-        generated = ((generated + 1) / 2 * 255).numpy()
-        saved = (saved + 1) / 2
-        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
-        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
+        for t in temperature:
+            generated = []
+            for i in range(len(C_generated)):
+                C_generated_i = C_generated[i].to(config.PARAM['device'])
+                generated_i = model.generate(C_generated_i, temperature=t)
+                generated.append(generated_i.cpu())
+            generated = torch.cat(generated)
+            saved = []
+            for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
+                saved.append(generated[i:i + save_num_mode])
+            saved = torch.cat(saved)
+            generated = ((generated + 1) / 2 * 255).numpy()
+            saved = (saved + 1) / 2
+            save(generated, './output/npy/{}_{}.npy'.format(config.PARAM['model_tag'], t), mode='numpy')
+            save_img(saved, './output/img/generated_{}_{}.png'.format(config.PARAM['model_tag'], t), nrow=save_num_mode)
     return
 
 

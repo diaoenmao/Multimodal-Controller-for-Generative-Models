@@ -89,6 +89,7 @@ def runExperiment():
 def test(data_loader, ae, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
+        ae.train(False)
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)

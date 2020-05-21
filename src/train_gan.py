@@ -50,6 +50,7 @@ else:
     config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 config.PARAM['loss_type'] = 'Hinge'
+config.PARAM['betas'] = (0.5, 0.999)
 
 
 def main():
@@ -228,14 +229,17 @@ def test(model, logger, epoch):
 
 def make_optimizer(model):
     if config.PARAM['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(model.parameters(), lr=config.PARAM['lr'],
-                              momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
+        optimizer = optim.SGD(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
+                              weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'RMSprop':
-        optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'],
-                                  momentum=config.PARAM['momentum'], weight_decay=config.PARAM['weight_decay'])
+        optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
+                                  weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'],
-                               weight_decay=config.PARAM['weight_decay'], betas=(0.5, 0.999))
+        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
+                               betas=config.PARAM['betas'])
+    elif config.PARAM['optimizer_name'] == 'Adamax':
+        optimizer = optim.Adamax(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
+                                 betas=config.PARAM['betas'])
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer
@@ -261,6 +265,10 @@ def make_scheduler(optimizer):
                                                          threshold_mode='rel')
     elif config.PARAM['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=config.PARAM['lr'], max_lr=10 * config.PARAM['lr'])
+    elif config.PARAM['scheduler_name'] == 'LambdaLR':
+        warmup = 5
+        lr_lambda = lambda epoch: min(1.0, (epoch + 1) / warmup)
+        scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
     else:
         raise ValueError('Not valid scheduler name')
     return scheduler

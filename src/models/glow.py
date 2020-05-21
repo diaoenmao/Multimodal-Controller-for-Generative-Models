@@ -591,11 +591,34 @@ class Glow(nn.Module):
         if not do_mc:
             C = self.flow.output_shapes[-1][1]
             self.project_ycond = LinearZeros(num_mode, 2 * C)
-        self.register_buffer("prior_h",
-                             torch.zeros([1,
-                                          self.flow.output_shapes[-1][1] * 2,
-                                          self.flow.output_shapes[-1][2],
-                                          self.flow.output_shapes[-1][3]]))
+        # self.register_buffer("prior_h",
+        #                      torch.zeros([1,
+        #                                   self.flow.output_shapes[-1][1] * 2,
+        #                                   self.flow.output_shapes[-1][2],
+        #                                   self.flow.output_shapes[-1][3]]))
+        self.register_parameter("prior_h",
+                                nn.Parameter(torch.zeros([1,
+                                                          self.flow.output_shapes[-1][1] * 2,
+                                                          self.flow.output_shapes[-1][2],
+                                                          self.flow.output_shapes[-1][3]])))
+
+    def preprocess(self, x, n_bits=8):
+        n_bins = 2 ** n_bits
+        x = (x + 1) / 2
+        x = x * 255
+        if n_bits < 8:
+            x = torch.floor(x / 2 ** (8 - n_bits))
+        x = x / n_bins - 0.5
+        return x
+
+    def postprocess(self, x, n_bits=8):
+        n_bins = 2 ** n_bits
+        x = torch.floor((x + 0.5) * n_bins)
+        x = x * (256. / n_bins)
+        x = torch.clamp(x, 0, 255)
+        x = x / 255
+        x = x * 2 - 1
+        return x
 
     def prior(self, C):
         h = self.prior_h.repeat(C.size(0), 1, 1, 1)
@@ -614,9 +637,9 @@ class Glow(nn.Module):
             z = input['z']
             temperature = input['temperature'] if 'temperature' in input else 1
             x = self.reverse_flow(z, config.PARAM['indicator'], temperature)
-            output['img'] = torch.clamp(x, -0.5, 0.5) + 0.5
+            output['img'] = self.postprocess(x)
         else:
-            x = ((input['img'] + 1) / 2 - 0.5).detach()
+            x = self.preprocess(input['img']).detach()
             output['z'], bpd = self.normal_flow(x, config.PARAM['indicator'])
             output['loss'] = bpd.mean()
         return output
@@ -643,7 +666,7 @@ class Glow(nn.Module):
             mean, logs = self.prior(config.PARAM['indicator'])
             x = gaussian_sample(mean, logs, temperature)
         x = self.flow(x, temperature=temperature, reverse=True)
-        generated = torch.clamp(x, -0.5, 0.5) + 0.5
+        generated = self.postprocess(x)
         return generated
 
 
