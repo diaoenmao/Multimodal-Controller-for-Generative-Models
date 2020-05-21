@@ -13,7 +13,8 @@ from utils import save, to_device, process_control_name, process_dataset, resume
 from logger import Logger
 
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+if config.PARAM['world_size'] == 1:
+    os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')

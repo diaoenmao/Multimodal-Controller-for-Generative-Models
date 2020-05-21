@@ -5,10 +5,15 @@ import numpy as np
 import torch.nn.functional as F
 import scipy.linalg as la
 from .utils import make_model
+from math import log, pi, exp
+
+
+def logabs(x):
+    return torch.log(torch.abs(x))
 
 
 def gaussian_log_p(x, mean, log_sd):
-    return -0.5 * (log_sd * 2. + ((x - mean) ** 2) / (torch.exp(log_sd * 2.)) + float(np.log(2 * np.pi)))
+    return -0.5 * log(2 * pi) - log_sd - 0.5 * (x - mean) ** 2 / torch.exp(2 * log_sd)
 
 
 def gaussian_sample(eps, mean, log_sd):
@@ -19,7 +24,7 @@ class ActNorm(nn.Module):
     def __init__(self, in_channel, logdet=True):
         super(ActNorm, self).__init__()
         self.loc = nn.Parameter(torch.zeros(1, in_channel, 1, 1))
-        self.logscale = nn.Parameter(torch.ones(1, in_channel, 1, 1))
+        self.scale = nn.Parameter(torch.ones(1, in_channel, 1, 1))
         self.register_buffer('initialized', torch.tensor(0, dtype=torch.uint8))
         self.logdet = logdet
 
@@ -30,21 +35,22 @@ class ActNorm(nn.Module):
             mean = torch.mean(input, dim=[0, 2, 3], keepdim=True)
             std = torch.std(input, dim=[0, 2, 3], keepdim=True)
             self.loc.data.copy_(-mean)
-            self.logscale.data.copy_(torch.log(1 / (std + 1e-6)))
+            self.scale.data.copy_(1 / (std + 1e-6))
             self.initialized.fill_(1)
 
     def forward(self, input):
         height, width = input.size(2), input.size(3)
         if self.initialized.item() == 0:
             self.initialize(input)
-        logdet = height * width * torch.sum(self.logscale)
+        log_abs = logabs(self.scale)
+        logdet = height * width * torch.sum(log_abs)
         if self.logdet:
-            return torch.exp(self.logscale) * (input + self.loc), logdet
+            return self.scale * (input + self.loc), logdet
         else:
-            return torch.exp(self.logscale) * (input + self.loc)
+            return self.scale * (input + self.loc)
 
     def reverse(self, output):
-        return output * torch.exp(-self.logscale) - self.loc
+        return output / self.scale - self.loc
 
 
 class InvConv2d(nn.Module):
@@ -85,7 +91,7 @@ class InvConv2dLU(nn.Module):
         self.register_buffer('s_sign', torch.sign(w_s))
         self.register_buffer('l_eye', torch.eye(l_mask.shape[0]))
         self.w_l = nn.Parameter(w_l)
-        self.w_s = nn.Parameter(torch.log(torch.abs(w_s)))
+        self.w_s = nn.Parameter(logabs(w_s))
         self.w_u = nn.Parameter(w_u)
 
     def forward(self, input):
@@ -305,9 +311,9 @@ class CGlow(nn.Module):
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
-        loss = -float(np.log(256.) * n_pixel)
+        loss = -float(log(256.) * n_pixel)
         loss = loss + logdet + log_p
-        loss = -loss / float(np.log(2.) * n_pixel)
+        loss = -loss / float(log(2.) * n_pixel)
         return loss.mean()
 
     def forward(self, input):
@@ -353,8 +359,14 @@ class CGlow(nn.Module):
         z_shapes.append((C * 4, H, W))
         return z_shapes
 
-    def generate(self, x, C):
+    def generate(self, C, x=None, temperature=1):
         input = {}
+        if x is None:
+            z_shapes = self.make_z_shapes()
+            x = []
+            for i in range(len(z_shapes)):
+                x_i = torch.randn([C.size(0), *z_shapes[i]], device=config.PARAM['device']) * temperature
+                x.append(x_i)
         input['z'] = x
         input['reconstruct'] = False
         input['label'] = C
@@ -395,9 +407,9 @@ class MCGlow(nn.Module):
 
     def loss_fn(self, log_p, logdet):
         n_pixel = np.prod(self.img_shape)
-        loss = -float(np.log(256.) * n_pixel)
+        loss = -float(log(256.) * n_pixel)
         loss = loss + logdet + log_p
-        loss = -loss / float(np.log(2.) * n_pixel)
+        loss = -loss / float(log(2.) * n_pixel)
         return loss.mean()
 
     def forward(self, input):

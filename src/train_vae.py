@@ -15,7 +15,8 @@ from metrics import Metric
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
 from logger import Logger
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+if config.PARAM['world_size'] == 1:
+    os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
@@ -49,7 +50,7 @@ else:
     config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
 config.PARAM['show'] = False
-
+config.PARAM['scheduler_name'] = 'ExponentialLR'
 
 def main():
     process_control_name()

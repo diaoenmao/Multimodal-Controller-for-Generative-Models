@@ -15,7 +15,8 @@ from metrics import Metric
 from utils import save, load, to_device, process_control_name, process_dataset, collate
 from logger import Logger
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+if config.PARAM['world_size'] == 1:
+    os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='Config')
@@ -51,6 +52,7 @@ else:
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 config.PARAM['loss_type'] = 'Hinge'
 config.PARAM['betas'] = (0.5, 0.999)
+config.PARAM['scheduler_name'] = 'ExponentialLR'
 
 
 def main():
@@ -74,14 +76,15 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    model.apply(models.utils.init_param)
+    model['generator'].apply(models.utils.init_param)
+    model['discriminator'].apply(models.utils.init_param)
     if config.PARAM['world_size'] > 1:
-        model.model['generator'] = torch.nn.DataParallel(model.model['generator'],
-                                                         device_ids=list(range(config.PARAM['world_size'])))
-        model.model['discriminator'] = torch.nn.DataParallel(model.model['discriminator'],
-                                                             device_ids=list(range(config.PARAM['world_size'])))
-    optimizer = {'generator': make_optimizer(model.model['generator']),
-                 'discriminator': make_optimizer(model.model['discriminator'])}
+        model['generator'] = torch.nn.DataParallel(model['generator'],
+                                                   device_ids=list(range(config.PARAM['world_size'])))
+        model['discriminator'] = torch.nn.DataParallel(model['discriminator'],
+                                                       device_ids=list(range(config.PARAM['world_size'])))
+    optimizer = {'generator': make_optimizer(model['generator']),
+                 'discriminator': make_optimizer(model['discriminator'])}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
                  'discriminator': make_scheduler(optimizer['discriminator'])}
     if config.PARAM['resume_mode'] == 1:
@@ -144,19 +147,16 @@ def train(data_loader, model, optimizer, logger, epoch):
             # train with real
             optimizer['discriminator'].zero_grad()
             optimizer['generator'].zero_grad()
-            D_x = model.discriminate(input['img'], input[config.PARAM['subset']])
+            D_x = model['discriminator'](input['img'], input[config.PARAM['subset']])
             # train with fake
             z1 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-            generated = model.generate(z1, input[config.PARAM['subset']])
-            D_G_z1 = model.discriminate(generated.detach(), input[config.PARAM['subset']])
+            generated = model['generator'](z1, input[config.PARAM['subset']])
+            D_G_z1 = model['discriminator'](generated.detach(), input[config.PARAM['subset']])
             if config.PARAM['loss_type'] == 'BCE':
-                D_loss = torch.nn.functional.binary_cross_entropy_with_logits(D_x, torch.ones((input['img'].size(0), 1),
-                                                                                              device=config.PARAM[
-                                                                                                  'device'])) + \
-                         torch.nn.functional.binary_cross_entropy_with_logits(D_G_z1,
-                                                                              torch.zeros((input['img'].size(0), 1),
-                                                                                          device=config.PARAM[
-                                                                                              'device']))
+                D_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                    D_x, torch.ones((input['img'].size(0), 1), device=config.PARAM['device'])) + \
+                         torch.nn.functional.binary_cross_entropy_with_logits(
+                             D_G_z1, torch.zeros((input['img'].size(0), 1), device=config.PARAM['device']))
             elif config.PARAM['loss_type'] == 'Hinge':
                 D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
             else:
@@ -170,12 +170,11 @@ def train(data_loader, model, optimizer, logger, epoch):
             optimizer['discriminator'].zero_grad()
             optimizer['generator'].zero_grad()
             z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-            generated = model.generate(z2, input[config.PARAM['subset']])
-            D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
+            generated = model['generator'](z2, input[config.PARAM['subset']])
+            D_G_z2 = model['discriminator'](generated, input[config.PARAM['subset']])
             if config.PARAM['loss_type'] == 'BCE':
-                G_loss = torch.nn.functional.binary_cross_entropy_with_logits(D_G_z2,
-                                                                              torch.ones((input['img'].size(0), 1),
-                                                                                         device=config.PARAM['device']))
+                G_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                    D_G_z2, torch.ones((input['img'].size(0), 1), device=config.PARAM['device']))
             elif config.PARAM['loss_type'] == 'Hinge':
                 G_loss = -D_G_z2.mean()
             else:
@@ -201,7 +200,7 @@ def train(data_loader, model, optimizer, logger, epoch):
 
 
 def test(model, logger, epoch):
-    sample_per_iter = 1000
+    sample_per_iter = 128
     with torch.no_grad():
         metric = Metric()
         model.train(False)
@@ -215,7 +214,7 @@ def test(model, logger, epoch):
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i].to(config.PARAM['device'])
             z_generated_i = z_generated[i].to(config.PARAM['device'])
-            generated_i = model.generate(C_generated_i, z_generated_i)
+            generated_i = model['generator'](z_generated_i, C_generated_i)
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         output = {'img': generated}

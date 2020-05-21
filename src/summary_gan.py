@@ -52,15 +52,14 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
-    ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    summary = summarize(data_loader['train'], model, ae)
+    summary = summarize(data_loader['train'], model)
     content = parse_summary(summary)
     print(content)
     return
 
 
-def summarize(data_loader, model, ae):
+def summarize(data_loader, model):
     def register_hook(module):
 
         def hook(module, input, output):
@@ -106,7 +105,7 @@ def summarize(data_loader, model, ae):
                 summary['module'][key]['coordinates'].append(
                     [torch.arange(weight_size[i], device=config.PARAM['device']) for i in range(len(weight_size))])
             else:
-                raise ValueError('Not valid parametrized module')
+                return
             for name in summary['module'][key]['params']:
                 coordinates = summary['module'][key]['coordinates'][-1]
                 if name == 'weight':
@@ -133,19 +132,20 @@ def summarize(data_loader, model, ae):
             hooks.append(module.register_forward_hook(hook))
         return
 
-    run_mode = True
+    run_mode = False
     summary = OrderedDict()
     summary['module'] = OrderedDict()
     summary['count'] = OrderedDict()
     hooks = []
     model.train(run_mode)
-    model.apply(register_hook)
+    model['generator'].apply(register_hook)
+    model['discriminator'].apply(register_hook)
     for i, input in enumerate(data_loader):
         input = collate(input)
         input = to_device(input, config.PARAM['device'])
-        with torch.no_grad():
-            input['img'] = ae.encode(input).detach()
-        model(input)
+        model['generator'](torch.randn(input['img'].size(0), config.PARAM['latent_size']).to(config.PARAM['device']),
+                           input['label'])
+        model['discriminator'](input['img'], input['label'])
         break
     for h in hooks:
         h.remove()
