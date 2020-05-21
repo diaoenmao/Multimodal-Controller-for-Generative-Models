@@ -146,10 +146,8 @@ def process_control_name():
         config.PARAM['hidden_size'] = 512
         config.PARAM['K'] = 16
         config.PARAM['L'] = 3
-        config.PARAM['actnorm_scale'] = 1
-        config.PARAM['flow_permutation'] = 'invconv'
-        config.PARAM['flow_coupling'] = 'affine'
-        config.PARAM['LU_decomposed'] = True
+        config.PARAM['affine'] = True
+        config.PARAM['conv_lu'] = True
     return
 
 

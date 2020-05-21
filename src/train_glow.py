@@ -49,7 +49,7 @@ if config.PARAM['data_name'] in ['ImageNet32']:
 else:
     config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
-config.PARAM['show'] = True
+config.PARAM['show'] = False
 config.PARAM['optimizer_name'] = 'Adamax'
 config.PARAM['scheduler_name'] = 'LambdaLR'
 config.PARAM['num_init_batches'] = 8
@@ -139,7 +139,6 @@ def train(data_loader, model, optimizer, logger, epoch):
         input_size = input['img'].size(0)
         input = to_device(input, config.PARAM['device'])
         optimizer.zero_grad()
-        input['reverse'] = False
         output = model(input)
         output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
         output['loss'].backward()
@@ -170,15 +169,14 @@ def test(data_loader, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, config.PARAM['device'])
-            input['reverse'] = False
             output = model(input)
             output['loss'] = output['loss'].mean() if config.PARAM['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(config.PARAM['metric_names']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         if config.PARAM['show']:
-            input['reverse'] = True
+            input['reconstruct'] = True
             input['z'] = output['z']
-            output = model(input)
+            output = model.reverse(input)
             save_img((input['img'][:100] + 1) / 2,
                      './output/img/input_{}.png'.format(config.PARAM['model_tag']))
             save_img((output['img'][:100] + 1) / 2,
