@@ -3,7 +3,7 @@ def init():
     PARAM = {
         'data_name': 'CIFAR10',
         'subset': 'label',
-        'model_name': 'vae',
+        'model_name': 'mcvae',
         'ae_name': 'vqvae',
         'create_mode': 'random',
         'control': {'controller_rate': '0.5'},

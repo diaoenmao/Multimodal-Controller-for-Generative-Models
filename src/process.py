@@ -5,6 +5,7 @@ import os
 import itertools
 import matplotlib.pyplot as plt
 import models
+import json
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -47,7 +48,10 @@ def main():
         for result_name, info in result_control.items():
             result[result_name] = extract_result(info)
         processed_result[data_name[i]] = result
+    processed_result = json.dumps(processed_result)
     print(processed_result)
+    exit()
+    json_processed_result = json.loads(processed_result)
     save(processed_result, '{}/processed_result.pt'.format(result_path))
     return
 
@@ -76,17 +80,17 @@ def extract_result(info):
             extracted['is'][exp_idx] = result
         else:
             pass
-        fid_result_path_i = '{}/is_{}.npy'.format(result_path, model_tag)
+        fid_result_path_i = '{}/fid_{}.npy'.format(result_path, model_tag)
         if os.path.exists(fid_result_path_i):
             result = load(fid_result_path_i, mode='numpy')
             exp_idx = control_exp.index(control_names_product[i][0])
-            extracted['is'][exp_idx] = result
+            extracted['fid'][exp_idx] = result
         else:
             pass
     result = {
         'base': {'mean': np.mean(extracted['base']), 'stderr': np.std(extracted['base']) / np.sqrt(num_Experiments)},
-        'is': {'mean': np.mean(extracted['is'], axis=0),
-               'stderr': np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)},
+        'is': {'mean': np.mean(extracted['is'], axis=0).tolist(),
+               'stderr': (np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)).tolist()},
         'fid': {'mean': np.mean(extracted['fid']), 'stderr': np.std(extracted['fid']) / np.sqrt(num_Experiments)}}
     return result
 

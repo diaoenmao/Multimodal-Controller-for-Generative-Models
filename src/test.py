@@ -1078,21 +1078,21 @@ import itertools
 #     exit()
 
 
-if __name__ == "__main__":
-    data_name = 'CIFAR10'
-    subset = 'label'
-    dataset = fetch_dataset(data_name, subset)
-    process_dataset(dataset['train'])
-    data_loader = make_data_loader(dataset)
-    config.PARAM['model_name'] = 'mcgan'
-    process_control_name()
-    model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    print(model)
-    exit()
-    for i, input in enumerate(data_loader['train']):
-        input = collate(input)
-        print(input['img'].size())
-        print(input[subset].size())
-        break
-    save_img(input['img'], './output/img/test.png')
-    exit()
+# if __name__ == "__main__":
+#     data_name = 'CIFAR10'
+#     subset = 'label'
+#     dataset = fetch_dataset(data_name, subset)
+#     process_dataset(dataset['train'])
+#     data_loader = make_data_loader(dataset)
+#     config.PARAM['model_name'] = 'mcgan'
+#     process_control_name()
+#     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
+#     print(model)
+#     exit()
+#     for i, input in enumerate(data_loader['train']):
+#         input = collate(input)
+#         print(input['img'].size())
+#         print(input[subset].size())
+#         break
+#     save_img(input['img'], './output/img/test.png')
+#     exit()
