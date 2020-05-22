@@ -40,13 +40,15 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 2e-4
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
 if config.PARAM['data_name'] in ['ImageNet32']:
     config.PARAM['batch_size'] = {'train': 512, 'test': 1024}
+    config.PARAM['num_epoch'] = 100
+    config.PARAM['lr'] = 1e-3
 else:
     config.PARAM['batch_size'] = {'train': 64, 'test': 512}
+    config.PARAM['lr'] = 2e-4
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 config.PARAM['loss_type'] = 'Hinge'
 config.PARAM['betas'] = (0.5, 0.999)
