@@ -40,15 +40,14 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
+config.PARAM['lr'] = 2e-4
+config.PARAM['weight_decay'] = 0
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
 if config.PARAM['data_name'] in ['ImageNet32']:
     config.PARAM['batch_size'] = {'train': 512, 'test': 1024}
-    config.PARAM['num_epoch'] = 100
-    config.PARAM['lr'] = 1e-3
 else:
     config.PARAM['batch_size'] = {'train': 64, 'test': 512}
-    config.PARAM['lr'] = 2e-4
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 config.PARAM['loss_type'] = 'Hinge'
 config.PARAM['betas'] = (0.5, 0.999)
@@ -148,7 +147,7 @@ def train(data_loader, model, optimizer, logger, epoch):
             D_x = model.discriminate(input['img'], input[config.PARAM['subset']])
             # train with fake
             z1 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-            generated = model.generate(z1, input[config.PARAM['subset']])
+            generated = model.generate(input[config.PARAM['subset']], z1)
             D_G_z1 = model.discriminate(generated.detach(), input[config.PARAM['subset']])
             if config.PARAM['loss_type'] == 'BCE':
                 D_loss = torch.nn.functional.binary_cross_entropy_with_logits(
@@ -168,12 +167,11 @@ def train(data_loader, model, optimizer, logger, epoch):
             optimizer['discriminator'].zero_grad()
             optimizer['generator'].zero_grad()
             z2 = torch.randn(input['img'].size(0), config.PARAM['latent_size'], device=config.PARAM['device'])
-            generated = model.generate(z2, input[config.PARAM['subset']])
+            generated = model.generate(input[config.PARAM['subset']], z2)
             D_G_z2 = model.discriminate(generated, input[config.PARAM['subset']])
             if config.PARAM['loss_type'] == 'BCE':
-                G_loss = torch.nn.functional.binary_cross_entropy_with_logits(D_G_z2,
-                                                                              torch.ones((input['img'].size(0), 1),
-                                                                                         device=config.PARAM['device']))
+                G_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                    D_G_z2, torch.ones((input['img'].size(0), 1), device=config.PARAM['device']))
             elif config.PARAM['loss_type'] == 'Hinge':
                 G_loss = -D_G_z2.mean()
             else:

@@ -319,7 +319,7 @@ class CGlow(nn.Module):
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
         config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
-        x = input['img']
+        x = input['img'] * 0.5
         x = x + torch.rand_like(x) / 256
         z = []
         log_p_sum = 0
@@ -345,7 +345,7 @@ class CGlow(nn.Module):
                 x = block.reverse(z[-1], z[-1], reconstruct=input['reconstruct'])
             else:
                 x = block.reverse(x, z[-(i + 1)], reconstruct=input['reconstruct'])
-        output['img'] = torch.clamp(x, -1, 1)
+        output['img'] = torch.clamp(x, -.5, .5) * 2
         return output
 
     def make_z_shapes(self):
@@ -415,7 +415,7 @@ class MCGlow(nn.Module):
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
         config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
-        x = input['img']
+        x = input['img'] * 0.5
         x = x + torch.rand_like(x) / 256
         z = []
         log_p_sum = 0
@@ -441,7 +441,7 @@ class MCGlow(nn.Module):
                 x = block.reverse(z[-1], z[-1], reconstruct=input['reconstruct'])
             else:
                 x = block.reverse(x, z[-(i + 1)], reconstruct=input['reconstruct'])
-        output['img'] = torch.clamp(x, -1, 1)
+        output['img'] = torch.clamp(x, -.5, .5) * 2
         return output
 
     def make_z_shapes(self):
