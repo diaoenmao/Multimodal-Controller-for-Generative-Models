@@ -7,6 +7,7 @@ import os
 import torch
 import torch.backends.cudnn as cudnn
 import models
+import numpy as np
 from data import fetch_dataset, make_data_loader
 from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
 
@@ -36,6 +37,7 @@ for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
 
+
 def main():
     process_control_name()
     seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
@@ -56,32 +58,38 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    load_tag = 'best'
-    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    create(model)
+    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag='best')
+    transit(model)
     return
 
 
-def create(model):
-    save_per_mode = 10
-    config.PARAM['classes_size'] = 100
-    save_num_mode = min(100, config.PARAM['classes_size'])
-    sample_per_iter = 1000
-    models.utils.create(model)
-    model = model.to(config.PARAM['device'])
+def transit(model, ae=None):
     with torch.no_grad():
+        models.utils.create(model)
+        model = model.to(config.PARAM['device'])
         model.train(False)
-        C = torch.arange(save_num_mode)
-        C = C.repeat(save_per_mode)
-        C_created = torch.split(C, sample_per_iter)
-        created = []
-        for i in range(len(C_created)):
-            C_created_i = C_created[i].to(config.PARAM['device'])
-            created_i = model.generate(C_created_i)
-            created.append(created_i.cpu())
-        created = torch.cat(created)
-        created = (created + 1) / 2
-        save_img(created, './output/img/created_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
+        if config.PARAM['data_name'] in ['Omniglot']:
+            max_save_num_mode = [10, 100]
+        else:
+            max_save_num_mode = [100]
+        root = 0
+        save_num_step = 10
+        alphas = np.linspace(0, 1, save_num_step + 1)
+        for i in range(len(max_save_num_mode)):
+            save_num_mode = min(max_save_num_mode[i], config.PARAM['classes_size'])
+            C = torch.arange(save_num_mode).to(config.PARAM['device'])
+            x = torch.randn([C.size(0), config.PARAM['latent_size']]).to(config.PARAM['device'])
+            transited = []
+            for j in range(len(alphas)):
+                models.utils.transit(model, root, alphas[j])
+                model = model.to(config.PARAM['device'])
+                transited_i = model.generate(C, x)
+                transited.append(transited_i.cpu())
+            transited = torch.stack(transited, dim=0)
+            transited = transited.view(-1, *transited.size()[2:])
+            transited = (transited + 1) / 2
+            save_img(transited, './output/img/transited_{}_{}.png'.format(config.PARAM['model_tag'], save_num_mode),
+                     nrow=save_num_mode)
     return
 
 

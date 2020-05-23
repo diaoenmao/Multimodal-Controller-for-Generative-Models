@@ -34,9 +34,10 @@ def main():
                 controls[j].append('0.5')
             else:
                 controls[j].append('None')
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --data_name {} --model_name {} --control_name {}&\n'.format(
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --data_name {} --model_name {} ' \
+                    '--control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, *controls[j])
-            if j % round == round - 1:
+            if k % round == round - 1:
                 s = s[:-2] + '\n'
             k = k + 1
     k = 0
@@ -52,7 +53,7 @@ def main():
             model_tag = '_'.join(controls[j])
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, model_tag)
-            if j % round == round - 1:
+            if k % round == round - 1:
                 s = s[:-2] + '\n'
             k = k + 1
     k = 0
@@ -68,14 +69,14 @@ def main():
             model_tag = '_'.join(controls[j])
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, model_tag)
-            if j % round == round - 1:
+            if k % round == round - 1:
                 s = s[:-2] + '\n'
             k = k + 1
     print(s)
     run_file = open('./test_generated.sh', 'w')
     run_file.write(s)
     run_file.close()
-    exit()
+    return
 
 
 if __name__ == '__main__':

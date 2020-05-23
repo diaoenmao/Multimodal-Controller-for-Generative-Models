@@ -45,6 +45,9 @@ def main():
                           config.PARAM['control_name']]
         model_tag_list = [x for x in model_tag_list if x]
         config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
+        ae_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['ae_name']]
+        ae_tag_list = [x for x in ae_tag_list if x]
+        config.PARAM['ae_tag'] = '_'.join(filter(None, ae_tag_list))
         print('Experiment: {}'.format(config.PARAM['model_tag']))
         runExperiment()
     return
@@ -56,37 +59,46 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
+    if 'pixelcnn' in config.PARAM['model_name']:
+        ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
+        _, ae, _, _, _ = resume(ae, config.PARAM['ae_tag'], load_tag='best')
+    else:
+        ae = None
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    load_tag = 'best'
-    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag=load_tag)
-    test(model)
+    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag='best')
+    create(model, ae)
     return
 
 
-def test(model):
-    save_per_mode = 10
-    max_num_mode = 100
-    save_num_mode = min(max_num_mode, config.PARAM['classes_size'])
-    sample_per_iter = 1000
+def create(model, ae=None):
     with torch.no_grad():
+        models.utils.create(model)
+        model = model.to(config.PARAM['device'])
         model.train(False)
-        C = torch.arange(config.PARAM['classes_size'])
-        C = C.repeat(config.PARAM['generate_per_mode'])
-        C_generated = torch.split(C, sample_per_iter)
-        generated = []
-        for i in range(len(C_generated)):
-            C_generated_i = C_generated[i].to(config.PARAM['device'])
-            generated_i = model.generate(C_generated_i)
-            generated.append(generated_i.cpu())
-        generated = torch.cat(generated)
-        saved = []
-        for i in range(0, config.PARAM['classes_size'] * save_per_mode, config.PARAM['classes_size']):
-            saved.append(generated[i:i + save_num_mode])
-        saved = torch.cat(saved)
-        generated = ((generated + 1) / 2 * 255).numpy()
-        saved = (saved + 1) / 2
-        save(generated, './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
-        save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']), nrow=save_num_mode)
+        sample_per_iter = 1000
+        save_per_mode = 10
+        if config.PARAM['data_name'] in ['Omniglot']:
+            max_save_num_mode = [10, 100]
+        else:
+            max_save_num_mode = [100]
+        for i in range(len(max_save_num_mode)):
+            save_num_mode = min(max_save_num_mode[i], config.PARAM['classes_size'])
+            C = torch.arange(save_num_mode)
+            C = C.repeat(save_per_mode)
+            C_created = torch.split(C, sample_per_iter)
+            created = []
+            for i in range(len(C_created)):
+                C_created_i = C_created[i].to(config.PARAM['device'])
+                if ae is None:
+                    created_i = model.generate(C_created_i)
+                else:
+                    code_i = model.generate(C_created_i)
+                    created_i = ae.decode(code_i)
+                created.append(created_i.cpu())
+            created = torch.cat(created)
+            created = (created + 1) / 2
+            save_img(created, './output/img/created_{}_{}.png'.format(config.PARAM['model_tag'], save_num_mode),
+                     nrow=save_num_mode)
     return
 
 

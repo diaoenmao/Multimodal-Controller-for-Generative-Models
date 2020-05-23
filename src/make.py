@@ -12,7 +12,7 @@ args = vars(parser.parse_args())
 
 
 def main():
-    round = 12
+    round = 4
     run = args['run']
     model = args['model']
     file = model if args['file'] is None else args['file']
@@ -26,8 +26,8 @@ def main():
     else:
         model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
         # model_names = [['mc{}'.format(args['model'])]]
-    experiments_step = 1
-    num_experiments = 1
+    experiments_step = 2
+    num_experiments = 12
     init_seeds = [list(range(0, num_experiments, experiments_step))]
     num_epochs = [[200]]
     num_experiments = [[experiments_step]]
@@ -46,14 +46,14 @@ def main():
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --data_name {} --model_name {} --init_seed {} ' \
                     '--num_epochs {} --num_experiments {} --control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], *controls[j])
-            if j % round == round - 1:
+            if k % round == round - 1:
                 s = s[:-2] + '\n'
             k = k + 1
     print(s)
     run_file = open('./{}.sh'.format(filename), 'w')
     run_file.write(s)
     run_file.close()
-    exit()
+    return
 
 
 if __name__ == '__main__':

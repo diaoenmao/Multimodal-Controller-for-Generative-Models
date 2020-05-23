@@ -21,7 +21,7 @@ control_exp = [str(x) for x in list(range(num_Experiments))]
 
 
 def main():
-    processed_result = {}
+    extracted, summarized = {}, {}
     for i in range(len(data_name)):
         result_control = {
             'CVAE': {
@@ -44,15 +44,14 @@ def main():
             'MCGLOW': {
                 'control_names': [['1'], [data_name[i]], ['label'], ['mcglow'], ['0.5']], 'metric': 'test/Loss'},
         }
-        result = {}
+        extracated_i, summarized_i = {}, {}
         for result_name, info in result_control.items():
-            result[result_name] = extract_result(info)
-        processed_result[data_name[i]] = result
-    processed_result = json.dumps(processed_result)
-    print(processed_result)
-    exit()
-    json_processed_result = json.loads(processed_result)
-    save(processed_result, '{}/processed_result.pt'.format(result_path))
+            extracated_i[result_name], summarized_i[result_name] = extract_result(info)
+        extracted[data_name[i]] = extracated_i
+        summarized[data_name[i]] = summarized_i
+    print(summarized)
+    save((extracted, summarized), '{}/processed_result.pt'.format(result_path))
+    make_img(summarized)
     return
 
 
@@ -87,12 +86,52 @@ def extract_result(info):
             extracted['fid'][exp_idx] = result
         else:
             pass
-    result = {
-        'base': {'mean': np.mean(extracted['base']), 'stderr': np.std(extracted['base']) / np.sqrt(num_Experiments)},
+    best_base = '_'.join(control_names_product[np.argmin(extracted['base']).item()])
+    best_is = '_'.join(control_names_product[np.argmax(extracted['is'][:, 0]).item()])
+    best_fid = '_'.join(control_names_product[np.argmin(extracted['fid']).item()])
+    summarized = {
+        'base': {'mean': np.mean(extracted['base']), 'stderr': np.std(extracted['base']) / np.sqrt(num_Experiments),
+                 'best': best_base},
         'is': {'mean': np.mean(extracted['is'], axis=0).tolist(),
-               'stderr': (np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)).tolist()},
-        'fid': {'mean': np.mean(extracted['fid']), 'stderr': np.std(extracted['fid']) / np.sqrt(num_Experiments)}}
-    return result
+               'stderr': (np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)).tolist(),
+               'best': best_is},
+        'fid': {'mean': np.mean(extracted['fid']), 'stderr': np.std(extracted['fid']) / np.sqrt(num_Experiments),
+                'best': best_fid}}
+    return extracted, summarized
+
+
+def make_img(summarized):
+    round = 1
+    num_gpu = 1
+    gpu_ids = [str(x) for x in list(range(num_gpu))]
+    filename = 'make_img'
+    script_name = './{}.py'.format(filename)
+    pivot = 'is'
+    s = '#!/bin/bash\n'
+    k = 0
+    for data_name in summarized:
+        summarized_d = summarized[data_name]
+        for m in summarized_d:
+            model_tag = summarized_d[m][pivot]['best']
+            model_tag_list = model_tag.split('_')
+            init_seed = model_tag_list[0]
+            model_name = model_tag_list[3]
+            if 'mc' in model_name:
+                control_name = '0.5'
+            else:
+                control_name = 'None'
+            controls = [init_seed, data_name, model_name, control_name]
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --data_name {} --model_name {} ' \
+                    '--control_name {}&\n'.format(
+                gpu_ids[k % len(gpu_ids)], script_name, *controls)
+            if k % round == round - 1:
+                s = s[:-2] + '\n'
+            k = k + 1
+    print(s)
+    run_file = open('./{}.sh'.format(filename), 'w')
+    run_file.write(s)
+    run_file.close()
+    return
 
 
 if __name__ == '__main__':

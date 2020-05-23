@@ -29,5 +29,7 @@ def init():
         'num_experiments': 1,
         'log_interval': 0.25,
         'log_overwrite': False,
+        'save_npy': False,
+        'save_img': True,
         'resume_mode': 0
     }
