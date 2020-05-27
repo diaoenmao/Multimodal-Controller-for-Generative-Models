@@ -103,7 +103,7 @@ def generate(model, ae=None):
                          nrow=save_num_mode)
         else:
             save_per_mode = 10
-            if config.PARAM['data_name'] in ['Omniglot']:
+            if config.PARAM['classes_size'] > 100:
                 max_save_num_mode = [10, 100]
             else:
                 max_save_num_mode = [100]

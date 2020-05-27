@@ -13,19 +13,21 @@ args = vars(parser.parse_args())
 
 def main():
     round = 4
-    run = args['run']
-    model = args['model']
-    file = model if args['file'] is None else args['file']
-    filename = '{}_{}'.format(run, file)
     num_gpu = 4
     gpu_ids = [str(x) for x in list(range(num_gpu))]
-    script_name = [['{}_{}.py'.format(run, file)]]
+    run = args['run']
+    model = args['model']
+    if run in ['train', 'test']:
+        filename = '{}_{}'.format(run, model)
+        script_name = [['{}_{}.py'.format(run, model)]]
+    else:
+        filename = '{}_{}'.format(run, model)
+        script_name = [['{}.py'.format(run)]]
     data_names = ['CIFAR10', 'Omniglot']
     if model == 'vqvae':
         model_names = [['vqvae']]
     else:
         model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
-        # model_names = [['mc{}'.format(args['model'])]]
     experiments_step = 2
     num_experiments = 12
     init_seeds = [list(range(0, num_experiments, experiments_step))]

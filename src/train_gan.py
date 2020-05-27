@@ -112,7 +112,7 @@ def runExperiment():
             scheduler['discriminator'].step()
         if config.PARAM['save_mode'] >= 0:
             logger.safe(False)
-            model_state_dict = model.state_dict()
+            model_state_dict = model.module.state_dict() if config.PARAM['world_size'] > 1 else model.state_dict()
             save_result = {
                 'config': config.PARAM, 'epoch': epoch + 1, 'model_dict': model_state_dict,
                 'optimizer_dict': {'generator': optimizer['generator'].state_dict(),

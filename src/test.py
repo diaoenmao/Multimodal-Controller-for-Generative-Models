@@ -1056,12 +1056,12 @@ import itertools
 #
 #
 # if __name__ == "__main__":
-#     m = models.make_model({'cell': 'ResConv2dCell', 'input_size': 10, 'hidden_size': 20, 'output_size': 20, 'normalization': 'none',
+#     m = models.make_model({'cell': 'ResConv2dCell', 'input_size': 10, 'hidden_size': 20, 'output_size': 20,
+#     'normalization': 'none',
 #              'activation': 'leakyrelu'})
 #     m.apply(make_SpectralNormalization)
 #     for name, param in m.named_parameters():
 #         print(name, param.size())
-
 
 
 # if __name__ == "__main__":

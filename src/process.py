@@ -104,31 +104,34 @@ def make_img(summarized):
     round = 1
     num_gpu = 1
     gpu_ids = [str(x) for x in list(range(num_gpu))]
-    filename = 'make_img'
-    script_name = './{}.py'.format(filename)
+    filenames = ['generate', 'create', 'transit']
     pivot = 'is'
     s = '#!/bin/bash\n'
-    k = 0
-    for data_name in summarized:
-        summarized_d = summarized[data_name]
-        for m in summarized_d:
-            model_tag = summarized_d[m][pivot]['best']
-            model_tag_list = model_tag.split('_')
-            init_seed = model_tag_list[0]
-            model_name = model_tag_list[3]
-            if 'mc' in model_name:
-                control_name = '0.5'
-            else:
-                control_name = 'None'
-            controls = [init_seed, data_name, model_name, control_name]
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --data_name {} --model_name {} ' \
-                    '--control_name {}&\n'.format(
-                gpu_ids[k % len(gpu_ids)], script_name, *controls)
-            if k % round == round - 1:
-                s = s[:-2] + '\n'
-            k = k + 1
+    for filename in filenames:
+        script_name = './{}.py'.format(filename)
+        k = 0
+        for data_name in summarized:
+            summarized_d = summarized[data_name]
+            for m in summarized_d:
+                model_tag = summarized_d[m][pivot]['best']
+                model_tag_list = model_tag.split('_')
+                init_seed = model_tag_list[0]
+                model_name = model_tag_list[3]
+                if model_name == 'vqvae' or (filename == 'create' and 'pixelcnn' in model_name):
+                    continue
+                if 'mc' in model_name:
+                    control_name = '0.5'
+                else:
+                    control_name = 'None'
+                controls = [init_seed, data_name, model_name, control_name]
+                s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --data_name {} --model_name {} ' \
+                        '--control_name {}&\n'.format(
+                    gpu_ids[k % len(gpu_ids)], script_name, *controls)
+                if k % round == round - 1:
+                    s = s[:-2] + '\n'
+                k = k + 1
     print(s)
-    run_file = open('./{}.sh'.format(filename), 'w')
+    run_file = open('./make_img.sh', 'w')
     run_file.write(s)
     run_file.close()
     return

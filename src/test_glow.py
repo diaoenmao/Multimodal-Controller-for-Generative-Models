@@ -37,7 +37,10 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['batch_size'] = {'train': 64, 'test': 256}
+if config.PARAM['data_name'] in ['ImageNet32']:
+    config.PARAM['batch_size'] = {'train': 512, 'test': 1024}
+else:
+    config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
 
 
