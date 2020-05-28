@@ -7,7 +7,6 @@ import itertools
 parser = argparse.ArgumentParser(description='Config')
 parser.add_argument('--run', default=None, type=str)
 parser.add_argument('--model', default=None, type=str)
-parser.add_argument('--file', default=None, type=str)
 args = vars(parser.parse_args())
 
 

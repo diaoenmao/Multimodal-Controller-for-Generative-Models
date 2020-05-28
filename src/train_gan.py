@@ -40,7 +40,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['lr'] = 2e-4
+config.PARAM['lr'] = {'discriminator': 2e-4, 'generator': 2e-4}
 config.PARAM['weight_decay'] = 0
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
@@ -80,8 +80,8 @@ def runExperiment():
                                                          device_ids=list(range(config.PARAM['world_size'])))
         model.model['discriminator'] = torch.nn.DataParallel(model.model['discriminator'],
                                                              device_ids=list(range(config.PARAM['world_size'])))
-    optimizer = {'generator': make_optimizer(model.model['generator']),
-                 'discriminator': make_optimizer(model.model['discriminator'])}
+    optimizer = {'generator': make_optimizer(model.model['generator'], config.PARAM['lr']['generator']),
+                 'discriminator': make_optimizer(model.model['discriminator'], config.PARAM['lr']['discriminator'])}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
                  'discriminator': make_scheduler(optimizer['discriminator'])}
     if config.PARAM['resume_mode'] == 1:
@@ -223,18 +223,18 @@ def test(model, logger, epoch):
     return
 
 
-def make_optimizer(model):
+def make_optimizer(model, lr):
     if config.PARAM['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=config.PARAM['momentum'],
                               weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'RMSprop':
-        optimizer = optim.RMSprop(model.parameters(), lr=config.PARAM['lr'], momentum=config.PARAM['momentum'],
+        optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=config.PARAM['momentum'],
                                   weight_decay=config.PARAM['weight_decay'])
     elif config.PARAM['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=config.PARAM['weight_decay'],
                                betas=config.PARAM['betas'])
     elif config.PARAM['optimizer_name'] == 'Adamax':
-        optimizer = optim.Adamax(model.parameters(), lr=config.PARAM['lr'], weight_decay=config.PARAM['weight_decay'],
+        optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=config.PARAM['weight_decay'],
                                  betas=config.PARAM['betas'])
     else:
         raise ValueError('Not valid optimizer name')

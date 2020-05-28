@@ -134,12 +134,12 @@ def process_control_name():
                                         config.PARAM['img_shape'][1] // (2 ** 3),
                                         config.PARAM['img_shape'][2] // (2 ** 3)]
     elif config.PARAM['model_name'] in ['cgan', 'mcgan']:
-        config.PARAM['generator_normalization'] = 'bn'
+        config.PARAM['generator_normalization'] = 'none'
         config.PARAM['discriminator_normalization'] = 'none'
         config.PARAM['generator_activation'] = 'relu'
-        config.PARAM['discriminator_activation'] = 'leakyrelu'
+        config.PARAM['discriminator_activation'] = 'relu'
         config.PARAM['latent_size'] = 128
-        config.PARAM['generator_hidden_size'] = [256, 256, 256, 256]
+        config.PARAM['generator_hidden_size'] = 256
         config.PARAM['discriminator_hidden_size'] = 128
     elif config.PARAM['model_name'] in ['cglow', 'mcglow']:
         config.PARAM['hidden_size'] = 512
