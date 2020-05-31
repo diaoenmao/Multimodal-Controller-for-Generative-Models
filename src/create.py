@@ -71,6 +71,7 @@ def runExperiment():
 
 
 def create(model, ae=None):
+    save_format = 'pdf'
     with torch.no_grad():
         models.utils.create(model)
         model = model.to(config.PARAM['device'])
@@ -97,8 +98,8 @@ def create(model, ae=None):
                 created.append(created_i.cpu())
             created = torch.cat(created)
             created = (created + 1) / 2
-            save_img(created, './output/img/created_{}_{}.png'.format(config.PARAM['model_tag'], save_num_mode),
-                     nrow=save_num_mode)
+            save_img(created, './output/img/created_{}_{}.{}'.format(
+                config.PARAM['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
     return
 
 

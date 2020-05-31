@@ -38,7 +38,7 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['metric_names'] = {'test': ['InceptionScore']}
+config.PARAM['metric_names'] = {'test': ['InceptionScore', 'FID']}
 
 
 def main():
@@ -72,10 +72,12 @@ def test(generated):
         valid_mask = torch.sum(torch.isnan(generated), dim=(1, 2, 3)) == 0
         generated = generated[valid_mask]
         output = {'img': generated}
-        evaluation = metric.evaluate(['InceptionScore'], None, output)
-    result = evaluation['InceptionScore']
-    print('Inception Score ({}): {}'.format(config.PARAM['model_tag'], result))
-    save(result, './output/result/is_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
+    is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
+    print('Inception Score ({}): {}'.format(config.PARAM['model_tag'], is_result))
+    save(is_result, './output/result/is_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+    print('FID ({}): {}'.format(config.PARAM['model_tag'], fid_result))
+    save(fid_result, './output/result/fid_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
     return evaluation
 
 

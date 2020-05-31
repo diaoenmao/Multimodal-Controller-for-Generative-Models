@@ -39,6 +39,7 @@ for k in config.PARAM['control']:
 config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['batch_size'] = {'train': 2, 'test': 2}
 
+
 def main():
     process_control_name()
     runExperiment()
@@ -49,14 +50,18 @@ def runExperiment():
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
+    if 'pixelcnn' in config.PARAM['model_name']:
+        ae = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['ae_name']))
+    else:
+        ae = None
     model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    summary = summarize(data_loader['train'], model)
+    summary = summarize(data_loader['train'], model, ae)
     content = parse_summary(summary)
     print(content)
     return
 
 
-def summarize(data_loader, model):
+def summarize(data_loader, model, ae=None):
     def register_hook(module):
 
         def hook(module, input, output):
@@ -102,7 +107,7 @@ def summarize(data_loader, model):
                 summary['module'][key]['coordinates'].append(
                     [torch.arange(weight_size[i], device=config.PARAM['device']) for i in range(len(weight_size))])
             else:
-                return
+                raise ValueError('Not valid parametrized module')
             for name in summary['module'][key]['params']:
                 coordinates = summary['module'][key]['coordinates'][-1]
                 if name == 'weight':
@@ -139,6 +144,9 @@ def summarize(data_loader, model):
     for i, input in enumerate(data_loader):
         input = collate(input)
         input = to_device(input, config.PARAM['device'])
+        if ae is not None:
+            with torch.no_grad():
+                input['img'] = ae.encode(input).detach()
         model(input)
         break
     for h in hooks:

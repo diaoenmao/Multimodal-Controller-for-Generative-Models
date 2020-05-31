@@ -71,6 +71,7 @@ def runExperiment():
 
 
 def generate(model, ae=None):
+    save_format = 'pdf'
     with torch.no_grad():
         model.train(False)
         sample_per_iter = 1000
@@ -99,7 +100,7 @@ def generate(model, ae=None):
                     saved.append(generated[i:i + save_num_mode])
                 saved = torch.cat(saved)
                 saved = saved / 255
-                save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
+                save_img(saved, './output/img/generated_{}.{}'.format(config.PARAM['model_tag'], save_format),
                          nrow=save_num_mode)
         else:
             save_per_mode = config.PARAM['save_per_mode']
@@ -123,8 +124,8 @@ def generate(model, ae=None):
                     saved.append(saved_i.cpu())
                 saved = torch.cat(saved)
                 saved = (saved + 1) / 2
-                save_img(saved, './output/img/generated_{}_{}.png'.format(config.PARAM['model_tag'], save_num_mode),
-                         nrow=save_num_mode)
+                save_img(saved, './output/img/generated_{}_{}.{}'.format(
+                    config.PARAM['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
     return
 
 

@@ -39,10 +39,10 @@ def main():
                 'control_names': [control_exp, [data_name[i]], ['label'], ['cglow']], 'metric': 'test/Loss'},
             'MCGLOW': {
                 'control_names': [control_exp, [data_name[i]], ['label'], ['mcglow'], ['0.5']], 'metric': 'test/Loss'},
-            # 'CGAN': {
-            #     'control_names': [control_exp, [data_name[i]], ['label'], ['cgan']], 'metric': None},
-            # 'MCGAN': {
-            #     'control_names': [control_exp, [data_name[i]], ['label'], ['mcgan'], ['0.5']], 'metric': None},
+            'CGAN': {
+                'control_names': [control_exp, [data_name[i]], ['label'], ['cgan']], 'metric': None},
+            'MCGAN': {
+                'control_names': [control_exp, [data_name[i]], ['label'], ['mcgan'], ['0.5']], 'metric': None},
         }
         extracated_i, summarized_i = {}, {}
         for result_name, info in result_control.items():
@@ -110,7 +110,7 @@ def make_img(summarized):
     num_gpu = 1
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     filenames = ['generate', 'transit', 'create']
-    save_per_mode = {'generate': {'CIFAR10': 10, 'Omniglot': 10}, 'transit': {'CIFAR10': 20, 'Omniglot': 20},
+    save_per_mode = {'generate': {'CIFAR10': 10, 'Omniglot': 10}, 'transit': {'CIFAR10': 10, 'Omniglot': 10},
                      'create': {'CIFAR10': 10, 'Omniglot': 10}}
     pivot = 'is'
     s = '#!/bin/bash\n'

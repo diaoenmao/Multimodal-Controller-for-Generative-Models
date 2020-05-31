@@ -17,6 +17,12 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
         self.model = make_model(config.PARAM['model'])
 
+    def feature(self, input):
+        x = input['img']
+        x = self.model['encoder'](x)
+        x = x.view(x.size(0), -1)
+        return x
+
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
         x = input['img']

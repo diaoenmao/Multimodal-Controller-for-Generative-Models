@@ -63,7 +63,8 @@ def runExperiment():
     return
 
 
-def transit(model, ae=None):
+def transit(model):
+    save_format = 'pdf'
     with torch.no_grad():
         model.train(False)
         if config.PARAM['data_name'] in ['Omniglot']:
@@ -103,8 +104,8 @@ def transit(model, ae=None):
             transited = torch.stack(transited, dim=0)
             transited = transited.view(-1, *transited.size()[2:])
             transited = (transited + 1) / 2
-            save_img(transited, './output/img/transited_{}_{}.png'.format(config.PARAM['model_tag'], save_num_mode),
-                     nrow=save_num_mode)
+            save_img(transited, './output/img/transited_{}_{}.{}'.format(
+                config.PARAM['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
     return
 
 
