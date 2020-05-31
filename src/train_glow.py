@@ -44,7 +44,7 @@ config.PARAM['control_name'] = '_'.join(control_name_list)
 config.PARAM['lr'] = 2e-4
 config.PARAM['weight_decay'] = 0
 if config.PARAM['data_name'] in ['ImageNet32']:
-    config.PARAM['batch_size'] = {'train': 512, 'test': 1024}
+    config.PARAM['batch_size'] = {'train': 256, 'test': 512}
 else:
     config.PARAM['batch_size'] = {'train': 128, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}

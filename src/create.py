@@ -76,9 +76,9 @@ def create(model, ae=None):
         model = model.to(config.PARAM['device'])
         model.train(False)
         sample_per_iter = 1000
-        save_per_mode = 10
+        save_per_mode = config.PARAM['save_per_mode']
         if config.PARAM['data_name'] in ['Omniglot']:
-            max_save_num_mode = [10, 100]
+            max_save_num_mode = [10, 50, 100]
         else:
             max_save_num_mode = [100]
         for i in range(len(max_save_num_mode)):

@@ -268,6 +268,8 @@ if __name__ == '__main__':
             model_tag = sys.argv[2]
             path = './output/result/is_{}.npy'.format(model_tag)
             images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
+            valid_mask = np.sum(np.isnan(images), axis=(1,2,3)) == 0
+            images = images[valid_mask]
             is_mean, is_std = get_inception_score(images)
             result = np.array([is_mean, is_std])
             print('Inception Score ({}): {}'.format(model_tag, result))

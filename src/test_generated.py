@@ -69,6 +69,8 @@ def test(generated):
     with torch.no_grad():
         metric = Metric()
         generated = torch.tensor(generated / 255 * 2 - 1)
+        valid_mask = torch.sum(torch.isnan(generated), dim=(1, 2, 3)) == 0
+        generated = generated[valid_mask]
         output = {'img': generated}
         evaluation = metric.evaluate(['InceptionScore'], None, output)
     result = evaluation['InceptionScore']

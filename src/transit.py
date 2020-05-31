@@ -65,20 +65,35 @@ def runExperiment():
 
 def transit(model, ae=None):
     with torch.no_grad():
-        models.utils.create(model)
-        model = model.to(config.PARAM['device'])
         model.train(False)
         if config.PARAM['data_name'] in ['Omniglot']:
-            max_save_num_mode = [10, 100]
+            max_save_num_mode = [10, 50, 100]
         else:
             max_save_num_mode = [100]
         root = 0
-        save_num_step = 10
+        fix = False
+        save_num_step = config.PARAM['save_per_mode']
         alphas = np.linspace(0, 1, save_num_step + 1)
         for i in range(len(max_save_num_mode)):
             save_num_mode = min(max_save_num_mode[i], config.PARAM['classes_size'])
             C = torch.arange(save_num_mode).to(config.PARAM['device'])
-            x = torch.randn([C.size(0), config.PARAM['latent_size']]).to(config.PARAM['device'])
+            if config.PARAM['model_name'] in ['cvae', 'mcvae', 'cgan', 'mcgan']:
+                if fix:
+                    x = torch.randn([1, config.PARAM['latent_size']]).expand(
+                        C.size(0), config.PARAM['latent_size']).to(config.PARAM['device'])
+                else:
+                    x = torch.randn([C.size(0), config.PARAM['latent_size']]).to(config.PARAM['device'])
+            else:
+                temperature = 1
+                z_shapes = model.make_z_shapes()
+                x = []
+                for k in range(len(z_shapes)):
+                    if fix:
+                        x_k = torch.randn([1, *z_shapes[k]], device=config.PARAM['device']) * temperature
+                        x_k = x_k.expand(C.size(0), *z_shapes[k])
+                    else:
+                        x_k = torch.randn([C.size(0), *z_shapes[k]], device=config.PARAM['device']) * temperature
+                    x.append(x_k)
             transited = []
             for j in range(len(alphas)):
                 models.utils.transit(model, root, alphas[j])

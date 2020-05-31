@@ -45,7 +45,7 @@ config.PARAM['weight_decay'] = 0
 config.PARAM['d_iter'] = 5
 config.PARAM['g_iter'] = 1
 if config.PARAM['data_name'] in ['ImageNet32']:
-    config.PARAM['batch_size'] = {'train': 512, 'test': 1024}
+    config.PARAM['batch_size'] = {'train': 1024, 'test': 1024}
 else:
     config.PARAM['batch_size'] = {'train': 64, 'test': 512}
 config.PARAM['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
@@ -197,7 +197,7 @@ def train(data_loader, model, optimizer, logger, epoch):
 
 
 def test(model, logger, epoch):
-    sample_per_iter = 1000
+    sample_per_iter = config.PARAM['batch_size']['test']
     with torch.no_grad():
         metric = Metric()
         model.train(False)

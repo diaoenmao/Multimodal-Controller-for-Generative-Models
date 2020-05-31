@@ -91,7 +91,7 @@ def generate(model, ae=None):
             generated = ((generated + 1) / 2 * 255)
             save(generated.numpy(), './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
             if config.PARAM['save_img']:
-                save_per_mode = 10
+                save_per_mode = config.PARAM['save_per_mode']
                 max_save_num_mode = 100
                 save_num_mode = min(max_save_num_mode, config.PARAM['classes_size'])
                 saved = []
@@ -102,9 +102,9 @@ def generate(model, ae=None):
                 save_img(saved, './output/img/generated_{}.png'.format(config.PARAM['model_tag']),
                          nrow=save_num_mode)
         else:
-            save_per_mode = 10
+            save_per_mode = config.PARAM['save_per_mode']
             if config.PARAM['classes_size'] > 100:
-                max_save_num_mode = [10, 100]
+                max_save_num_mode = [10, 50, 100]
             else:
                 max_save_num_mode = [100]
             for i in range(len(max_save_num_mode)):

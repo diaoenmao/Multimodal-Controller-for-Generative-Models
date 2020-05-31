@@ -343,6 +343,8 @@ if __name__ == "__main__":
         data_name = model_tag.split('_')[1]
         images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
         images = np.transpose(images, (0, 2, 3, 1))
+        valid_mask = np.sum(np.isnan(images), axis=(1, 2, 3)) == 0
+        images = images[valid_mask]
         # load from precalculated
         f = np.load('./metrics_tf/res/stats_tf/fid_stats_{}_train.npz'.format(data_name.lower()))
         mu1, sigma1 = f['mu'][:], f['sigma'][:]

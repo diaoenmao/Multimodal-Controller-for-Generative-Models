@@ -117,7 +117,7 @@ def create(model):
                 module.register_buffer('codebook', new_codebook)
             if isinstance(module, nn.Linear):
                 name_list = name.split('.')
-                if len(name_list) >= 2 and 'embedding' in name_list[1]:
+                if len(name_list) == 2 and 'embedding' in name_list[1]:
                     module.weight = nn.Parameter(create_embedding(module.weight.t()).t())
     elif 'PixelCNN' in model.__class__.__name__:
         for name, module in model.named_modules():
@@ -127,8 +127,18 @@ def create(model):
                 module.register_buffer('codebook', new_codebook)
             if isinstance(module, nn.Embedding):
                 name_list = name.split('.')
-                if len(name_list) >= 2 and 'class_cond_embedding' in name_list[2]:
+                if len(name_list) >= 3 and 'class_cond_embedding' in name_list[2]:
                     module.weight = nn.Parameter(create_embedding(module.weight))
+    elif 'Glow' in model.__class__.__name__:
+        for name, module in model.named_modules():
+            module_class_name = module.__class__.__name__
+            if module_class_name == 'MultimodalController':
+                new_codebook = create_codebook(module.codebook)
+                module.register_buffer('codebook', new_codebook)
+            name_list = name.split('.')
+            if len(name_list) == 4 and 'embedding' in name_list[2]:
+                module.weight = nn.Parameter(
+                    create_embedding(module.weight.squeeze().t()).t().unsqueeze(2).unsqueeze(3))
     elif 'GAN' in model.__class__.__name__:
         for name, module in model.named_modules():
             module_class_name = module.__class__.__name__
@@ -173,10 +183,23 @@ def transit(model, root, alpha):
                 module.register_buffer('codebook', transit_codebook(module.codebook_orig, root, alpha))
             if isinstance(module, nn.Linear):
                 name_list = name.split('.')
-                if len(name_list) >= 2 and 'embedding' in name_list[1]:
+                if len(name_list) == 2 and 'embedding' in name_list[1]:
                     if not hasattr(module, 'weight_orig'):
                         module.register_buffer('weight_orig', module.weight.data)
                     module.weight = nn.Parameter(transit_embedding(module.weight_orig.t(), root, alpha).t())
+    elif 'Glow' in model.__class__.__name__:
+        for name, module in model.named_modules():
+            module_class_name = module.__class__.__name__
+            if module_class_name == 'MultimodalController':
+                if not hasattr(module, 'codebook_orig'):
+                    module.register_buffer('codebook_orig', module.codebook.data)
+                module.register_buffer('codebook', transit_codebook(module.codebook_orig, root, alpha))
+            name_list = name.split('.')
+            if len(name_list) == 4 and 'embedding' in name_list[2]:
+                if not hasattr(module, 'weight_orig'):
+                    module.register_buffer('weight_orig', module.weight.data)
+                module.weight = nn.Parameter(
+                    transit_embedding(module.weight_orig.squeeze().t(), root, alpha).t().unsqueeze(2).unsqueeze(3))
     elif 'GAN' in model.__class__.__name__:
         for name, module in model.named_modules():
             module_class_name = module.__class__.__name__

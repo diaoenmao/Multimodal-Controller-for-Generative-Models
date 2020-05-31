@@ -31,5 +31,6 @@ def init():
         'log_overwrite': False,
         'save_npy': False,
         'save_img': True,
+        'save_per_mode': 10,
         'resume_mode': 0
     }
