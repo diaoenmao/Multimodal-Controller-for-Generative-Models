@@ -11,6 +11,7 @@ from data import fetch_dataset, make_data_loader
 from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
 from scipy.stats import entropy
+from sklearn.metrics import davies_bouldin_score
 
 
 def MSE(output, target):
@@ -130,6 +131,11 @@ def FID(img):
     return fid
 
 
+def DBI(img, label):
+    dbi = davies_bouldin_score(img.view(img.size(0), -1).cpu().numpy(), label.cpu().numpy())
+    return dbi
+
+
 def Accuracy(output, target, topk=1):
     with torch.no_grad():
         batch_size = target.size(0)
@@ -146,6 +152,7 @@ class Metric(object):
                        'Loss_D': (lambda input, output: output['loss_D'].item()),
                        'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
                        'FID': (lambda input, output: recur(FID, output['img'])),
+                       'DBI': (lambda input, output: recur(DBI, output['img'], output['label'])),
                        'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
                        'MSE': (lambda input, output: recur(MSE, output['img'], input['img'])),
                        'NLL': (lambda input, output: recur(NLL, output['logits'], input['img'])),

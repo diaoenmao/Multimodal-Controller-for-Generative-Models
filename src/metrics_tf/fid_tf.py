@@ -340,7 +340,7 @@ if __name__ == "__main__":
         inception_path = check_or_download_inception(None)
         model_tag = sys.argv[2]
         path = './output/result/fid_{}.npy'.format(model_tag)
-        data_name = model_tag.split('_')[1]
+        data_name = model_tag.split('_')[2]
         images = np.load('./output/npy/{}.npy'.format(sys.argv[2]), allow_pickle=True)
         images = np.transpose(images, (0, 2, 3, 1))
         valid_mask = np.sum(np.isnan(images), axis=(1, 2, 3)) == 0

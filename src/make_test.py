@@ -18,6 +18,7 @@ def main():
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     pt_data_names = ['Omniglot']
     tf_data_names = ['CIFAR10']
+    created_data_names = ['CIFAR10', 'Omniglot']
     model_names = ['c{}'.format(args['model']), 'mc{}'.format(model)]
     num_Experiments = 12
     control_exp = [str(x) for x in list(range(num_Experiments))]
@@ -33,7 +34,7 @@ def main():
             if 'mc' in controls[j][3]:
                 controls[j].append('0.5')
             model_tag = '_'.join(controls[j])
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy {}&\n'.format(
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy generated_{}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, model_tag)
             if k % round == round - 1:
                 s = s[:-2] + '\n'
@@ -49,7 +50,7 @@ def main():
             if 'mc' in controls[j][3]:
                 controls[j].append('0.5')
             model_tag = '_'.join(controls[j])
-            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy {}&\n'.format(
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy generated_{}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, model_tag)
             if k % round == round - 1:
                 s = s[:-2] + '\n'
@@ -74,6 +75,30 @@ def main():
             k = k + 1
     print(s)
     run_file = open('./test_generated.sh', 'w')
+    run_file.write(s)
+    run_file.close()
+    s = '#!/bin/bash\n'
+    k = 0
+    model_names = ['mc{}'.format(model)]
+    for i in range(len(created_data_names)):
+        data_name = created_data_names[i]
+        script_name = 'test_created.py'
+        controls = [control_exp, [data_name], model_names]
+        controls = list(itertools.product(*controls))
+        for j in range(len(controls)):
+            controls[j] = list(controls[j])
+            if 'mc' in controls[j][2]:
+                controls[j].append('0.5')
+            else:
+                controls[j].append('None')
+            s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} --init_seed {} --data_name {} --model_name {} ' \
+                    '--control_name {}&\n'.format(
+                gpu_ids[k % len(gpu_ids)], script_name, *controls[j])
+            if k % round == round - 1:
+                s = s[:-2] + '\n'
+            k = k + 1
+    print(s)
+    run_file = open('./test_created.sh', 'w')
     run_file.write(s)
     run_file.close()
     return

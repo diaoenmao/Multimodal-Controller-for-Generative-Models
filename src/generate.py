@@ -90,7 +90,7 @@ def generate(model, ae=None):
                 generated.append(generated_i.cpu())
             generated = torch.cat(generated)
             generated = ((generated + 1) / 2 * 255)
-            save(generated.numpy(), './output/npy/{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+            save(generated.numpy(), './output/npy/generated_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
             if config.PARAM['save_img']:
                 save_per_mode = config.PARAM['save_per_mode']
                 max_save_num_mode = 100
@@ -114,8 +114,8 @@ def generate(model, ae=None):
                 C = C.repeat(save_per_mode)
                 C_saved = torch.split(C, sample_per_iter)
                 saved = []
-                for i in range(len(C_saved)):
-                    C_saved_i = C_saved[i].to(config.PARAM['device'])
+                for j in range(len(C_saved)):
+                    C_saved_i = C_saved[j].to(config.PARAM['device'])
                     if ae is None:
                         saved_i = model.generate(C_saved_i)
                     else:

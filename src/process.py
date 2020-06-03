@@ -62,7 +62,7 @@ def extract_result(info):
     metric = info['metric']
     control_names_product = list(itertools.product(*control_names))
     extracted = {'base': np.zeros(len(control_exp)), 'is': np.zeros((len(control_exp), 2)),
-                 'fid': np.zeros(len(control_exp))}
+                 'fid': np.zeros(len(control_exp)), 'dbi': np.zeros(len(control_exp))}
     for i in range(len(control_names_product)):
         control_name = list(control_names_product[i])
         model_tag = '_'.join(control_name)
@@ -86,14 +86,21 @@ def extract_result(info):
             result = load(fid_result_path_i, mode='numpy')
             exp_idx = control_exp.index(control_names_product[i][0])
             extracted['fid'][exp_idx] = result
+        dbi_result_path_i = '{}/dbi_{}.npy'.format(result_path, model_tag)
+        if os.path.exists(dbi_result_path_i):
+            result = load(dbi_result_path_i, mode='numpy')
+            exp_idx = control_exp.index(control_names_product[i][0])
+            extracted['dbi'][exp_idx] = result
         else:
             pass
     best_base = np.min(extracted['base']).item()
     best_is = np.max(extracted['is'][:, 0]).item()
     best_fid = np.min(extracted['fid']).item()
+    best_dbi = np.min(extracted['dbi']).item()
     best_name_base = '_'.join(control_names_product[np.argmin(extracted['base']).item()])
     best_name_is = '_'.join(control_names_product[np.argmax(extracted['is'][:, 0]).item()])
     best_name_fid = '_'.join(control_names_product[np.argmin(extracted['fid']).item()])
+    best_name_dbi = '_'.join(control_names_product[np.argmin(extracted['dbi']).item()])
     summarized = {
         'base': {'mean': np.mean(extracted['base']), 'stderr': np.std(extracted['base']) / np.sqrt(num_Experiments),
                  'best': best_base, 'best_name': best_name_base},
@@ -101,12 +108,15 @@ def extract_result(info):
                'stderr': (np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)).tolist(),
                'best': best_is, 'best_name': best_name_is},
         'fid': {'mean': np.mean(extracted['fid']), 'stderr': np.std(extracted['fid']) / np.sqrt(num_Experiments),
-                'best': best_fid, 'best_name': best_name_fid}}
+                'best': best_fid, 'best_name': best_name_fid},
+        'dbi': {'mean': np.mean(extracted['dbi']), 'stderr': np.std(extracted['dbi']) / np.sqrt(num_Experiments),
+                'best': best_dbi, 'best_name': best_name_dbi}}
+
     return extracted, summarized
 
 
 def make_img(summarized):
-    round = 1
+    round = 4
     num_gpu = 1
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     filenames = ['generate', 'transit', 'create']

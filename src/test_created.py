@@ -38,7 +38,8 @@ control_name_list = []
 for k in config.PARAM['control']:
     control_name_list.append(config.PARAM['control'][k])
 config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['metric_names'] = {'test': ['InceptionScore', 'FID']}
+config.PARAM['metric_names'] = {'test': ['DBI']}
+config.PARAM['raw'] = False
 
 
 def main():
@@ -60,24 +61,41 @@ def runExperiment():
     torch.cuda.manual_seed(seed)
     dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
     process_dataset(dataset['train'])
-    generated = np.load('./output/npy/generated_{}.npy'.format(config.PARAM['model_tag']), allow_pickle=True)
-    test(generated)
+    data_loader = make_data_loader(dataset)['train']
+    if config.PARAM['raw']:
+        metric = Metric()
+        img, label = [], []
+        for i, input in enumerate(data_loader):
+            input = collate(input)
+            img.append(input['img'])
+            label.append(input['label'])
+        img = torch.cat(img, dim=0)
+        label = torch.cat(label, dim=0)
+        output = {'img': img, 'label': label}
+        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
+        dbi_result = evaluation['DBI']
+        print('Davies-Bouldin Index ({}): {}'.format(config.PARAM['data_name'], dbi_result))
+        save(dbi_result, './output/result/dbi_{}.npy'.format(config.PARAM['data_name']), mode='numpy')
+    else:
+        created = np.load('./output/npy/created_{}.npy'.format(config.PARAM['model_tag']), allow_pickle=True)
+        test(created)
     return
 
 
-def test(generated):
+def test(created):
     with torch.no_grad():
         metric = Metric()
-        generated = torch.tensor(generated / 255 * 2 - 1)
-        valid_mask = torch.sum(torch.isnan(generated), dim=(1, 2, 3)) == 0
-        generated = generated[valid_mask]
-        output = {'img': generated}
+        created = torch.tensor(created / 255 * 2 - 1)
+        valid_mask = torch.sum(torch.isnan(created), dim=(1, 2, 3)) == 0
+        created = created[valid_mask]
+        label = torch.arange(config.PARAM['classes_size'])
+        label = label.repeat(config.PARAM['generate_per_mode'])
+        label = label[valid_mask]
+        output = {'img': created, 'label': label}
         evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
-    is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
-    print('Inception Score ({}): {}'.format(config.PARAM['model_tag'], is_result))
-    save(is_result, './output/result/is_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
-    print('FID ({}): {}'.format(config.PARAM['model_tag'], fid_result))
-    save(fid_result, './output/result/fid_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+    dbi_result = evaluation['DBI']
+    print('Davies-Bouldin Index ({}): {}'.format(config.PARAM['model_tag'], dbi_result))
+    save(dbi_result, './output/result/dbi_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
     return evaluation
 
 
