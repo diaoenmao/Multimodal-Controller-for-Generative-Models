@@ -131,8 +131,8 @@ def process_control_name():
         config.PARAM['latent_size'] = 128
         config.PARAM['conditional_embedding_size'] = 32
         config.PARAM['encode_shape'] = [config.PARAM['hidden_size'][-1],
-                                        config.PARAM['img_shape'][1] // (2 ** 3),
-                                        config.PARAM['img_shape'][2] // (2 ** 3)]
+                                        config.PARAM['img_shape'][1] // (2 ** len(config.PARAM['hidden_size'])),
+                                        config.PARAM['img_shape'][2] // (2 ** len(config.PARAM['hidden_size']))]
     elif config.PARAM['model_name'] in ['cgan', 'mcgan']:
         config.PARAM['generator_normalization'] = 'bn'
         config.PARAM['discriminator_normalization'] = 'none'
