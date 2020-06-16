@@ -1,7 +1,7 @@
-import config
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import cfg
 from .utils import make_model
 
 
@@ -92,7 +92,7 @@ class ConditionalGatedPixelCNN(nn.Module):
         )
 
     def forward(self, input):
-        output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
+        output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
         x = input['img']
         label = input['label']
         shp = x.size() + (-1,)
@@ -107,8 +107,8 @@ class ConditionalGatedPixelCNN(nn.Module):
 
     def generate(self, C, x=None):
         if x is None:
-            x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
-                            dtype=torch.long, device=config.PARAM['device'])
+            x = torch.zeros((C.size(0), cfg['img_shape'][1] // 4, cfg['img_shape'][2] // 4),
+                            dtype=torch.long, device=cfg['device'])
         input = {'img': x, 'label': C}
         for i in range(x.size(1)):
             for j in range(x.size(2)):
@@ -186,9 +186,9 @@ class MCGatedPixelCNN(nn.Module):
         )
 
     def forward(self, input):
-        output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
+        output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
         x = input['img']
-        config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        cfg['indicator'] = F.one_hot(input['label'], cfg['classes_size']).float()
         shp = x.size() + (-1,)
         x = self.embedding(x.view(-1)).view(shp)  # (B, H, W, C)
         x = x.permute(0, 3, 1, 2).contiguous()  # (B, C, W, W)
@@ -201,8 +201,8 @@ class MCGatedPixelCNN(nn.Module):
 
     def generate(self, C, x=None):
         if x is None:
-            x = torch.zeros((C.size(0), config.PARAM['img_shape'][1] // 4, config.PARAM['img_shape'][2] // 4),
-                            dtype=torch.long, device=config.PARAM['device'])
+            x = torch.zeros((C.size(0), cfg['img_shape'][1] // 4, cfg['img_shape'][2] // 4),
+                            dtype=torch.long, device=cfg['device'])
         input = {'img': x, 'label': C}
         for i in range(x.size(1)):
             for j in range(x.size(2)):
@@ -213,20 +213,20 @@ class MCGatedPixelCNN(nn.Module):
 
 
 def cpixelcnn():
-    num_mode = config.PARAM['classes_size']
-    num_embedding = config.PARAM['num_embedding']
-    n_layers = config.PARAM['n_layers']
-    hidden_size = config.PARAM['hidden_size']
+    num_mode = cfg['classes_size']
+    num_embedding = cfg['num_embedding']
+    n_layers = cfg['n_layers']
+    hidden_size = cfg['hidden_size']
     model = ConditionalGatedPixelCNN(input_dim=num_embedding, dim=hidden_size, n_layers=n_layers, n_classes=num_mode)
     return model
 
 
 def mcpixelcnn():
-    num_mode = config.PARAM['classes_size']
-    num_embedding = config.PARAM['num_embedding']
-    controller_rate = config.PARAM['controller_rate']
-    n_layers = config.PARAM['n_layers']
-    hidden_size = config.PARAM['hidden_size']
+    num_mode = cfg['classes_size']
+    num_embedding = cfg['num_embedding']
+    controller_rate = cfg['controller_rate']
+    n_layers = cfg['n_layers']
+    hidden_size = cfg['hidden_size']
     model = MCGatedPixelCNN(input_dim=num_embedding, dim=hidden_size, n_layers=n_layers, n_classes=num_mode,
                             controller_rate=controller_rate)
     return model

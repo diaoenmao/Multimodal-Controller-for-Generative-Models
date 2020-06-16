@@ -1,6 +1,6 @@
-import config
 import torch
 import datasets
+from config import cfg
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
@@ -15,7 +15,7 @@ def fetch_dataset(data_name, subset):
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        config.PARAM['transform'] = {
+        cfg['transform'] = {
             'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
@@ -26,7 +26,7 @@ def fetch_dataset(data_name, subset):
                                            transform=datasets.Compose([transforms.ToTensor()]))
         dataset['test'] = datasets.EMNIST(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
-        config.PARAM['transform'] = {
+        cfg['transform'] = {
             'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
@@ -37,7 +37,7 @@ def fetch_dataset(data_name, subset):
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        config.PARAM['transform'] = {
+        cfg['transform'] = {
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
@@ -46,7 +46,7 @@ def fetch_dataset(data_name, subset):
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        config.PARAM['transform'] = {
+        cfg['transform'] = {
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
@@ -55,7 +55,7 @@ def fetch_dataset(data_name, subset):
                                              transform=datasets.Compose([transforms.ToTensor()]))
         dataset['test'] = datasets.Omniglot(root=root, split='test', subset=subset,
                                             transform=datasets.Compose([transforms.ToTensor()]))
-        config.PARAM['transform'] = {
+        cfg['transform'] = {
             'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                        transforms.Normalize((0.5,), (0.5,))]),
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
@@ -66,16 +66,16 @@ def fetch_dataset(data_name, subset):
                                            transform=datasets.Compose([transforms.ToTensor()]))
         dataset['test'] = datasets.CelebA(root=root, split='test', subset=subset,
                                           transform=datasets.Compose([transforms.ToTensor()]))
-        config.PARAM['transform'] = {
-            'train': datasets.Compose([transforms.Resize((64, 64)), transforms.ToTensor(),
+        cfg['transform'] = {
+            'train': datasets.Compose([transforms.Resize((128, 128)), transforms.ToTensor(),
                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-            'test': datasets.Compose([transforms.Resize((64, 64)), transforms.ToTensor(),
+            'test': datasets.Compose([transforms.Resize((128, 128)), transforms.ToTensor(),
                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
     else:
         raise ValueError('Not valid dataset name')
-    dataset['train'].transform = config.PARAM['transform']['train']
-    dataset['test'].transform = config.PARAM['transform']['test']
+    dataset['train'].transform = cfg['transform']['train']
+    dataset['test'].transform = cfg['transform']['test']
     print('data ready')
     return dataset
 
@@ -94,7 +94,7 @@ def input_collate(batch):
 def make_data_loader(dataset):
     data_loader = {}
     for k in dataset:
-        data_loader[k] = torch.utils.data.DataLoader(dataset=dataset['train'], shuffle=config.PARAM['shuffle'][k],
-                                                     batch_size=config.PARAM['batch_size'][k], pin_memory=True,
-                                                     num_workers=config.PARAM['num_workers'], collate_fn=input_collate)
+        data_loader[k] = torch.utils.data.DataLoader(dataset=dataset['train'], shuffle=cfg['shuffle'][k],
+                                                     batch_size=cfg['batch_size'][k], pin_memory=True,
+                                                     num_workers=cfg['num_workers'], collate_fn=input_collate)
     return data_loader

@@ -1,8 +1,8 @@
-import config
 import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config import cfg
 from utils import ntuple
 
 
@@ -361,7 +361,7 @@ class MultimodalController(nn.Module):
         return codebook
 
     def forward(self, input):
-        code = config.PARAM['indicator'].matmul(self.codebook)
+        code = cfg['indicator'].matmul(self.codebook)
         code = code.view(*code.size(), *([1] * (input.dim() - 2)))
         output = input * code.detach()
         return output

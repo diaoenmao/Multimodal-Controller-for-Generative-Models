@@ -1,67 +1,65 @@
-import config
-
-config.init()
 import argparse
-import datetime
 import os
 import torch
 import torch.backends.cudnn as cudnn
 import models
 import numpy as np
+from config import cfg
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
-from logger import Logger
+from utils import save, process_control, process_dataset, collate
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
-parser = argparse.ArgumentParser(description='Config')
-for k in config.PARAM:
-    exec('parser.add_argument(\'--{0}\',default=config.PARAM[\'{0}\'], type=type(config.PARAM[\'{0}\']))'.format(k))
+parser = argparse.ArgumentParser(description='cfg')
+for k in cfg:
+    exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
 parser.add_argument('--control_name', default=None, type=str)
 args = vars(parser.parse_args())
-for k in config.PARAM:
-    config.PARAM[k] = args[k]
+for k in cfg:
+    cfg[k] = args[k]
 if args['control_name']:
-    config.PARAM['control_name'] = args['control_name']
-    if config.PARAM['control_name'] != 'None':
-        control_list = list(config.PARAM['control'].keys())
-        control_name_list = args['control_name'].split('_')
-        for i in range(len(control_name_list)):
-            config.PARAM['control'][control_list[i]] = control_name_list[i]
-    else:
-        config.PARAM['control'] = {}
-else:
-    if config.PARAM['control'] == 'None':
-        config.PARAM['control'] = {}
-control_name_list = []
-for k in config.PARAM['control']:
-    control_name_list.append(config.PARAM['control'][k])
-config.PARAM['control_name'] = '_'.join(control_name_list)
-config.PARAM['metric_names'] = {'test': ['InceptionScore', 'FID']}
+    cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
+        if args['control_name'] != 'None' else {}
+cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
+cfg['metric_names'] = {'test': ['InceptionScore', 'FID']}
 
 
 def main():
-    process_control_name()
-    seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
-    for i in range(config.PARAM['num_experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
-                          config.PARAM['control_name']]
-        model_tag_list = [x for x in model_tag_list if x]
-        config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
-        print('Experiment: {}'.format(config.PARAM['model_tag']))
+    process_control()
+    seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
+    for i in range(cfg['num_experiments']):
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['model_name'], cfg['control_name']]
+        cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
+        print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
     return
 
 
 def runExperiment():
-    seed = int(config.PARAM['model_tag'].split('_')[0])
+    seed = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
+    dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset['train'])
-    generated = np.load('./output/npy/generated_{}.npy'.format(config.PARAM['model_tag']), allow_pickle=True)
-    test(generated)
+    if cfg['raw']:
+        data_loader = make_data_loader(dataset)['train']
+        metric = Metric()
+        img = []
+        for i, input in enumerate(data_loader):
+            input = collate(input)
+            img.append(input['img'])
+        img = torch.cat(img, dim=0)
+        output = {'img': img}
+        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
+        is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
+        print('Inception Score ({}): {}'.format(cfg['data_name'], is_result))
+        print('FID ({}): {}'.format(cfg['data_name'], fid_result))
+        save(is_result, './output/result/is_{}.npy'.format(cfg['data_name']), mode='numpy')
+        save(fid_result, './output/result/fid_{}.npy'.format(cfg['data_name']), mode='numpy')
+    else:
+        generated = np.load('./output/npy/generated_{}.npy'.format(cfg['model_tag']), allow_pickle=True)
+        test(generated)
     return
 
 
@@ -72,12 +70,12 @@ def test(generated):
         valid_mask = torch.sum(torch.isnan(generated), dim=(1, 2, 3)) == 0
         generated = generated[valid_mask]
         output = {'img': generated}
-        evaluation = metric.evaluate(config.PARAM['metric_names']['test'], None, output)
+        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
     is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
-    print('Inception Score ({}): {}'.format(config.PARAM['model_tag'], is_result))
-    save(is_result, './output/result/is_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
-    print('FID ({}): {}'.format(config.PARAM['model_tag'], fid_result))
-    save(fid_result, './output/result/fid_{}.npy'.format(config.PARAM['model_tag']), mode='numpy')
+    print('Inception Score ({}): {}'.format(cfg['model_tag'], is_result))
+    print('FID ({}): {}'.format(cfg['model_tag'], fid_result))
+    save(is_result, './output/result/is_{}.npy'.format(cfg['model_tag']), mode='numpy')
+    save(fid_result, './output/result/fid_{}.npy'.format(cfg['model_tag']), mode='numpy')
     return evaluation
 
 

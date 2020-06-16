@@ -1,27 +1,25 @@
 import argparse
-import config
-
-config.init()
 import itertools
 
 parser = argparse.ArgumentParser(description='Config')
-parser.add_argument('--run', default=None, type=str)
 parser.add_argument('--model', default=None, type=str)
-parser.add_argument('--file', default=None, type=str)
+parser.add_argument('--round', default=1, type=int)
+parser.add_argument('--num_gpu', default=1, type=int)
+parser.add_argument('--num_experiments', default=1, type=int)
 args = vars(parser.parse_args())
 
 
 def main():
-    round = 1
     model = args['model']
-    num_gpu = 1
+    round = args['round']
+    num_gpu = args['num_gpu']
+    num_experiments = args['num_experiments']
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     pt_data_names = ['Omniglot']
     tf_data_names = ['CIFAR10']
     created_data_names = ['CIFAR10', 'Omniglot']
     model_names = ['c{}'.format(args['model']), 'mc{}'.format(model)]
-    num_Experiments = 12
-    control_exp = [str(x) for x in list(range(num_Experiments))]
+    control_exp = [str(x) for x in list(range(num_experiments))]
     s = '#!/bin/bash\n'
     k = 0
     for i in range(len(tf_data_names)):

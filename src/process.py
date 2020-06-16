@@ -1,20 +1,10 @@
-import config
-
-config.init()
 import os
 import itertools
-import matplotlib.pyplot as plt
-import models
 import json
-import torch
-import torch.nn.functional as F
 import numpy as np
-from utils import save, load, to_device, process_control_name, process_dataset, resume, collate, save_img, \
-    makedir_exist_ok
-from torchvision.utils import make_grid
+from utils import save, load
 
 data_name = ['CIFAR10', 'Omniglot']
-model_path = './output/model'
 result_path = './output/result'
 num_Experiments = 12
 control_exp = [str(x) for x in list(range(num_Experiments))]

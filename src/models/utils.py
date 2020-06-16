@@ -1,7 +1,7 @@
-import config
 import torch
 import torch.nn as nn
 import numpy as np
+from config import cfg
 from modules import make_cell
 
 
@@ -32,29 +32,11 @@ def make_model(model):
     return
 
 
-def normalize(input):
-    broadcast_size = [1] * input.dim()
-    broadcast_size[1] = input.size(1)
-    m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
-    s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
-    input = input.sub(m).div(s)
-    return input
-
-
-def denormalize(input):
-    broadcast_size = [1] * input.dim()
-    broadcast_size[1] = input.size(1)
-    m = config.PARAM['stats'].mean.view(broadcast_size).to(input.device)
-    s = config.PARAM['stats'].std.view(broadcast_size).to(input.device)
-    input = input.mul(s).add(m)
-    return input
-
-
 def init_param(m):
     if isinstance(m, nn.BatchNorm2d):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0.0)
-    if config.PARAM['model_name'] in ['cgan', 'mcgan']:
+    if cfg['model_name'] in ['cgan', 'mcgan']:
         if isinstance(m, (nn.Linear, nn.Conv2d, nn.ConvTranspose2d)):
             nn.init.xavier_uniform_(m.weight.data, 1.)
     return m
@@ -68,17 +50,17 @@ def make_SpectralNormalization(m):
 
 
 def create_embedding(embedding):
-    config.PARAM['concentration'] = torch.ones(embedding.size(0))
-    m = torch.distributions.dirichlet.Dirichlet(config.PARAM['concentration'].to(config.PARAM['device']))
-    convex_combination = m.sample((config.PARAM['classes_size'],))
-    created_embedding = (convex_combination.matmul(embedding)).to(config.PARAM['device'])
+    cfg['concentration'] = torch.ones(embedding.size(0))
+    m = torch.distributions.dirichlet.Dirichlet(cfg['concentration'].to(cfg['device']))
+    convex_combination = m.sample((cfg['classes_size'],))
+    created_embedding = (convex_combination.matmul(embedding)).to(cfg['device'])
     return created_embedding
 
 
 def create_codebook(codebook):
     C, K = codebook.size(0), codebook.size(1)
-    create_mode = config.PARAM['create_mode']
-    classes_size = config.PARAM['classes_size']
+    create_mode = cfg['create_mode']
+    classes_size = cfg['classes_size']
     if create_mode == 'random':
         d = torch.distributions.bernoulli.Bernoulli(probs=0.5)
         created_codebook = set()
@@ -93,10 +75,10 @@ def create_codebook(codebook):
             selected_parents = torch.randint(C, (2,))
             parents = codebook[selected_parents]
             if create_mode == 'single':
-                crossover_point = torch.randint(K, (1,)).to(config.PARAM['device'])
+                crossover_point = torch.randint(K, (1,)).to(cfg['device'])
                 created_codebook_c = torch.cat([parents[0, :crossover_point], parents[1, crossover_point:]])
             elif create_mode == 'uniform':
-                crossover_point = torch.randint(2, (K,)).to(config.PARAM['device'])
+                crossover_point = torch.randint(2, (K,)).to(cfg['device'])
                 created_codebook_c = parents.gather(0, crossover_point.view(1, -1)).squeeze()
             else:
                 raise ValueError('Not valid crossover mode')
@@ -104,7 +86,7 @@ def create_codebook(codebook):
             created_codebook_c[mutate_mask] = torch.fmod(created_codebook_c[mutate_mask] + 1, 2)
             created_codebook_c = tuple(created_codebook_c.tolist())
             created_codebook.add(created_codebook_c)
-    created_codebook = torch.tensor(list(created_codebook)[:classes_size], dtype=torch.float).to(config.PARAM['device'])
+    created_codebook = torch.tensor(list(created_codebook)[:classes_size], dtype=torch.float).to(cfg['device'])
     return created_codebook
 
 
@@ -158,7 +140,7 @@ def transit_embedding(embedding, root, alpha):
     transited_embedding = np.delete(embedding, root, 0)
     transited_embedding = alpha * transited_embedding + (1 - alpha) * root_embedding
     transited_embedding = np.insert(transited_embedding, root, root_embedding, 0)
-    transited_embedding = torch.tensor(transited_embedding, device=config.PARAM['device'])
+    transited_embedding = torch.tensor(transited_embedding, device=cfg['device'])
     return transited_embedding
 
 
@@ -169,7 +151,7 @@ def transit_codebook(codebook, root, alpha):
     cross_point = int(round((1 - alpha) * codebook.shape[1]))
     transited_codebook[:, :cross_point] = root_code[:cross_point]
     transited_codebook = np.insert(transited_codebook, root, root_code, 0)
-    transited_codebook = torch.tensor(transited_codebook, device=config.PARAM['device'])
+    transited_codebook = torch.tensor(transited_codebook, device=cfg['device'])
     return transited_codebook
 
 

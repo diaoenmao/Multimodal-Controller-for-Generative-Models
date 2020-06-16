@@ -1,9 +1,9 @@
-import config
 import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import scipy.linalg as la
+from config import cfg
 from .utils import make_model
 from math import log, pi, exp
 
@@ -256,7 +256,7 @@ class Block(nn.Module):
             zero = torch.zeros_like(out)
             h = self.prior(zero)
             if not self.do_mc:
-                h_indicator = self.embedding(config.PARAM['indicator'].view([*config.PARAM['indicator'].size(), 1, 1]))
+                h_indicator = self.embedding(cfg['indicator'].view([*cfg['indicator'].size(), 1, 1]))
                 h += h_indicator
             mean, log_sd = h.chunk(2, 1)
             log_p = gaussian_log_p(out, mean, log_sd)
@@ -281,7 +281,7 @@ class Block(nn.Module):
                 h = self.prior(zero)
                 if not self.do_mc:
                     h_indicator = self.embedding(
-                        config.PARAM['indicator'].view([*config.PARAM['indicator'].size(), 1, 1]))
+                        cfg['indicator'].view([*cfg['indicator'].size(), 1, 1]))
                     h += h_indicator
                 mean, log_sd = h.chunk(2, 1)
                 z = gaussian_sample(eps, mean, log_sd)
@@ -317,8 +317,8 @@ class CGlow(nn.Module):
         return loss.mean()
 
     def forward(self, input):
-        output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
+        cfg['indicator'] = F.one_hot(input['label'], cfg['classes_size']).float()
         x = input['img'] * 0.5
         x = x + torch.rand_like(x) / 256
         z = []
@@ -337,7 +337,7 @@ class CGlow(nn.Module):
 
     def reverse(self, input):
         output = {}
-        config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        cfg['indicator'] = F.one_hot(input['label'], cfg['classes_size']).float()
         z = input['z']
         x = None
         for i, block in enumerate(self.blocks[::-1]):
@@ -349,7 +349,7 @@ class CGlow(nn.Module):
         return output
 
     def make_z_shapes(self):
-        C, H, W = config.PARAM['img_shape']
+        C, H, W = cfg['img_shape']
         z_shapes = []
         for i in range(self.L - 1):
             H, W = H // 2, W // 2
@@ -365,7 +365,7 @@ class CGlow(nn.Module):
             z_shapes = self.make_z_shapes()
             x = []
             for i in range(len(z_shapes)):
-                x_i = torch.randn([C.size(0), *z_shapes[i]], device=config.PARAM['device']) * temperature
+                x_i = torch.randn([C.size(0), *z_shapes[i]], device=cfg['device']) * temperature
                 x.append(x_i)
         input['z'] = x
         input['reconstruct'] = False
@@ -375,13 +375,13 @@ class CGlow(nn.Module):
 
 
 def cglow():
-    img_shape = config.PARAM['img_shape']
-    hidden_size = config.PARAM['hidden_size']
-    K = config.PARAM['K']
-    L = config.PARAM['L']
-    affine = config.PARAM['affine']
-    conv_lu = config.PARAM['conv_lu']
-    num_mode = config.PARAM['classes_size']
+    img_shape = cfg['img_shape']
+    hidden_size = cfg['hidden_size']
+    K = cfg['K']
+    L = cfg['L']
+    affine = cfg['affine']
+    conv_lu = cfg['conv_lu']
+    num_mode = cfg['classes_size']
     model = CGlow(img_shape, hidden_size, K, L, num_mode, affine, conv_lu)
     return model
 
@@ -413,8 +413,8 @@ class MCGlow(nn.Module):
         return loss.mean()
 
     def forward(self, input):
-        output = {'loss': torch.tensor(0, device=config.PARAM['device'], dtype=torch.float32)}
-        config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
+        cfg['indicator'] = F.one_hot(input['label'], cfg['classes_size']).float()
         x = input['img'] * 0.5
         x = x + torch.rand_like(x) / 256
         z = []
@@ -433,7 +433,7 @@ class MCGlow(nn.Module):
 
     def reverse(self, input):
         output = {}
-        config.PARAM['indicator'] = F.one_hot(input['label'], config.PARAM['classes_size']).float()
+        cfg['indicator'] = F.one_hot(input['label'], cfg['classes_size']).float()
         z = input['z']
         x = None
         for i, block in enumerate(self.blocks[::-1]):
@@ -445,7 +445,7 @@ class MCGlow(nn.Module):
         return output
 
     def make_z_shapes(self):
-        C, H, W = config.PARAM['img_shape']
+        C, H, W = cfg['img_shape']
         z_shapes = []
         for i in range(self.L - 1):
             H, W = H // 2, W // 2
@@ -461,7 +461,7 @@ class MCGlow(nn.Module):
             z_shapes = self.make_z_shapes()
             x = []
             for i in range(len(z_shapes)):
-                x_i = torch.randn([C.size(0), *z_shapes[i]], device=config.PARAM['device']) * temperature
+                x_i = torch.randn([C.size(0), *z_shapes[i]], device=cfg['device']) * temperature
                 x.append(x_i)
         input['z'] = x
         input['reconstruct'] = False
@@ -471,13 +471,13 @@ class MCGlow(nn.Module):
 
 
 def mcglow():
-    img_shape = config.PARAM['img_shape']
-    hidden_size = config.PARAM['hidden_size']
-    K = config.PARAM['K']
-    L = config.PARAM['L']
-    affine = config.PARAM['affine']
-    conv_lu = config.PARAM['conv_lu']
-    num_mode = config.PARAM['classes_size']
-    controller_rate = config.PARAM['controller_rate']
+    img_shape = cfg['img_shape']
+    hidden_size = cfg['hidden_size']
+    K = cfg['K']
+    L = cfg['L']
+    affine = cfg['affine']
+    conv_lu = cfg['conv_lu']
+    num_mode = cfg['classes_size']
+    controller_rate = cfg['controller_rate']
     model = MCGlow(img_shape, hidden_size, K, L, num_mode, controller_rate, affine, conv_lu)
     return model

@@ -1,21 +1,24 @@
 import argparse
-import config
-
-config.init()
 import itertools
 
 parser = argparse.ArgumentParser(description='Config')
 parser.add_argument('--run', default=None, type=str)
 parser.add_argument('--model', default=None, type=str)
+parser.add_argument('--round', default=4, type=int)
+parser.add_argument('--num_gpu', default=4, type=int)
+parser.add_argument('--experiments_step', default=1, type=int)
+parser.add_argument('--num_experiments', default=1, type=int)
 args = vars(parser.parse_args())
 
 
 def main():
-    round = 4
-    num_gpu = 4
-    gpu_ids = [str(x) for x in list(range(num_gpu))]
     run = args['run']
     model = args['model']
+    round = args['round']
+    num_gpu = args['num_gpu']
+    experiments_step = args['experiments_step']
+    num_experiments = args['num_experiments']
+    gpu_ids = [str(x) for x in list(range(num_gpu))]
     if run in ['train', 'test']:
         filename = '{}_{}'.format(run, model)
         script_name = [['{}_{}.py'.format(run, model)]]
@@ -27,8 +30,6 @@ def main():
         model_names = [['vqvae']]
     else:
         model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
-    experiments_step = 2
-    num_experiments = 12
     init_seeds = [list(range(0, num_experiments, experiments_step))]
     num_epochs = [[200]]
     num_experiments = [[experiments_step]]

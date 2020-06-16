@@ -1,11 +1,10 @@
-import config
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import os
 import models
 import numpy as np
 from scipy import linalg
+from config import cfg
 from utils import recur, save, load, to_device, collate
 from data import fetch_dataset, make_data_loader
 from torch.utils.data import DataLoader
@@ -28,7 +27,7 @@ def NLL(output, target):
 
 def PSNR(output, target, MAX=1.0):
     with torch.no_grad():
-        max = torch.tensor(MAX).to(config.PARAM['device'])
+        max = torch.tensor(MAX).to(cfg['device'])
         mse = F.mse_loss(output.to(torch.float64), target.to(torch.float64))
         psnr = (20 * torch.log10(max) - 10 * torch.log10(mse)).item()
     return psnr
@@ -38,27 +37,27 @@ def InceptionScore(img, splits=10):
     N = len(img)
     batch_size = 256
     data_loader = DataLoader(img, batch_size=batch_size)
-    if config.PARAM['data_name'] in ['MNIST', 'Omniglot']:
-        model = eval('models.classifier().to(config.PARAM["device"])')
-        model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier']
+    if cfg['data_name'] in ['MNIST', 'Omniglot']:
+        model = models.classifier().to(cfg['device'])
+        model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
         model_tag = '_'.join(filter(None, model_tag))
         checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
         model.load_state_dict(checkpoint['model_dict'])
         model.train(False)
-        preds = np.zeros((N, config.PARAM['classes_size']))
+        preds = np.zeros((N, cfg['classes_size']))
         for i, input in enumerate(data_loader):
             input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
-            input = to_device(input, config.PARAM['device'])
+            input = to_device(input, cfg['device'])
             input_size_i = input['img'].size(0)
             output = model(input)
             preds[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['label'], dim=-1).cpu().numpy()
     else:
-        model = inception_v3(pretrained=True, transform_input=False).to(config.PARAM['device'])
+        model = inception_v3(pretrained=True, transform_input=False).to(cfg['device'])
         model.train(False)
         up = nn.Upsample(size=(299, 299), mode='bilinear', align_corners=False)
         preds = np.zeros((N, 1000))
         for i, input in enumerate(data_loader):
-            input = input.to(config.PARAM['device'])
+            input = input.to(cfg['device'])
             input_size_i = input.size(0)
             input = up(input)
             output = model(input)
@@ -79,12 +78,12 @@ def InceptionScore(img, splits=10):
 
 def FID(img):
     batch_size = 256
-    config.PARAM['batch_size']['train'] = batch_size
-    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
+    cfg['batch_size']['train'] = batch_size
+    dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     real_data_loader = make_data_loader(dataset)['train']
     generated_data_loader = DataLoader(img, batch_size=batch_size)
-    model = eval('models.classifier().to(config.PARAM["device"])')
-    model_tag = ['0', config.PARAM['data_name'], config.PARAM['subset'], 'classifier']
+    model = models.classifier().to(cfg['device'])
+    model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
     model_tag = '_'.join(filter(None, model_tag))
     checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
     model.load_state_dict(checkpoint['model_dict'])
@@ -92,14 +91,14 @@ def FID(img):
     real_feature = []
     for i, input in enumerate(real_data_loader):
         input = collate(input)
-        input = to_device(input, config.PARAM['device'])
+        input = to_device(input, cfg['device'])
         real_feature_i = model.feature(input)
         real_feature.append(real_feature_i)
     real_feature = torch.cat(real_feature, dim=0).cpu().numpy()
     generated_feature = []
     for i, input in enumerate(generated_data_loader):
         input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
-        input = to_device(input, config.PARAM['device'])
+        input = to_device(input, cfg['device'])
         generated_feature_i = model.feature(input)
         generated_feature.append(generated_feature_i)
     generated_feature = torch.cat(generated_feature, dim=0).cpu().numpy()

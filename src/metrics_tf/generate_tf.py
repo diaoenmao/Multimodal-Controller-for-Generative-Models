@@ -1,56 +1,39 @@
-import config
-
-config.init()
 import argparse
 import datetime
 import os
 import torch
 import torch.backends.cudnn as cudnn
 import models
+from config import cfg
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
+from utils import save, to_device, process_control, process_dataset, resume, collate, save_img
 from logger import Logger
 
-
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
-parser = argparse.ArgumentParser(description='Config')
-for k in config.PARAM:
-    exec('parser.add_argument(\'--{0}\',default=config.PARAM[\'{0}\'], type=type(config.PARAM[\'{0}\']))'.format(k))
+parser = argparse.ArgumentParser(description='cfg')
+for k in cfg:
+    exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
 parser.add_argument('--control_name', default=None, type=str)
 args = vars(parser.parse_args())
-for k in config.PARAM:
-    config.PARAM[k] = args[k]
+for k in cfg:
+    cfg[k] = args[k]
 if args['control_name']:
-    config.PARAM['control_name'] = args['control_name']
-    if config.PARAM['control_name'] != 'None':
-        control_list = list(config.PARAM['control'].keys())
-        control_name_list = args['control_name'].split('_')
-        for i in range(len(control_name_list)):
-            config.PARAM['control'][control_list[i]] = control_name_list[i]
-    else:
-        config.PARAM['control'] = {}
-else:
-    if config.PARAM['control'] == 'None':
-        config.PARAM['control'] = {}
-control_name_list = []
-for k in config.PARAM['control']:
-    control_name_list.append(config.PARAM['control'][k])
-config.PARAM['control_name'] = '_'.join(control_name_list)
+    cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
+        if args['control_name'] != 'None' else {}
+cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 
 
 def main():
-    process_control_name()
-    config.PARAM['model_tag'] = 'TF_{}'.format(config.PARAM['data_name'])
-    print('Experiment: {}'.format(config.PARAM['model_tag']))
+    process_control()
+    print('Experiment: {}'.format(cfg['data_name']))
     runExperiment()
     return
 
 
 def runExperiment():
-    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
+    dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     test(data_loader['train'])
@@ -64,9 +47,8 @@ def test(data_loader):
             input = collate(input)
             generated.append(input['img'])
         generated = torch.cat(generated)
-        generated = ((generated + 1) / 2 * 255).cpu().numpy()
-        path = './output/result/is_{}.npy'.format(config.PARAM['model_tag'])
-        save(generated, path, mode='numpy')
+        generated = (generated + 1) / 2 * 255
+        save(generated.numpy(), './output/npy/generated_{}.npy'.format(cfg['data_name']), mode='numpy')
     return
 
 

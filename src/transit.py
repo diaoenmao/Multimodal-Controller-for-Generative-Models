@@ -1,6 +1,3 @@
-import config
-
-config.init()
 import argparse
 import datetime
 import os
@@ -8,57 +5,44 @@ import torch
 import torch.backends.cudnn as cudnn
 import models
 import numpy as np
-from data import fetch_dataset, make_data_loader
-from utils import save, to_device, process_control_name, process_dataset, resume, collate, save_img
+from config import cfg
+from data import fetch_dataset
+from utils import process_control, process_dataset, resume, save_img
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 cudnn.benchmark = True
-parser = argparse.ArgumentParser(description='Config')
-for k in config.PARAM:
-    exec('parser.add_argument(\'--{0}\',default=config.PARAM[\'{0}\'], type=type(config.PARAM[\'{0}\']))'.format(k))
+parser = argparse.ArgumentParser(description='cfg')
+for k in cfg:
+    exec('parser.add_argument(\'--{0}\', default=cfg[\'{0}\'], type=type(cfg[\'{0}\']))'.format(k))
 parser.add_argument('--control_name', default=None, type=str)
 args = vars(parser.parse_args())
-for k in config.PARAM:
-    config.PARAM[k] = args[k]
+for k in cfg:
+    cfg[k] = args[k]
 if args['control_name']:
-    config.PARAM['control_name'] = args['control_name']
-    if config.PARAM['control_name'] != 'None':
-        control_list = list(config.PARAM['control'].keys())
-        control_name_list = args['control_name'].split('_')
-        for i in range(len(control_name_list)):
-            config.PARAM['control'][control_list[i]] = control_name_list[i]
-    else:
-        config.PARAM['control'] = {}
-else:
-    if config.PARAM['control'] == 'None':
-        config.PARAM['control'] = {}
-control_name_list = []
-for k in config.PARAM['control']:
-    control_name_list.append(config.PARAM['control'][k])
-config.PARAM['control_name'] = '_'.join(control_name_list)
+    cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
+        if args['control_name'] != 'None' else {}
+cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 
 
 def main():
-    process_control_name()
-    seeds = list(range(config.PARAM['init_seed'], config.PARAM['init_seed'] + config.PARAM['num_experiments']))
-    for i in range(config.PARAM['num_experiments']):
-        model_tag_list = [str(seeds[i]), config.PARAM['data_name'], config.PARAM['subset'], config.PARAM['model_name'],
-                          config.PARAM['control_name']]
-        model_tag_list = [x for x in model_tag_list if x]
-        config.PARAM['model_tag'] = '_'.join(filter(None, model_tag_list))
-        print('Experiment: {}'.format(config.PARAM['model_tag']))
+    process_control()
+    seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
+    for i in range(cfg['num_experiments']):
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['model_name'], cfg['control_name']]
+        cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
+        print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
     return
 
 
 def runExperiment():
-    seed = int(config.PARAM['model_tag'].split('_')[0])
+    seed = int(cfg['model_tag'].split('_')[0])
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    dataset = fetch_dataset(config.PARAM['data_name'], config.PARAM['subset'])
+    dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset['train'])
-    model = eval('models.{}().to(config.PARAM["device"])'.format(config.PARAM['model_name']))
-    _, model, _, _, _ = resume(model, config.PARAM['model_tag'], load_tag='best')
+    model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
+    _, model, _, _, _ = resume(model, cfg['model_tag'], load_tag='best')
     transit(model)
     return
 
@@ -67,45 +51,45 @@ def transit(model):
     save_format = 'pdf'
     with torch.no_grad():
         model.train(False)
-        if config.PARAM['data_name'] in ['Omniglot']:
+        if cfg['data_name'] in ['Omniglot']:
             max_save_num_mode = [10, 50, 100]
         else:
             max_save_num_mode = [100]
         root = 0
         fix = False
-        save_num_step = config.PARAM['save_per_mode']
+        save_num_step = cfg['save_per_mode']
         alphas = np.linspace(0, 1, save_num_step + 1)
         for i in range(len(max_save_num_mode)):
-            save_num_mode = min(max_save_num_mode[i], config.PARAM['classes_size'])
-            C = torch.arange(save_num_mode).to(config.PARAM['device'])
-            if config.PARAM['model_name'] in ['cvae', 'mcvae', 'cgan', 'mcgan']:
+            save_num_mode = min(max_save_num_mode[i], cfg['classes_size'])
+            C = torch.arange(save_num_mode).to(cfg['device'])
+            if cfg['model_name'] in ['cvae', 'mcvae', 'cgan', 'mcgan']:
                 if fix:
-                    x = torch.randn([1, config.PARAM['latent_size']]).expand(
-                        C.size(0), config.PARAM['latent_size']).to(config.PARAM['device'])
+                    x = torch.randn([1, cfg['latent_size']]).expand(
+                        C.size(0), cfg['latent_size']).to(cfg['device'])
                 else:
-                    x = torch.randn([C.size(0), config.PARAM['latent_size']]).to(config.PARAM['device'])
+                    x = torch.randn([C.size(0), cfg['latent_size']]).to(cfg['device'])
             else:
                 temperature = 1
                 z_shapes = model.make_z_shapes()
                 x = []
                 for k in range(len(z_shapes)):
                     if fix:
-                        x_k = torch.randn([1, *z_shapes[k]], device=config.PARAM['device']) * temperature
+                        x_k = torch.randn([1, *z_shapes[k]], device=cfg['device']) * temperature
                         x_k = x_k.expand(C.size(0), *z_shapes[k])
                     else:
-                        x_k = torch.randn([C.size(0), *z_shapes[k]], device=config.PARAM['device']) * temperature
+                        x_k = torch.randn([C.size(0), *z_shapes[k]], device=cfg['device']) * temperature
                     x.append(x_k)
             transited = []
             for j in range(len(alphas)):
                 models.utils.transit(model, root, alphas[j])
-                model = model.to(config.PARAM['device'])
+                model = model.to(cfg['device'])
                 transited_i = model.generate(C, x)
                 transited.append(transited_i.cpu())
             transited = torch.stack(transited, dim=0)
             transited = transited.view(-1, *transited.size()[2:])
             transited = (transited + 1) / 2
             save_img(transited, './output/img/transited_{}_{}.{}'.format(
-                config.PARAM['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
+                cfg['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
     return
 
 
