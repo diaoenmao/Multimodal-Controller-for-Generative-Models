@@ -1,7 +1,7 @@
 import argparse
 import itertools
 
-parser = argparse.ArgumentParser(description='Config')
+parser = argparse.ArgumentParser(description='cfg')
 parser.add_argument('--run', default=None, type=str)
 parser.add_argument('--model', default=None, type=str)
 parser.add_argument('--round', default=4, type=int)
@@ -26,8 +26,8 @@ def main():
         filename = '{}_{}'.format(run, model)
         script_name = [['{}.py'.format(run)]]
     data_names = ['CIFAR10', 'Omniglot']
-    if model == 'vqvae':
-        model_names = [['vqvae']]
+    if model in ['vqvae', 'classifier']:
+        model_names = [[model]]
     else:
         model_names = [['c{}'.format(args['model']), 'mc{}'.format(args['model'])]]
     init_seeds = [list(range(0, num_experiments, experiments_step))]

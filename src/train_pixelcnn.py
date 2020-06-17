@@ -86,18 +86,17 @@ def runExperiment():
             scheduler.step(metrics=logger.tracker[cfg['pivot_metric']], epoch=epoch)
         else:
             scheduler.step()
-        if cfg['save_mode'] >= 0:
-            logger.safe(False)
-            model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
-            save_result = {
-                'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
-                'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
-                'logger': logger}
-            save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-            if cfg['pivot'] > logger.mean[cfg['pivot_metric']]:
-                cfg['pivot'] = logger.mean[cfg['pivot_metric']]
-                shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                            './output/model/{}_best.pt'.format(cfg['model_tag']))
+        logger.safe(False)
+        model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
+        save_result = {
+            'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+            'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
+            'logger': logger}
+        save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+        if cfg['pivot'] > logger.mean[cfg['pivot_metric']]:
+            cfg['pivot'] = logger.mean[cfg['pivot_metric']]
+            shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
+                        './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
     logger.safe(False)
     return

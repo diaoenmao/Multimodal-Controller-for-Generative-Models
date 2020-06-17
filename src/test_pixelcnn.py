@@ -56,8 +56,7 @@ def runExperiment():
     load_tag = 'best'
     last_epoch, model, _, _, _ = resume(model, cfg['model_tag'], load_tag=load_tag)
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time) if cfg[
-        'log_overwrite'] else 'output/runs/train_{}'.format(cfg['model_tag'])
+    logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
     logger = Logger(logger_path)
     logger.safe(True)
     test(data_loader['test'], ae, model, logger, last_epoch)

@@ -92,20 +92,19 @@ def runExperiment():
         else:
             scheduler['generator'].step()
             scheduler['discriminator'].step()
-        if cfg['save_mode'] >= 0:
-            logger.safe(False)
-            model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
-            save_result = {
-                'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
-                'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
-                                   'discriminator': optimizer['discriminator'].state_dict()},
-                'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
-                                   'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
-            save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-            if cfg['pivot'] < logger.mean[cfg['pivot_metric']][0]:
-                cfg['pivot'] = logger.mean[cfg['pivot_metric']][0]
-                shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
-                            './output/model/{}_best.pt'.format(cfg['model_tag']))
+        logger.safe(False)
+        model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
+        save_result = {
+            'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+            'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
+                               'discriminator': optimizer['discriminator'].state_dict()},
+            'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
+                               'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
+        save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
+        if cfg['pivot'] < logger.mean[cfg['pivot_metric']][0]:
+            cfg['pivot'] = logger.mean[cfg['pivot_metric']][0]
+            shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
+                        './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
     logger.safe(False)
     return

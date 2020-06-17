@@ -1,7 +1,7 @@
 import argparse
 import itertools
 
-parser = argparse.ArgumentParser(description='Config')
+parser = argparse.ArgumentParser(description='cfg')
 parser.add_argument('--model', default=None, type=str)
 parser.add_argument('--round', default=1, type=int)
 parser.add_argument('--num_gpu', default=1, type=int)
