@@ -47,7 +47,8 @@ def load(path, mode='torch'):
 
 def save_img(img, path, nrow=10, padding=2, pad_value=0, range=None):
     makedir_exist_ok(os.path.dirname(path))
-    save_image(img, path, nrow=nrow, padding=padding, pad_value=pad_value, range=range)
+    normalize = False if range is None else True
+    save_image(img, path, nrow=nrow, padding=padding, pad_value=pad_value, normalize=normalize, range=range)
     return
 
 

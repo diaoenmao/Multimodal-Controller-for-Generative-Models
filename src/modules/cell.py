@@ -92,7 +92,7 @@ class ResizeCell(nn.Module):
         self.cell_info = {**default_cell_info, **cell_info}
 
     def forward(self, input):
-        return input.view(input.size(0), *self.cell_info['resize'])
+        return (input[0].view(input[0].size(0), *self.cell_info['resize']), *input[1:])
 
 
 class LinearCell(nn.Linear):
@@ -105,7 +105,7 @@ class LinearCell(nn.Linear):
         self.activation = Activation(self.cell_info['activation'])
 
     def forward(self, input):
-        return self.activation(self.normalization(F.linear(input, self.weight, self.bias)))
+        return (self.activation(self.normalization(F.linear(input[0], self.weight, self.bias))), *input[1:])
 
 
 class MCLinearCell(nn.Linear):
@@ -121,7 +121,7 @@ class MCLinearCell(nn.Linear):
              'num_mode': self.cell_info['num_mode'], 'controller_rate': self.cell_info['controller_rate']})
 
     def forward(self, input):
-        return self.mc(self.activation(self.normalization(F.linear(input, self.weight, self.bias))))
+        return self.mc((self.activation(self.normalization(F.linear(input[0], self.weight, self.bias))), input[1]))
 
 
 class Conv2dCell(nn.Conv2d):
@@ -143,11 +143,11 @@ class Conv2dCell(nn.Conv2d):
             expanded_padding = ((self.padding[2] + 1) // 2, self.padding[2] // 2,
                                 (self.padding[1] + 1) // 2, self.padding[1] // 2,
                                 (self.padding[0] + 1) // 2, self.padding[0] // 2)
-            return self.activation(self.normalization(F.conv2d(F.pad(input, expanded_padding, mode='circular'),
-                                                               self.weight, self.bias, self.stride, _tuple(0),
-                                                               self.dilation, self.groups)))
-        return self.activation(self.normalization(F.conv2d(input, self.weight, self.bias, self.stride,
-                                                           self.padding, self.dilation, self.groups)))
+            return (self.activation(self.normalization(F.conv2d(F.pad(input[0], expanded_padding, mode='circular'),
+                                                                self.weight, self.bias, self.stride, _tuple(0),
+                                                                self.dilation, self.groups))), *input[1:])
+        return (self.activation(self.normalization(F.conv2d(input[0], self.weight, self.bias, self.stride,
+                                                            self.padding, self.dilation, self.groups))), *input[1:])
 
 
 class MCConv2dCell(nn.Conv2d):
@@ -172,11 +172,12 @@ class MCConv2dCell(nn.Conv2d):
             expanded_padding = ((self.padding[2] + 1) // 2, self.padding[2] // 2,
                                 (self.padding[1] + 1) // 2, self.padding[1] // 2,
                                 (self.padding[0] + 1) // 2, self.padding[0] // 2)
-            return self.mc(self.activation(self.normalization(F.conv2d(F.pad(input, expanded_padding, mode='circular'),
-                                                                       self.weight, self.bias, self.stride, _tuple(0),
-                                                                       self.dilation, self.groups))))
-        return self.mc(self.activation(self.normalization(F.conv2d(input, self.weight, self.bias, self.stride,
-                                                                   self.padding, self.dilation, self.groups))))
+            return self.mc((self.activation(self.normalization(
+                F.conv2d(F.pad(input[0], expanded_padding, mode='circular'), self.weight, self.bias, self.stride,
+                         _tuple(0), self.dilation, self.groups))), input[1]))
+        return self.mc((self.activation(self.normalization(
+            F.conv2d(input[0], self.weight, self.bias, self.stride, self.padding, self.dilation, self.groups))),
+                        input[1]))
 
 
 class ConvTranspose2dCell(nn.ConvTranspose2d):
@@ -197,11 +198,10 @@ class ConvTranspose2dCell(nn.ConvTranspose2d):
     def forward(self, input, output_size=None):
         if self.padding_mode != 'zeros':
             raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
-
-        output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size)
-        return self.activation(self.normalization(F.conv_transpose2d(
-            input, self.weight, self.bias, self.stride, self.padding,
-            output_padding, self.groups, self.dilation)))
+        output_padding = self._output_padding(input[0], output_size, self.stride, self.padding, self.kernel_size)
+        return (self.activation(self.normalization(
+            F.conv_transpose2d(input[0], self.weight, self.bias, self.stride, self.padding, output_padding, self.groups,
+                               self.dilation))), *input[1:])
 
 
 class MCConvTranspose2dCell(nn.ConvTranspose2d):
@@ -225,11 +225,10 @@ class MCConvTranspose2dCell(nn.ConvTranspose2d):
     def forward(self, input, output_size=None):
         if self.padding_mode != 'zeros':
             raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
-
-        output_padding = self._output_padding(input, output_size, self.stride, self.padding, self.kernel_size)
-        return self.mc(self.activation(self.normalization(F.conv_transpose2d(
-            input, self.weight, self.bias, self.stride, self.padding,
-            output_padding, self.groups, self.dilation))))
+        output_padding = self._output_padding(input[0], output_size, self.stride, self.padding, self.kernel_size)
+        return self.mc((self.activation(self.normalization(
+            F.conv_transpose2d(input[0], self.weight, self.bias, self.stride, self.padding, output_padding, self.groups,
+                               self.dilation))), input[1]))
 
 
 class ResConv2dCell(nn.Module):
@@ -246,17 +245,17 @@ class ResConv2dCell(nn.Module):
             self.shortcut = Conv2dCell(
                 {**self.cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0, 'activation': 'none'})
         else:
-            self.shortcut = nn.Identity()
+            self.shortcut = nn.Sequential()
         self.activation = Activation(self.cell_info['activation'])
 
     def forward(self, input):
-        x = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) \
+        x = (F.interpolate(input[0], scale_factor=2, mode='bilinear', align_corners=False), *input[1:]) \
             if self.cell_info['mode'] == 'up' else input
         shortcut = self.shortcut(x)
         x = self.conv_1(x)
         x = self.conv_2(x)
-        x = self.activation(x + shortcut)
-        output = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
+        x = (self.activation(x[0] + shortcut[0]), *x[1:])
+        output = (F.avg_pool2d(x, 2), *x[1:]) if self.cell_info['mode'] == 'down' else x
         return output
 
 
@@ -274,7 +273,7 @@ class MCResConv2dCell(nn.Module):
             self.shortcut = MCConv2dCell(
                 {**cell_info, 'kernel_size': 1, 'stride': 1, 'padding': 0, 'activation': 'none'})
         else:
-            self.shortcut = nn.Identity()
+            self.shortcut = nn.Sequential()
         self.activation = Activation(self.cell_info['activation'])
 
     def forward(self, input):
@@ -283,8 +282,8 @@ class MCResConv2dCell(nn.Module):
         shortcut = self.shortcut(x)
         x = self.conv_1(x)
         x = self.conv_2(x)
-        x = self.activation(x + shortcut)
-        output = F.avg_pool2d(x, 2) if self.cell_info['mode'] == 'down' else x
+        x = (self.activation(x[0] + shortcut[0]), *x[1:])
+        output = (F.avg_pool2d(x, 2), *x[1:]) if self.cell_info['mode'] == 'down' else x
         return output
 
 
@@ -361,7 +360,7 @@ class MultimodalController(nn.Module):
         return codebook
 
     def forward(self, input):
-        code = cfg['indicator'].matmul(self.codebook)
-        code = code.view(*code.size(), *([1] * (input.dim() - 2)))
-        output = input * code.detach()
+        code = input[1].matmul(self.codebook)
+        code = code.view(*code.size(), *([1] * (input[0].dim() - 2)))
+        output = (input[0] * code.detach(), *input[1:])
         return output

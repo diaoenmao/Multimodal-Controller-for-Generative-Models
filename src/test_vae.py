@@ -23,7 +23,6 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-
 if cfg['data_name'] in ['ImageNet32']:
     cfg['batch_size'] = {'train': 1024, 'test': 1024}
 else:
@@ -78,8 +77,8 @@ def test(data_loader, model, logger, epoch):
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
-        save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=[-1, 1])
-        save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=[-1, 1])
+        save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=(-1, 1))
+        save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 

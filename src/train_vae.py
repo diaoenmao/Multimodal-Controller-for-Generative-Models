@@ -36,7 +36,7 @@ else:
     cfg['batch_size'] = {'train': 128, 'test': 512}
 cfg['metric_name'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
 cfg['show'] = False
-cfg['scheduler_name'] = 'ExponentialLR'
+cfg['scheduler_name'] = 'ReduceLROnPlateau'
 
 
 def main():
@@ -145,8 +145,8 @@ def test(data_loader, model, logger, epoch):
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
         if cfg['show']:
-            save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=[-1, 1])
-            save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=[-1, 1])
+            save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=(-1, 1))
+            save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 
@@ -182,8 +182,8 @@ def make_scheduler(optimizer):
     elif cfg['scheduler_name'] == 'ReduceLROnPlateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg['factor'],
                                                          patience=cfg['patience'], verbose=True,
-                                                         threshold=cfg['threshold'],
-                                                         threshold_mode='rel')
+                                                         threshold=cfg['threshold'], threshold_mode='rel',
+                                                         min_lr=cfg['min_lr'])
     elif cfg['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg['lr'], max_lr=10 * cfg['lr'])
     else:

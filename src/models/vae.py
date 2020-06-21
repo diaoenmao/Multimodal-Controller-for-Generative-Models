@@ -38,16 +38,16 @@ class CVAE(nn.Module):
         input['img'] = (input['img'] + 1) / 2
         x = input['img']
         onehot = F.one_hot(input['label'], cfg['classes_size']).float()
-        encoder_embedding = self.model['encoder_embedding'](onehot)
+        encoder_embedding = self.model['encoder_embedding']((onehot,))[0]
         encoder_embedding = encoder_embedding.view([*encoder_embedding.size(), 1, 1]).expand(
             [*encoder_embedding.size(), *x.size()[2:]])
         x = torch.cat((x, encoder_embedding), dim=1)
-        x = self.model['encoder'](x)
-        output['mu'], output['logvar'] = self.model['mu'](x), self.model['logvar'](x)
+        x = self.model['encoder']((x,))
+        output['mu'], output['logvar'] = self.model['mu'](x)[0], self.model['logvar'](x)[0]
         x = reparameterize(output['mu'], output['logvar']) if self.training else output['mu']
-        decoder_embedding = self.model['decoder_embedding'](onehot)
+        decoder_embedding = self.model['decoder_embedding']((onehot,))[0]
         x = torch.cat((x, decoder_embedding), dim=1)
-        decoded = self.model['decoder'](x)
+        decoded = self.model['decoder']((x,))[0]
         output['img'] = decoded
         output['loss'] = loss(input, output)
         input['img'] = input['img'] * 2 - 1
@@ -63,8 +63,8 @@ class MCVAE(nn.Module):
     def generate(self, C, x=None):
         if x is None:
             x = torch.randn([C.size(0), cfg['latent_size']], device=cfg['device'])
-        cfg['indicator'] = F.one_hot(C, cfg['classes_size']).float()
-        generated = self.model['decoder'](x)
+        indicator = F.one_hot(C, cfg['classes_size']).float()
+        generated = self.model['decoder']((x, indicator))[0]
         generated = generated * 2 - 1
         return generated
 
@@ -72,13 +72,11 @@ class MCVAE(nn.Module):
         output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
         input['img'] = (input['img'] + 1) / 2
         x = input['img']
-        cfg['indicator'] = F.one_hot(input['label'], cfg['classes_size']).float()
-        x = self.model['encoder'](x)
-        output['mu'] = self.model['mu'](x)
-        output['logvar'] = self.model['logvar'](x)
-        output['mu'], output['logvar'] = self.model['mu'](x), self.model['logvar'](x)
+        indicator = F.one_hot(input['label'], cfg['classes_size']).float()
+        x = self.model['encoder']((x, indicator))
+        output['mu'], output['logvar'] = self.model['mu'](x)[0], self.model['logvar'](x)[0]
         x = reparameterize(output['mu'], output['logvar']) if self.training else output['mu']
-        decoded = self.model['decoder'](x)
+        decoded = self.model['decoder']((x, indicator))[0]
         output['img'] = decoded
         output['loss'] = loss(input, output)
         input['img'] = input['img'] * 2 - 1

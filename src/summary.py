@@ -47,6 +47,13 @@ def runExperiment():
     return
 
 
+def make_size(input):
+    if isinstance(input, tuple):
+        return make_size(input[0])
+    else:
+        return list(input[0].size())
+
+
 def summarize(data_loader, model, ae=None):
     def register_hook(module):
 
@@ -63,8 +70,8 @@ def summarize(data_loader, model, ae=None):
                 summary['module'][key]['input_size'] = []
                 summary['module'][key]['output_size'] = []
                 summary['module'][key]['params'] = {}
-            input_size = list(input[0].size()) if isinstance(input, tuple) else list(input.size())
-            output_size = list(output[0].size()) if isinstance(output, tuple) else list(output.size())
+            input_size = make_size(input)
+            output_size = make_size(output)
             summary['module'][key]['input_size'].append(input_size)
             summary['module'][key]['output_size'].append(output_size)
             for name, param in module.named_parameters():
