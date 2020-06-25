@@ -22,7 +22,8 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['metric_names'] = {'test': ['InceptionScore', 'FID']}
+cfg['metric_name'] = {'test': ['InceptionScore', 'FID']}
+cfg['raw'] = False
 
 
 def main():
@@ -51,7 +52,7 @@ def runExperiment():
             img.append(input['img'])
         img = torch.cat(img, dim=0)
         output = {'img': img}
-        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
+        evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
         is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
         print('Inception Score ({}): {}'.format(cfg['data_name'], is_result))
         print('FID ({}): {}'.format(cfg['data_name'], fid_result))
@@ -70,7 +71,7 @@ def test(generated):
         valid_mask = torch.sum(torch.isnan(generated), dim=(1, 2, 3)) == 0
         generated = generated[valid_mask]
         output = {'img': generated}
-        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
+        evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
     is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
     print('Inception Score ({}): {}'.format(cfg['model_tag'], is_result))
     print('FID ({}): {}'.format(cfg['model_tag'], fid_result))

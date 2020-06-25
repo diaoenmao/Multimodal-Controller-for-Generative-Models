@@ -26,11 +26,12 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['pivot_metric'] = 'test/Loss'
+cfg['pivot_metric'] = 'Loss'
 cfg['pivot'] = float('inf')
-cfg['lr'] = 2e-4
-cfg['batch_size'] = {'train': 64, 'test': 256}
+cfg['lr'] = 3e-4
+cfg['batch_size'] = {'train': 128, 'test': 256}
 cfg['metric_name'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
+cfg['scheduler_name'] = 'ReduceLROnPlateau'
 
 
 def main():
@@ -72,9 +73,9 @@ def runExperiment():
     for epoch in range(last_epoch, cfg['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['test'], model, logger, epoch)
+        test(data_loader['train'], model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler.step(metrics=logger.tracker[cfg['pivot_metric']], epoch=epoch)
+            scheduler.step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
         else:
             scheduler.step()
         logger.safe(False)
@@ -84,8 +85,8 @@ def runExperiment():
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] > logger.tracker[cfg['pivot_metric']]:
-            cfg['pivot'] = logger.tracker[cfg['pivot_metric']]
+        if cfg['pivot'] > logger.tracker['test/{}'.format(cfg['pivot_metric'])]:
+            cfg['pivot'] = logger.tracker['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
@@ -174,8 +175,8 @@ def make_scheduler(optimizer):
     elif cfg['scheduler_name'] == 'ReduceLROnPlateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg['factor'],
                                                          patience=cfg['patience'], verbose=True,
-                                                         threshold=cfg['threshold'],
-                                                         threshold_mode='rel')
+                                                         threshold=cfg['threshold'], threshold_mode='rel',
+                                                         min_lr=cfg['min_lr'])
     elif cfg['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg['lr'], max_lr=10 * cfg['lr'])
     else:

@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import os
 import torch
 import torch.backends.cudnn as cudnn
@@ -22,6 +21,7 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
+cfg['save_format'] = 'pdf'
 
 
 def main():
@@ -48,7 +48,6 @@ def runExperiment():
 
 
 def transit(model):
-    save_format = 'pdf'
     with torch.no_grad():
         model.train(False)
         if cfg['data_name'] in ['Omniglot']:
@@ -87,9 +86,8 @@ def transit(model):
                 transited.append(transited_i.cpu())
             transited = torch.stack(transited, dim=0)
             transited = transited.view(-1, *transited.size()[2:])
-            transited = (transited + 1) / 2
             save_img(transited, './output/img/transited_{}_{}.{}'.format(
-                cfg['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
+                cfg['model_tag'], save_num_mode, cfg['save_format']), nrow=save_num_mode, range=(-1, 1))
     return
 
 

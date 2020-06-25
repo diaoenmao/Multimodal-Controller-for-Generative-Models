@@ -12,21 +12,21 @@ class VQVAE(nn.Module):
 
     def encode(self, input):
         x = input['img']
-        x = self.model['encoder'](x)
+        x = self.model['encoder']((x,))[0]
         _, _, code = self.model['quantizer'](x)
         return code
 
     def decode(self, code):
         x = self.model['quantizer'].embedding_code(code).permute(0, 3, 1, 2).contiguous()
-        generated = self.model['decoder'](x)
+        generated = self.model['decoder']((x,))[0]
         return generated
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
         x = input['img']
-        x = self.model['encoder'](x)
+        x = self.model['encoder']((x,))[0]
         x, vq_loss, output['idx'] = self.model['quantizer'](x)
-        decoded = self.model['decoder'](x)
+        decoded = self.model['decoder']((x,))[0]
         output['img'] = decoded
         output['loss'] = F.mse_loss(decoded, input['img']) + cfg['vq_commit'] * vq_loss
         return output

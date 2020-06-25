@@ -81,8 +81,8 @@ def test(data_loader, model, logger, epoch):
         input['reconstruct'] = True
         input['z'] = output['z']
         output = model.reverse(input)
-        save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=[-1, 1])
-        save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=[-1, 1])
+        save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=(-1, 1))
+        save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 

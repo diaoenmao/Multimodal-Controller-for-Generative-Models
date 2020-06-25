@@ -26,17 +26,18 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['pivot_metric'] = 'test/MSE'
+cfg['pivot_metric'] = 'MSE'
 cfg['pivot'] = float('inf')
-cfg['lr'] = 2e-4
-cfg['weight_decay'] = 0
 if cfg['data_name'] in ['ImageNet32']:
     cfg['batch_size'] = {'train': 1024, 'test': 1024}
 else:
     cfg['batch_size'] = {'train': 128, 'test': 512}
 cfg['metric_name'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
-cfg['show'] = False
+cfg['optimizer_name'] = 'Adam'
+cfg['lr'] = 3e-4
+cfg['weight_decay'] = 0
 cfg['scheduler_name'] = 'ReduceLROnPlateau'
+cfg['show'] = False
 
 
 def main():
@@ -79,7 +80,7 @@ def runExperiment():
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(data_loader['test'], model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler.step(metrics=logger.tracker[cfg['pivot_metric']], epoch=epoch)
+            scheduler.step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
         else:
             scheduler.step()
         logger.safe(False)
@@ -89,8 +90,8 @@ def runExperiment():
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] > logger.mean[cfg['pivot_metric']]:
-            cfg['pivot'] = logger.mean[cfg['pivot_metric']]
+        if cfg['pivot'] > logger.mean['test/{}'.format(cfg['pivot_metric'])]:
+            cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()

@@ -3,8 +3,8 @@ import itertools
 
 parser = argparse.ArgumentParser(description='cfg')
 parser.add_argument('--model', default=None, type=str)
-parser.add_argument('--round', default=1, type=int)
 parser.add_argument('--num_gpu', default=1, type=int)
+parser.add_argument('--round', default=1, type=int)
 parser.add_argument('--num_experiments', default=1, type=int)
 args = vars(parser.parse_args())
 
@@ -15,9 +15,9 @@ def main():
     num_gpu = args['num_gpu']
     num_experiments = args['num_experiments']
     gpu_ids = [str(x) for x in list(range(num_gpu))]
-    pt_data_names = ['Omniglot']
     tf_data_names = ['CIFAR10']
-    created_data_names = ['CIFAR10', 'Omniglot']
+    pt_data_names = ['Omniglot']
+    created_data_names = tf_data_names + pt_data_names
     model_names = ['c{}'.format(args['model']), 'mc{}'.format(model)]
     control_exp = [str(x) for x in list(range(num_experiments))]
     s = '#!/bin/bash\n'

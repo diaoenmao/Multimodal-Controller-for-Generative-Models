@@ -1,4 +1,3 @@
-import math
 import numpy as np
 import torch
 import torch.nn as nn
@@ -19,16 +18,16 @@ class Classifier(nn.Module):
 
     def feature(self, input):
         x = input['img']
-        x = self.model['encoder'](x)
+        x = self.model['encoder']((x,))[0]
         x = x.view(x.size(0), -1)
         return x
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
         x = input['img']
-        x = self.model['encoder'](x)
+        x = self.model['encoder']((x,))[0]
         x = x.view(x.size(0), -1)
-        output['label'] = self.model['classifier'](x)
+        output['label'] = self.model['classifier']((x,))[0]
         output['loss'] = loss(input, output)
         return output
 
@@ -49,19 +48,19 @@ def classifier():
          'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
     cfg['model']['encoder'].append(
-        {'nn': 'nn.MaxPool2d(2, 2)'})
+        {'cell': 'Pool2dCell', 'mode': 'max', 'kernel_size': 2})
     cfg['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': hidden_size[0], 'output_size': hidden_size[1],
          'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
     cfg['model']['encoder'].append(
-        {'nn': 'nn.MaxPool2d(2, 2)'})
+        {'cell': 'Pool2dCell', 'mode': 'max', 'kernel_size': 2})
     cfg['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': hidden_size[1], 'output_size': hidden_size[2],
          'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': normalization,
          'activation': activation})
     cfg['model']['encoder'].append(
-        {'nn': 'nn.MaxPool2d(2, 2)'})
+        {'cell': 'Pool2dCell', 'mode': 'max', 'kernel_size': 2})
     cfg['model']['encoder'].append(
         {'cell': 'Conv2dCell', 'input_size': hidden_size[2], 'output_size': hidden_size[3],
          'kernel_size': 3, 'stride': 1, 'padding': 1, 'bias': True, 'normalization': normalization,

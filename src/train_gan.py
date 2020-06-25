@@ -10,7 +10,7 @@ import torch.optim as optim
 from config import cfg
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, load, to_device, process_control, process_dataset, collate
+from utils import save, load, to_device, process_control, process_dataset, collate, save_img
 from logger import Logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -26,19 +26,22 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['pivot_metric'] = 'test/InceptionScore'
+cfg['pivot_metric'] = 'InceptionScore'
 cfg['pivot'] = -float('inf')
-cfg['lr'] = {'discriminator': 2e-4, 'generator': 2e-4}
-cfg['weight_decay'] = 0
-cfg['d_iter'] = 5
-cfg['g_iter'] = 1
 if cfg['data_name'] in ['ImageNet32']:
     cfg['batch_size'] = {'train': 1024, 'test': 1024}
 else:
     cfg['batch_size'] = {'train': 64, 'test': 512}
-cfg['metric_names'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
+cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
+cfg['optimizer_name'] = 'Adam'
+cfg['lr'] = 2e-4
+cfg['weight_decay'] = 0
+cfg['scheduler_name'] = 'ReduceLROnPlateau'
+cfg['d_iter'] = 5
+cfg['g_iter'] = 1
 cfg['loss_type'] = 'Hinge'
 cfg['betas'] = (0.5, 0.999)
+cfg['show'] = False
 
 
 def main():
@@ -60,13 +63,8 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    if cfg['world_size'] > 1:
-        model.model['generator'] = torch.nn.DataParallel(model.model['generator'],
-                                                         device_ids=list(range(cfg['world_size'])))
-        model.model['discriminator'] = torch.nn.DataParallel(model.model['discriminator'],
-                                                             device_ids=list(range(cfg['world_size'])))
-    optimizer = {'generator': make_optimizer(model.model['generator'], cfg['lr']['generator']),
-                 'discriminator': make_optimizer(model.model['discriminator'], cfg['lr']['discriminator'])}
+    optimizer = {'generator': make_optimizer(model.model['generator']),
+                 'discriminator': make_optimizer(model.model['discriminator'])}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
                  'discriminator': make_scheduler(optimizer['discriminator'])}
     if cfg['resume_mode'] == 1:
@@ -82,13 +80,15 @@ def runExperiment():
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
         logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
+    if cfg['world_size'] > 1:
+        model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
     for epoch in range(last_epoch, cfg['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler['generator'].step(metrics=logger.tracker[cfg['pivot_metric']], epoch=epoch)
-            scheduler['discriminator'].step(metrics=logger.tracker[cfg['pivot_metric']], epoch=epoch)
+            scheduler['generator'].step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
+            scheduler['discriminator'].step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
         else:
             scheduler['generator'].step()
             scheduler['discriminator'].step()
@@ -171,9 +171,9 @@ def train(data_loader, model, optimizer, logger, epoch):
                              'Learning rate: {}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
-            evaluation = metric.evaluate(cfg['metric_names']['train'], input, output)
+            evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
             logger.append(evaluation, 'train', n=input_size)
-            logger.write('train', cfg['metric_names']['train'])
+            logger.write('train', cfg['metric_name']['train'])
     return
 
 
@@ -195,23 +195,27 @@ def test(model, logger, epoch):
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)
         output = {'img': generated}
-        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
+        evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
-        logger.write('test', cfg['metric_names']['test'])
+        logger.write('test', cfg['metric_name']['test'])
+        if cfg['show']:
+            save_img(output['img'][:100], './output/img/generated_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 
-def make_optimizer(model, lr):
+def make_optimizer(model):
     if cfg['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=cfg['momentum'], weight_decay=cfg['weight_decay'])
+        optimizer = optim.SGD(model.parameters(), lr=cfg['lr'], momentum=cfg['momentum'],
+                              weight_decay=cfg['weight_decay'])
     elif cfg['optimizer_name'] == 'RMSprop':
-        optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=cfg['momentum'], weight_decay=cfg['weight_decay'])
+        optimizer = optim.RMSprop(model.parameters(), lr=cfg['lr'], momentum=cfg['momentum'],
+                                  weight_decay=cfg['weight_decay'])
     elif cfg['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=cfg['betas'])
+        optimizer = optim.Adam(model.parameters(), lr=cfg['lr'], weight_decay=cfg['weight_decay'], betas=cfg['betas'])
     elif cfg['optimizer_name'] == 'Adamax':
-        optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=cfg['betas'])
+        optimizer = optim.Adamax(model.parameters(), lr=cfg['lr'], weight_decay=cfg['weight_decay'], betas=cfg['betas'])
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer
@@ -233,8 +237,8 @@ def make_scheduler(optimizer):
     elif cfg['scheduler_name'] == 'ReduceLROnPlateau':
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg['factor'],
                                                          patience=cfg['patience'], verbose=True,
-                                                         threshold=cfg['threshold'],
-                                                         threshold_mode='rel')
+                                                         threshold=cfg['threshold'], threshold_mode='rel',
+                                                         min_lr=cfg['min_lr'])
     elif cfg['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg['lr'], max_lr=10 * cfg['lr'])
     else:
@@ -261,8 +265,7 @@ def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoin
         from logger import Logger
         last_epoch = 1
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time) if cfg[
-            'log_overwrite'] else 'output/runs/train_{}'.format(cfg['model_tag'])
+        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
     return last_epoch, model, optimizer, scheduler, logger
 

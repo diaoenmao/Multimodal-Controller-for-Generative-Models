@@ -27,9 +27,9 @@ class CVAE(nn.Module):
         if x is None:
             x = torch.randn([C.size(0), cfg['latent_size']], device=cfg['device'])
         onehot = F.one_hot(C, cfg['classes_size']).float()
-        decoder_embedding = self.model['decoder_embedding'](onehot)
+        decoder_embedding = self.model['decoder_embedding']((onehot,))[0]
         x = torch.cat((x, decoder_embedding), dim=1)
-        generated = self.model['decoder'](x)
+        generated = self.model['decoder']((x,))[0]
         generated = generated * 2 - 1
         return generated
 

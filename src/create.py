@@ -20,6 +20,7 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
+cfg['save_format'] = 'pdf'
 
 
 def main():
@@ -53,7 +54,6 @@ def runExperiment():
 
 
 def create(model, ae=None):
-    save_format = 'pdf'
     with torch.no_grad():
         sample_per_iter = 1000
         if cfg['save_npy']:
@@ -83,9 +83,8 @@ def create(model, ae=None):
                 for i in range(0, cfg['classes_size'] * save_per_mode, cfg['classes_size']):
                     saved.append(created[i:i + save_num_mode])
                 saved = torch.cat(saved)
-                saved = saved / 255
-                save_img(saved, './output/img/created_{}.{}'.format(cfg['model_tag'], save_format),
-                         nrow=save_num_mode)
+                save_img(saved, './output/img/created_{}.{}'.format(cfg['model_tag'], cfg['save_format']),
+                         nrow=save_num_mode, range=(0, 255))
         else:
             if 'glow' in cfg['model_name'] and cfg['data_name'] == 'CIFAR10':
                 save_per_mode = cfg['save_per_mode']
@@ -106,7 +105,6 @@ def create(model, ae=None):
                         created_i = model.generate(C_created_i)
                         created.append(created_i.cpu())
                     created = torch.cat(created)
-                    created = (created + 1) / 2
                     saved = []
                     for j in range(save_num_mode):
                         created_i = created[j:created.size(0):save_num_mode]
@@ -121,7 +119,7 @@ def create(model, ae=None):
                     saved = saved.view(save_num_mode, -1, *saved.size()[1:]).transpose(0, 1)
                     saved = saved.reshape(-1, *saved.size()[2:])
                     save_img(saved, './output/img/created_{}_{}.{}'.format(
-                        cfg['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
+                        cfg['model_tag'], save_num_mode, cfg['save_format']), nrow=save_num_mode, range=(-1, 1))
             else:
                 save_per_mode = cfg['save_per_mode']
                 save_num_modes = [10, 50, 100]
@@ -144,9 +142,8 @@ def create(model, ae=None):
                             created_i = ae.decode(code_i)
                         created.append(created_i.cpu())
                     created = torch.cat(created)
-                    created = (created + 1) / 2
                     save_img(created, './output/img/created_{}_{}.{}'.format(
-                        cfg['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
+                        cfg['model_tag'], save_num_mode, cfg['save_format']), nrow=save_num_mode, range=(-1, 1))
     return
 
 

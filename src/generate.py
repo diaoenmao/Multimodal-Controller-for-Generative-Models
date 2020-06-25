@@ -20,6 +20,7 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
+cfg['save_format'] = 'pdf'
 
 
 def main():
@@ -53,7 +54,6 @@ def runExperiment():
 
 
 def generate(model, ae=None):
-    save_format = 'pdf'
     with torch.no_grad():
         model.train(False)
         sample_per_iter = 1000
@@ -81,9 +81,8 @@ def generate(model, ae=None):
                 for i in range(0, cfg['classes_size'] * save_per_mode, cfg['classes_size']):
                     saved.append(generated[i:i + save_num_mode])
                 saved = torch.cat(saved)
-                saved = saved / 255
-                save_img(saved, './output/img/generated_{}.{}'.format(cfg['model_tag'], save_format),
-                         nrow=save_num_mode)
+                save_img(saved, './output/img/generated_{}.{}'.format(cfg['model_tag'], cfg['save_format']),
+                         nrow=save_num_mode, range=(0, 255))
         else:
             save_per_mode = cfg['save_per_mode']
             if cfg['classes_size'] > 100:
@@ -105,9 +104,8 @@ def generate(model, ae=None):
                         saved_i = ae.decode(code_i)
                     saved.append(saved_i.cpu())
                 saved = torch.cat(saved)
-                saved = (saved + 1) / 2
                 save_img(saved, './output/img/generated_{}_{}.{}'.format(
-                    cfg['model_tag'], save_num_mode, save_format), nrow=save_num_mode)
+                    cfg['model_tag'], save_num_mode, cfg['save_format']), nrow=save_num_mode, range=(-1, 1))
     return
 
 

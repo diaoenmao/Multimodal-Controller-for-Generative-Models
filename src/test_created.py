@@ -22,8 +22,8 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-
-cfg['metric_names'] = {'test': ['DBI']}
+cfg['metric_name'] = {'test': ['DBI']}
+cfg['raw'] = False
 
 
 def main():
@@ -54,7 +54,7 @@ def runExperiment():
         img = torch.cat(img, dim=0)
         label = torch.cat(label, dim=0)
         output = {'img': img, 'label': label}
-        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
+        evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
         dbi_result = evaluation['DBI']
         print('Davies-Bouldin Index ({}): {}'.format(cfg['data_name'], dbi_result))
         save(dbi_result, './output/result/dbi_{}.npy'.format(cfg['data_name']), mode='numpy')
@@ -74,7 +74,7 @@ def test(created):
         label = label.repeat(cfg['generate_per_mode'])
         label = label[valid_mask]
         output = {'img': created, 'label': label}
-        evaluation = metric.evaluate(cfg['metric_names']['test'], None, output)
+        evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
     dbi_result = evaluation['DBI']
     print('Davies-Bouldin Index ({}): {}'.format(cfg['model_tag'], dbi_result))
     save(dbi_result, './output/result/dbi_{}.npy'.format(cfg['model_tag']), mode='numpy')
