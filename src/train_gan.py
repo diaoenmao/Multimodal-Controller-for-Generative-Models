@@ -31,17 +31,16 @@ cfg['pivot'] = -float('inf')
 if cfg['data_name'] in ['ImageNet32']:
     cfg['batch_size'] = {'train': 1024, 'test': 1024}
 else:
-    cfg['batch_size'] = {'train': 64, 'test': 512}
+    cfg['batch_size'] = {'train': 128, 'test': 512}
 cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 cfg['optimizer_name'] = 'Adam'
 cfg['lr'] = 2e-4
 cfg['weight_decay'] = 0
-cfg['scheduler_name'] = 'ReduceLROnPlateau'
+cfg['scheduler_name'] = 'None'
 cfg['d_iter'] = 5
 cfg['g_iter'] = 1
 cfg['loss_type'] = 'Hinge'
 cfg['betas'] = (0.5, 0.999)
-cfg['show'] = False
 
 
 def main():
@@ -63,8 +62,8 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    optimizer = {'generator': make_optimizer(model.model['generator']),
-                 'discriminator': make_optimizer(model.model['discriminator'])}
+    optimizer = {'generator': make_optimizer(model.generator),
+                 'discriminator': make_optimizer(model.discriminator)}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
                  'discriminator': make_scheduler(optimizer['discriminator'])}
     if cfg['resume_mode'] == 1:
@@ -87,8 +86,8 @@ def runExperiment():
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler['generator'].step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
-            scheduler['discriminator'].step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
+            scheduler['generator'].step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])][0])
+            scheduler['discriminator'].step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])][0])
         else:
             scheduler['generator'].step()
             scheduler['discriminator'].step()
@@ -101,8 +100,8 @@ def runExperiment():
             'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
                                'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] < logger.mean[cfg['pivot_metric']][0]:
-            cfg['pivot'] = logger.mean[cfg['pivot_metric']][0]
+        if cfg['pivot'] < logger.mean['test/{}'.format(cfg['pivot_metric'])][0]:
+            cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])][0]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
@@ -140,6 +139,7 @@ def train(data_loader, model, optimizer, logger, epoch):
             else:
                 raise ValueError('Not valid loss type')
             D_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.discriminator.parameters(), 1)
             optimizer['discriminator'].step()
         ############################
         # (2) Update G network
@@ -158,6 +158,7 @@ def train(data_loader, model, optimizer, logger, epoch):
             else:
                 raise ValueError('Not valid loss type')
             G_loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.generator.parameters(), 1)
             optimizer['generator'].step()
         output = {'loss': abs(D_loss - G_loss), 'loss_D': D_loss, 'loss_G': G_loss}
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
@@ -200,8 +201,6 @@ def test(model, logger, epoch):
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
-        if cfg['show']:
-            save_img(output['img'][:100], './output/img/generated_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 

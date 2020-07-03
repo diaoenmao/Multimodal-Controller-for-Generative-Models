@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class VectorQuantization(nn.Module):
     def __init__(self, embedding_size, num_embedding, decay=0.99, eps=1e-5):
-        super(VectorQuantization, self).__init__()
+        super().__init__()
         self.embedding_size = embedding_size
         self.num_embedding = num_embedding
         self.decay = decay
@@ -50,7 +50,7 @@ class VectorQuantization(nn.Module):
 
 class MultimodalController(nn.Module):
     def __init__(self, input_size, num_mode, controller_rate=0.5):
-        super(MultimodalController, self).__init__()
+        super().__init__()
         self.input_size = input_size
         self.num_mode = num_mode
         self.controller_rate = controller_rate
@@ -71,7 +71,17 @@ class MultimodalController(nn.Module):
         return codebook
 
     def forward(self, input):
-        code = input[1].matmul(self.codebook)
-        code = code.view(*code.size(), *([1] * (input[0].dim() - 2)))
-        output = (input[0] * code.detach(), *input[1:])
+        x, indicator = input
+        code = indicator.matmul(self.codebook)
+        code = code.view(*code.size(), *([1] * (x.dim() - 2)))
+        output = [x * code.detach(), *input[1:]]
         return output
+
+
+class Wrapper(nn.Module):
+    def __init__(self, module):
+        super().__init__()
+        self.module = module
+
+    def forward(self, input):
+        return [self.module(input[0]), *input[1:]]

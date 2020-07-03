@@ -20,7 +20,6 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['save_format'] = 'pdf'
 
 
 def main():
@@ -70,7 +69,7 @@ def create(model, ae=None):
                     created_i = model.generate(C_created_i)
                 else:
                     code_i = model.generate(C_created_i)
-                    created_i = ae.decode(code_i)
+                    created_i = ae.decode_code(code_i)
                 created.append(created_i.cpu())
             created = torch.cat(created)
             created = ((created + 1) / 2 * 255)
@@ -139,7 +138,7 @@ def create(model, ae=None):
                             created_i = model.generate(C_created_i)
                         else:
                             code_i = model.generate(C_created_i)
-                            created_i = ae.decode(code_i)
+                            created_i = ae.decode_code(code_i)
                         created.append(created_i.cpu())
                     created = torch.cat(created)
                     save_img(created, './output/img/created_{}_{}.{}'.format(

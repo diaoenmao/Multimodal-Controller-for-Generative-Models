@@ -1,6 +1,10 @@
-from .classifier import *
-# from .gan import *
-# from .glow import *
-# from .pixelcnn import *
-from .vae import *
-from .vqvae import *
+from .classifier import classifier
+from .vqvae import vqvae
+from .cvae import cvae
+from .mcvae import mcvae
+from .cpixelcnn import cpixelcnn
+from .mcpixelcnn import mcpixelcnn
+from .cglow import cglow
+from .mcglow import mcglow
+from .cgan import cgan
+from .mcgan import mcgan

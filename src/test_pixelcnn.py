@@ -75,7 +75,8 @@ def test(data_loader, ae, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, cfg['device'])
-            input['img'] = ae.encode(input).detach()
+            _, _, input['img'] = ae.encode(input['img'])
+            input['img'] = input['img'].detach()
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)

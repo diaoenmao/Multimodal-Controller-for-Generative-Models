@@ -23,7 +23,7 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['batch_size'] = {'train': 1, 'test': 1}
+cfg['batch_size'] = {'train': 2, 'test': 2}
 
 
 def main():
@@ -139,7 +139,8 @@ def summarize(data_loader, model, ae=None):
         input = to_device(input, cfg['device'])
         if ae is not None:
             with torch.no_grad():
-                input['img'] = ae.encode(input).detach()
+                _, _, input['img'] = ae.encode(input['img'])
+                input['img'] = input['img'].detach()
         model(input)
         break
     for h in hooks:

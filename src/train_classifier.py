@@ -75,7 +75,7 @@ def runExperiment():
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(data_loader['train'], model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler.step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
+            scheduler.step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])])
         else:
             scheduler.step()
         logger.safe(False)
@@ -106,6 +106,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
         output['loss'].backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time

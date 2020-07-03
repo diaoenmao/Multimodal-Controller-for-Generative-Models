@@ -105,47 +105,47 @@ def process_control():
     if 'controller_rate' in cfg['control']:
         cfg['controller_rate'] = float(cfg['control']['controller_rate'])
     if cfg['data_name'] in ['MNIST', 'FashionMNIST']:
-        cfg['img_shape'] = [1, 32, 32]
+        cfg['data_shape'] = [1, 32, 32]
         cfg['generate_per_mode'] = 1000
     elif cfg['data_name'] in ['Omniglot']:
-        cfg['img_shape'] = [1, 32, 32]
+        cfg['data_shape'] = [1, 32, 32]
         cfg['generate_per_mode'] = 20
     elif cfg['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
-        cfg['img_shape'] = [3, 32, 32]
+        cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 1000
-    elif cfg['data_name'] in ['ImageNet32']:
-        cfg['img_shape'] = [3, 32, 32]
-        cfg['generate_per_mode'] = 20
-    elif cfg['data_name'] in ['ImageNet64']:
-        cfg['img_shape'] = [3, 64, 64]
+    elif cfg['data_name'] in ['ImageNet']:
+        cfg['data_shape'] = [3, 128, 128]
         cfg['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
     if cfg['ae_name'] in ['vqvae']:
         cfg['hidden_size'] = 128
-        cfg['conditional_embedding_size'] = 32
-        cfg['quantizer_embedding_size'] = 64
+        cfg['num_res_block'] = 2
+        cfg['embedding_size'] = 64
         cfg['num_embedding'] = 512
         cfg['vq_commit'] = 0.25
     if cfg['model_name'] in ['cpixelcnn', 'mcpixelcnn']:
-        cfg['n_layers'] = 15
+        cfg['num_layer'] = 15
         cfg['hidden_size'] = 128
         cfg['num_embedding'] = 512
     elif cfg['model_name'] in ['cvae', 'mcvae']:
         cfg['hidden_size'] = [64, 128, 256]
         cfg['latent_size'] = 128
-        cfg['conditional_embedding_size'] = 32
-        cfg['encode_shape'] = [cfg['hidden_size'][-1],
-                               cfg['img_shape'][1] // (2 ** len(cfg['hidden_size'])),
-                               cfg['img_shape'][2] // (2 ** len(cfg['hidden_size']))]
+        cfg['num_res_block'] = 2
+        cfg['embedding_size'] = 32
     elif cfg['model_name'] in ['cgan', 'mcgan']:
         cfg['generator_normalization'] = 'bn'
         cfg['discriminator_normalization'] = 'none'
         cfg['generator_activation'] = 'relu'
         cfg['discriminator_activation'] = 'relu'
         cfg['latent_size'] = 128
-        cfg['generator_hidden_size'] = [512, 256, 128, 64]
-        cfg['discriminator_hidden_size'] = [64, 128, 256, 512]
+        if cfg['data_shape'][1] < 100:
+            cfg['generator_hidden_size'] = [512, 256, 128, 64]
+            cfg['discriminator_hidden_size'] = [64, 128, 256, 512]
+        else:
+            cfg['generator_hidden_size'] = [1024, 512, 256, 128, 64]
+            cfg['discriminator_hidden_size'] = [64, 128, 256, 512, 1024, 1024]
+        cfg['embedding_size'] = 32
     elif cfg['model_name'] in ['cglow', 'mcglow']:
         cfg['hidden_size'] = 512
         cfg['K'] = 16

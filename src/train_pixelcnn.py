@@ -84,7 +84,7 @@ def runExperiment():
         train(data_loader['train'], ae, model, optimizer, logger, epoch)
         test(data_loader['test'], ae, model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler.step(metrics=logger.tracker['train/{}'.format(cfg['pivot_metric'])], epoch=epoch)
+            scheduler.step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])])
         else:
             scheduler.step()
         logger.safe(False)
@@ -113,11 +113,13 @@ def train(data_loader, ae, model, optimizer, logger, epoch):
         input_size = input['img'].size(0)
         input = to_device(input, cfg['device'])
         with torch.no_grad():
-            input['img'] = ae.encode(input).detach()
+            _, _, input['img'] = ae.encode(input['img'])
+            input['img'] = input['img'].detach()
         optimizer.zero_grad()
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
         output['loss'].backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
@@ -145,7 +147,8 @@ def test(data_loader, ae, model, logger, epoch):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, cfg['device'])
-            input['img'] = ae.encode(input).detach()
+            _, _, input['img'] = ae.encode(input['img'])
+            input['img'] = input['img'].detach()
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)
