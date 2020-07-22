@@ -41,10 +41,10 @@ def fetch_dataset(data_name, subset):
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
             'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
-    elif data_name in ['ImageNet32', 'ImageNet64', 'ImageNet']:
-        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+    elif data_name in ['ImageNet']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset, size=128,'
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
-        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset, size=128,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         cfg['transform'] = {
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
@@ -61,16 +61,14 @@ def fetch_dataset(data_name, subset):
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                       transforms.Normalize((0.5,), (0.5,))])
         }
-    elif data_name == 'CelebA':
-        dataset['train'] = datasets.CelebA(root=root, split='train', subset=subset,
+    elif data_name == 'CelebA-HQ':
+        dataset['train'] = datasets.CelebAHQ(root=root, split='train', subset=subset, size=128,
                                            transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.CelebA(root=root, split='test', subset=subset,
+        dataset['test'] = datasets.CelebAHQ(root=root, split='test', subset=subset, size=128,
                                           transform=datasets.Compose([transforms.ToTensor()]))
         cfg['transform'] = {
-            'train': datasets.Compose([transforms.Resize((128, 128)), transforms.ToTensor(),
-                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-            'test': datasets.Compose([transforms.Resize((128, 128)), transforms.ToTensor(),
-                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+            'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+            'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
     else:
         raise ValueError('Not valid dataset name')

@@ -28,17 +28,36 @@ if args['control_name']:
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 cfg['pivot_metric'] = 'InceptionScore'
 cfg['pivot'] = -float('inf')
-if cfg['data_name'] in ['ImageNet32']:
+if cfg['data_name'] in ['ImageNet', 'ImageNet32']:
     cfg['batch_size'] = {'train': 1024, 'test': 1024}
 else:
     cfg['batch_size'] = {'train': 128, 'test': 512}
 cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 cfg['optimizer_name'] = 'Adam'
-cfg['lr'] = 2e-4
+if cfg['model_name'] == 'mcgan':
+    if cfg['data_name'] in ['CIFAR10']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 5e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+    elif cfg['data_name'] in ['CIFAR100']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 5e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+    elif cfg['data_name'] in ['Omniglot']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 5e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+elif cfg['model_name'] == 'cgan':
+    if cfg['data_name'] in ['CIFAR10']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+    elif cfg['data_name'] in ['CIFAR100']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+    elif cfg['data_name'] in ['Omniglot']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+else:
+    raise ValueError('Not valid model name')
 cfg['weight_decay'] = 0
 cfg['scheduler_name'] = 'None'
-cfg['d_iter'] = 5
-cfg['g_iter'] = 1
 cfg['loss_type'] = 'Hinge'
 cfg['betas'] = (0.5, 0.999)
 
@@ -62,8 +81,8 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    optimizer = {'generator': make_optimizer(model.generator),
-                 'discriminator': make_optimizer(model.discriminator)}
+    optimizer = {'generator': make_optimizer(model.generator, cfg['lr']['generator']),
+                 'discriminator': make_optimizer(model.discriminator, cfg['lr']['discriminator'])}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
                  'discriminator': make_scheduler(optimizer['discriminator'])}
     if cfg['resume_mode'] == 1:
@@ -80,7 +99,8 @@ def runExperiment():
         logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
     if cfg['world_size'] > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
+        model.generator = torch.nn.DataParallel(model.generator, device_ids=list(range(cfg['world_size'])))
+        model.discriminator = torch.nn.DataParallel(model.discriminator, device_ids=list(range(cfg['world_size'])))
     for epoch in range(last_epoch, cfg['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
@@ -92,7 +112,9 @@ def runExperiment():
             scheduler['generator'].step()
             scheduler['discriminator'].step()
         logger.safe(False)
-        model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
+        if cfg['world_size'] > 1:
+            model.generator, model.discriminator = model.module.generator, model.module.discriminator
+        model_state_dict = model.state_dict()
         save_result = {
             'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
             'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
@@ -120,13 +142,13 @@ def train(data_loader, model, optimizer, logger, epoch):
         ############################
         # (1) Update D network
         ###########################
-        for _ in range(cfg['d_iter']):
+        for _ in range(cfg['iter']['discriminator']):
             # train with real
             optimizer['discriminator'].zero_grad()
             optimizer['generator'].zero_grad()
             D_x = model.discriminate(input['img'], input[cfg['subset']])
             # train with fake
-            z1 = torch.randn(input['img'].size(0), cfg['latent_size'], device=cfg['device'])
+            z1 = torch.randn(input['img'].size(0), cfg['gan']['latent_size'], device=cfg['device'])
             generated = model.generate(input[cfg['subset']], z1)
             D_G_z1 = model.discriminate(generated.detach(), input[cfg['subset']])
             if cfg['loss_type'] == 'BCE':
@@ -139,15 +161,14 @@ def train(data_loader, model, optimizer, logger, epoch):
             else:
                 raise ValueError('Not valid loss type')
             D_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.discriminator.parameters(), 1)
             optimizer['discriminator'].step()
         ############################
         # (2) Update G network
         ###########################
-        for _ in range(cfg['g_iter']):
+        for _ in range(cfg['iter']['generator']):
             optimizer['discriminator'].zero_grad()
             optimizer['generator'].zero_grad()
-            z2 = torch.randn(input['img'].size(0), cfg['latent_size'], device=cfg['device'])
+            z2 = torch.randn(input['img'].size(0), cfg['gan']['latent_size'], device=cfg['device'])
             generated = model.generate(input[cfg['subset']], z2)
             D_G_z2 = model.discriminate(generated, input[cfg['subset']])
             if cfg['loss_type'] == 'BCE':
@@ -158,18 +179,19 @@ def train(data_loader, model, optimizer, logger, epoch):
             else:
                 raise ValueError('Not valid loss type')
             G_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.generator.parameters(), 1)
             optimizer['generator'].step()
         output = {'loss': abs(D_loss - G_loss), 'loss_D': D_loss, 'loss_G': G_loss}
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
-            lr = optimizer['generator'].param_groups[0]['lr']
+            generator_lr, discriminator_lr = optimizer['generator'].param_groups[0]['lr'], \
+                                             optimizer['discriminator'].param_groups[0]['lr']
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
             exp_finished_time = epoch_finished_time + datetime.timedelta(
                 seconds=round((cfg['num_epochs'] - epoch) * batch_time * len(data_loader)))
             info = {'info': ['Model: {}'.format(cfg['model_tag']),
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
-                             'Learning rate: {}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
+                             'Learning rate : (G: {}, D: {})'.format(generator_lr, discriminator_lr),
+                             'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
             evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
@@ -185,7 +207,7 @@ def test(model, logger, epoch):
         model.train(False)
         C = torch.arange(cfg['classes_size'])
         C = C.repeat(cfg['generate_per_mode'])
-        cfg['z'] = torch.randn([C.size(0), cfg['latent_size']]) if 'z' not in cfg else cfg['z']
+        cfg['z'] = torch.randn([C.size(0), cfg['gan']['latent_size']]) if 'z' not in cfg else cfg['z']
         C_generated = torch.split(C, sample_per_iter)
         z_generated = torch.split(cfg['z'], sample_per_iter)
         generated = []
@@ -204,17 +226,17 @@ def test(model, logger, epoch):
     return
 
 
-def make_optimizer(model):
+def make_optimizer(model, lr):
     if cfg['optimizer_name'] == 'SGD':
-        optimizer = optim.SGD(model.parameters(), lr=cfg['lr'], momentum=cfg['momentum'],
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=cfg['momentum'],
                               weight_decay=cfg['weight_decay'])
     elif cfg['optimizer_name'] == 'RMSprop':
-        optimizer = optim.RMSprop(model.parameters(), lr=cfg['lr'], momentum=cfg['momentum'],
+        optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=cfg['momentum'],
                                   weight_decay=cfg['weight_decay'])
     elif cfg['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=cfg['lr'], weight_decay=cfg['weight_decay'], betas=cfg['betas'])
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=cfg['betas'])
     elif cfg['optimizer_name'] == 'Adamax':
-        optimizer = optim.Adamax(model.parameters(), lr=cfg['lr'], weight_decay=cfg['weight_decay'], betas=cfg['betas'])
+        optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=cfg['betas'])
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

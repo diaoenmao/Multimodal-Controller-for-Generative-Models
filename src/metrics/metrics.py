@@ -35,7 +35,7 @@ def PSNR(output, target, MAX=1.0):
 
 def InceptionScore(img, splits=10):
     N = len(img)
-    batch_size = 256
+    batch_size = 64
     data_loader = DataLoader(img, batch_size=batch_size)
     if cfg['data_name'] in ['MNIST', 'Omniglot']:
         model = models.classifier().to(cfg['device'])

@@ -286,7 +286,12 @@ class CGlow(nn.Module):
         loss = -float(log(256.) * n_pixel)
         loss = loss + logdet + log_p
         loss = -loss / float(log(2.) * n_pixel)
-        return loss.mean()
+        if self.training:
+            loss[torch.isnan(loss)] = 0
+        else:
+            loss = loss[~torch.isnan(loss)]
+        loss = loss.mean()
+        return loss
 
     def forward(self, input):
         output = {'loss': torch.tensor(0, device=cfg['device'], dtype=torch.float32)}
@@ -348,11 +353,11 @@ class CGlow(nn.Module):
 
 def cglow():
     data_shape = cfg['data_shape']
-    hidden_size = cfg['hidden_size']
-    K = cfg['K']
-    L = cfg['L']
-    affine = cfg['affine']
-    conv_lu = cfg['conv_lu']
+    hidden_size = cfg['glow']['hidden_size']
+    K = cfg['glow']['K']
+    L = cfg['glow']['L']
+    affine = cfg['glow']['affine']
+    conv_lu = cfg['glow']['conv_lu']
     num_mode = cfg['classes_size']
     model = CGlow(data_shape, hidden_size, K, L, affine, conv_lu, num_mode)
     model.apply(init_param)

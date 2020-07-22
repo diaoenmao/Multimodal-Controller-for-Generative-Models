@@ -6,6 +6,7 @@ import gzip
 import requests
 import tarfile
 import zipfile
+import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from collections import Counter
@@ -50,6 +51,9 @@ def has_file_allowed_extension(filename, extensions):
 
 
 def make_classes_counts(label):
+    label = np.array(label)
+    if label.ndim > 1:
+        label = label.sum(axis=tuple([i for i in range(1, label.ndim)]))
     classes_counts = Counter(label)
     return classes_counts
 
@@ -166,7 +170,7 @@ def make_data(root, extensions):
     return path
 
 
-def make_img(path, extensions, classes_to_labels):
+def make_img(path, classes_to_labels, extensions=IMG_EXTENSIONS):
     img, label = [], []
     classes = []
     leaf_nodes = classes_to_labels.leaves

@@ -18,7 +18,6 @@ def loss(input, output):
 class ResBlock(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
-        self.activation = Activation(inplace=True)
         self.conv = nn.Sequential(
             nn.Conv2d(hidden_size, hidden_size, 3, 1, 1),
             Normalization(hidden_size),
@@ -26,6 +25,7 @@ class ResBlock(nn.Module):
             nn.Conv2d(hidden_size, hidden_size, 3, 1, 1),
             Normalization(hidden_size),
         )
+        self.activation = Activation(inplace=True)
 
     def forward(self, input):
         output = self.conv(input)
@@ -37,21 +37,17 @@ class Encoder(nn.Module):
     def __init__(self, data_shape, hidden_size, latent_size, num_res_block, num_mode, embedding_size):
         super().__init__()
         self.embedding = nn.Linear(num_mode, embedding_size, False)
-        blocks = [
-            nn.Conv2d(data_shape[0] + embedding_size, hidden_size[0], 4, 2, 1),
-            Normalization(hidden_size[0]),
-            Activation(inplace=True),
-            nn.Conv2d(hidden_size[0], hidden_size[1], 4, 2, 1),
-            Normalization(hidden_size[1]),
-            Activation(inplace=True),
-            nn.Conv2d(hidden_size[1], hidden_size[2], 4, 2, 1),
-            Normalization(hidden_size[2]),
-            Activation(inplace=True),
-        ]
+        blocks = [nn.Conv2d(data_shape[0] + embedding_size, hidden_size[0], 4, 2, 1),
+                  Normalization(hidden_size[0]),
+                  Activation(inplace=True)]
+        for i in range(len(hidden_size) - 1):
+            blocks.extend([nn.Conv2d(hidden_size[i], hidden_size[i + 1], 4, 2, 1),
+                           Normalization(hidden_size[i + 1]),
+                           Activation(inplace=True)])
         for i in range(num_res_block):
-            blocks.append(ResBlock(hidden_size[2]))
+            blocks.append(ResBlock(hidden_size[-1]))
         self.blocks = nn.Sequential(*blocks)
-        self.encoded_shape = (hidden_size[2], data_shape[1] // (2 ** len(hidden_size)),
+        self.encoded_shape = (hidden_size[-1], data_shape[1] // (2 ** len(hidden_size)),
                               data_shape[2] // (2 ** len(hidden_size)))
         self.mu = nn.Linear(np.prod(self.encoded_shape).item(), latent_size)
         self.logvar = nn.Linear(np.prod(self.encoded_shape).item(), latent_size)
@@ -77,7 +73,7 @@ class Decoder(nn.Module):
     def __init__(self, data_shape, hidden_size, latent_size, num_res_block, num_mode, embedding_size):
         super().__init__()
         self.embedding = nn.Linear(num_mode, embedding_size, False)
-        self.encoded_shape = (hidden_size[2], data_shape[1] // (2 ** len(hidden_size)),
+        self.encoded_shape = (hidden_size[-1], data_shape[1] // (2 ** len(hidden_size)),
                               data_shape[2] // (2 ** len(hidden_size)))
         self.linear = nn.Sequential(
             nn.Linear(latent_size + embedding_size, np.prod(self.encoded_shape).item()),
@@ -86,17 +82,13 @@ class Decoder(nn.Module):
         )
         blocks = []
         for i in range(num_res_block):
-            blocks.append(ResBlock(hidden_size[2]))
-        blocks.extend([
-            nn.ConvTranspose2d(hidden_size[2], hidden_size[1], 4, 2, 1),
-            Normalization(hidden_size[1]),
-            Activation(inplace=True),
-            nn.ConvTranspose2d(hidden_size[1], hidden_size[0], 4, 2, 1),
-            Normalization(hidden_size[0]),
-            Activation(inplace=True),
-            nn.ConvTranspose2d(hidden_size[0], data_shape[0], 4, 2, 1),
-            nn.Sigmoid()
-        ])
+            blocks.append(ResBlock(hidden_size[-1]))
+        for i in range(len(hidden_size) - 1, 0, -1):
+            blocks.extend([nn.ConvTranspose2d(hidden_size[i], hidden_size[i - 1], 4, 2, 1),
+                           Normalization(hidden_size[i - 1]),
+                           Activation(inplace=True)])
+        blocks.extend([nn.ConvTranspose2d(hidden_size[0], data_shape[0], 4, 2, 1),
+                       nn.Sigmoid()])
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, input):
@@ -154,11 +146,11 @@ class CVAE(nn.Module):
 
 def cvae():
     data_shape = cfg['data_shape']
-    hidden_size = cfg['hidden_size']
-    latent_size = cfg['latent_size']
-    num_res_block = cfg['num_res_block']
+    hidden_size = cfg['vae']['hidden_size']
+    latent_size = cfg['vae']['latent_size']
+    num_res_block = cfg['vae']['num_res_block']
     num_mode = cfg['classes_size']
-    embedding_size = cfg['embedding_size']
+    embedding_size = cfg['vae']['embedding_size']
     model = CVAE(data_shape=data_shape, hidden_size=hidden_size, latent_size=latent_size, num_res_block=num_res_block,
                  num_mode=num_mode, embedding_size=embedding_size)
     model.apply(init_param)

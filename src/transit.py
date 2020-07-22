@@ -54,28 +54,21 @@ def transit(model):
         else:
             max_save_num_mode = [100]
         root = 0
-        fix = False
         save_num_step = cfg['save_per_mode']
         alphas = np.linspace(0, 1, save_num_step + 1)
         for i in range(len(max_save_num_mode)):
             save_num_mode = min(max_save_num_mode[i], cfg['classes_size'])
             C = torch.arange(save_num_mode).to(cfg['device'])
-            if cfg['model_name'] in ['cvae', 'mcvae', 'cgan', 'mcgan']:
-                if fix:
-                    x = torch.randn([1, cfg['latent_size']]).expand(
-                        C.size(0), cfg['latent_size']).to(cfg['device'])
-                else:
-                    x = torch.randn([C.size(0), cfg['latent_size']]).to(cfg['device'])
+            if cfg['model_name'] in ['cvae', 'mcvae']:
+                x = torch.randn([C.size(0), cfg['vae']['latent_size']]).to(cfg['device'])
+            elif cfg['model_name'] in ['cgan', 'mcgan']:
+                x = torch.randn([C.size(0), cfg['gan']['latent_size']]).to(cfg['device'])
             else:
                 temperature = 1
                 z_shapes = model.make_z_shapes()
                 x = []
                 for k in range(len(z_shapes)):
-                    if fix:
-                        x_k = torch.randn([1, *z_shapes[k]], device=cfg['device']) * temperature
-                        x_k = x_k.expand(C.size(0), *z_shapes[k])
-                    else:
-                        x_k = torch.randn([C.size(0), *z_shapes[k]], device=cfg['device']) * temperature
+                    x_k = torch.randn([C.size(0), *z_shapes[k]], device=cfg['device']) * temperature
                     x.append(x_k)
             transited = []
             for j in range(len(alphas)):

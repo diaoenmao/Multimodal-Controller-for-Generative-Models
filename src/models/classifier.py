@@ -57,7 +57,7 @@ class Classifier(nn.Module):
 
 def classifier():
     data_shape = cfg['data_shape']
-    hidden_size = [8, 16, 32, 64]
+    hidden_size = cfg['classifier']['hidden_size']
     classes_size = cfg['classes_size']
     cfg['model'] = {}
     model = Classifier(data_shape, hidden_size, classes_size)

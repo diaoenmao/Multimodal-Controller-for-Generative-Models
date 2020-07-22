@@ -28,11 +28,9 @@ class VectorQuantization(nn.Module):
         embedding_ind = embedding_ind.view(*input.shape[:-1])
         quantize = self.embedding_code(embedding_ind)
         if self.training:
-            self.cluster_size.data.mul_(self.decay).add_(
-                1 - self.decay, embedding_onehot.sum(0)
-            )
+            self.cluster_size.data.mul_(self.decay).add_(embedding_onehot.sum(0), alpha=1 - self.decay)
             embedding_sum = flatten.transpose(0, 1) @ embedding_onehot
-            self.embedding_mean.data.mul_(self.decay).add_(1 - self.decay, embedding_sum)
+            self.embedding_mean.data.mul_(self.decay).add_(embedding_sum, alpha=1 - self.decay)
             n = self.cluster_size.sum()
             cluster_size = (
                     (self.cluster_size + self.eps) / (n + self.num_embedding * self.eps) * n

@@ -40,24 +40,19 @@ class ResBlock(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, data_shape, hidden_size, latent_size, num_res_block, num_mode, controller_rate):
         super().__init__()
-        blocks = [
-            Wrapper(nn.Conv2d(data_shape[0], hidden_size[0], 4, 2, 1)),
-            Wrapper(Normalization(hidden_size[0])),
-            Wrapper(Activation(inplace=True)),
-            MultimodalController(hidden_size[0], num_mode, controller_rate),
-            Wrapper(nn.Conv2d(hidden_size[0], hidden_size[1], 4, 2, 1)),
-            Wrapper(Normalization(hidden_size[1])),
-            Wrapper(Activation(inplace=True)),
-            MultimodalController(hidden_size[1], num_mode, controller_rate),
-            Wrapper(nn.Conv2d(hidden_size[1], hidden_size[2], 4, 2, 1)),
-            Wrapper(Normalization(hidden_size[2])),
-            Wrapper(Activation(inplace=True)),
-            MultimodalController(hidden_size[2], num_mode, controller_rate),
-        ]
+        blocks = [Wrapper(nn.Conv2d(data_shape[0], hidden_size[0], 4, 2, 1)),
+                  Wrapper(Normalization(hidden_size[0])),
+                  Wrapper(Activation(inplace=True)),
+                  MultimodalController(hidden_size[0], num_mode, controller_rate)]
+        for i in range(len(hidden_size) - 1):
+            blocks.extend([Wrapper(nn.Conv2d(hidden_size[i], hidden_size[i + 1], 4, 2, 1)),
+                           Wrapper(Normalization(hidden_size[i + 1])),
+                           Wrapper(Activation(inplace=True)),
+                           MultimodalController(hidden_size[i + 1], num_mode, controller_rate)])
         for i in range(num_res_block):
-            blocks.append(ResBlock(hidden_size[2], num_mode, controller_rate))
+            blocks.append(ResBlock(hidden_size[-1], num_mode, controller_rate))
         self.blocks = nn.Sequential(*blocks)
-        self.encoded_shape = (hidden_size[2], data_shape[1] // (2 ** len(hidden_size)),
+        self.encoded_shape = (hidden_size[-1], data_shape[1] // (2 ** len(hidden_size)),
                               data_shape[2] // (2 ** len(hidden_size)))
         self.mu = nn.Linear(np.prod(self.encoded_shape).item(), latent_size)
         self.logvar = nn.Linear(np.prod(self.encoded_shape).item(), latent_size)
@@ -78,7 +73,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, data_shape, hidden_size, latent_size, num_res_block, num_mode, controller_rate):
         super().__init__()
-        self.encoded_shape = (hidden_size[2], data_shape[1] // (2 ** len(hidden_size)),
+        self.encoded_shape = (hidden_size[-1], data_shape[1] // (2 ** len(hidden_size)),
                               data_shape[2] // (2 ** len(hidden_size)))
         self.linear = nn.Sequential(
             MultimodalController(latent_size, num_mode, controller_rate),
@@ -86,18 +81,16 @@ class Decoder(nn.Module):
             Wrapper(nn.BatchNorm1d(np.prod(self.encoded_shape).item())),
             Wrapper(Activation(inplace=True)),
         )
-        blocks = [MultimodalController(hidden_size[2], num_mode, controller_rate)]
+        blocks = [MultimodalController(hidden_size[-1], num_mode, controller_rate)]
         for i in range(num_res_block):
-            blocks.append(ResBlock(hidden_size[2], num_mode, controller_rate))
+            blocks.append(ResBlock(hidden_size[-1], num_mode, controller_rate))
+        for i in range(len(hidden_size) - 1, 0, -1):
+            blocks.extend([
+                Wrapper(nn.ConvTranspose2d(hidden_size[i], hidden_size[i - 1], 4, 2, 1)),
+                Wrapper(Normalization(hidden_size[i - 1])),
+                Wrapper(Activation(inplace=True)),
+                MultimodalController(hidden_size[i - 1], num_mode, controller_rate)])
         blocks.extend([
-            Wrapper(nn.ConvTranspose2d(hidden_size[2], hidden_size[1], 4, 2, 1)),
-            Wrapper(Normalization(hidden_size[1])),
-            Wrapper(Activation(inplace=True)),
-            MultimodalController(hidden_size[1], num_mode, controller_rate),
-            Wrapper(nn.ConvTranspose2d(hidden_size[1], hidden_size[0], 4, 2, 1)),
-            Wrapper(Normalization(hidden_size[0])),
-            Wrapper(Activation(inplace=True)),
-            MultimodalController(hidden_size[0], num_mode, controller_rate),
             Wrapper(nn.ConvTranspose2d(hidden_size[0], data_shape[0], 4, 2, 1)),
             Wrapper(nn.Sigmoid())
         ])
@@ -155,9 +148,9 @@ class MCVAE(nn.Module):
 
 def mcvae():
     data_shape = cfg['data_shape']
-    hidden_size = cfg['hidden_size']
-    latent_size = cfg['latent_size']
-    num_res_block = cfg['num_res_block']
+    hidden_size = cfg['vae']['hidden_size']
+    latent_size = cfg['vae']['latent_size']
+    num_res_block = cfg['vae']['num_res_block']
     num_mode = cfg['classes_size']
     controller_rate = cfg['controller_rate']
     model = MCVAE(data_shape=data_shape, hidden_size=hidden_size, latent_size=latent_size, num_res_block=num_res_block,

@@ -9,28 +9,26 @@ Activation = nn.ReLU
 
 
 class GenResBlock(nn.Module):
-    def __init__(self, input_size, output_size, mode='pass'):
+    def __init__(self, input_size, output_size):
         super().__init__()
-        self.mode = mode
         self.conv = nn.Sequential(
+            Normalization(input_size),
+            Activation(),
+            nn.Upsample(scale_factor=2, mode='nearest'),
             nn.Conv2d(input_size, output_size, 3, 1, 1),
             Normalization(output_size),
-            Activation(inplace=True),
+            Activation(),
             nn.Conv2d(output_size, output_size, 3, 1, 1),
-            Normalization(output_size),
         )
-        if input_size != output_size:
-            self.shortcut = nn.Conv2d(input_size, output_size, 1, 1, 0)
-        else:
-            self.shortcut = nn.Identity()
-        self.activation = Activation(inplace=True)
+        self.shortcut = nn.Sequential(
+            nn.Upsample(scale_factor=2, mode='nearest'),
+            nn.Conv2d(input_size, output_size, 1, 1, 0)
+        )
 
     def forward(self, input):
-        x = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) if self.mode == 'up' else input
-        shortcut = self.shortcut(x)
-        x = self.conv(x)
-        x = self.activation(x + shortcut)
-        output = F.avg_pool2d(x, 2) if self.mode == 'down' else x
+        shortcut = self.shortcut(input)
+        x = self.conv(input)
+        output = x + shortcut
         return output
 
 
@@ -39,12 +37,13 @@ class Generator(nn.Module):
         super().__init__()
         self.latent_size = latent_size
         self.embedding = nn.Linear(num_mode, embedding_size, bias=False)
-        blocks = [nn.ConvTranspose2d(latent_size + embedding_size, hidden_size[0], 4, 1, 0),
-                  Normalization(hidden_size[0]),
-                  Activation(inplace=True)]
+        self.linear = nn.Linear(latent_size + embedding_size, hidden_size[0] * 4 * 4)
+        blocks = []
         for i in range(len(hidden_size) - 1):
-            blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1], mode='up'))
+            blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1]))
         blocks.extend([
+            Normalization(hidden_size[-1]),
+            Activation(),
             nn.Conv2d(hidden_size[-1], data_shape[0], 3, 1, 1),
             nn.Tanh()
         ])
@@ -53,35 +52,77 @@ class Generator(nn.Module):
     def forward(self, input, indicator):
         x = input
         embedding = self.embedding(indicator)
-        embedding = embedding.view([*embedding.size(), 1, 1])
-        x = x.view([*x.size(), 1, 1])
         x = torch.cat((x, embedding), dim=1)
-        x = self.blocks(x)
-        return x
+        x = self.linear(x)
+        x = x.view(x.size(0), -1, 4, 4)
+        generated = self.blocks(x)
+        return generated
 
 
 class DisResBlock(nn.Module):
-    def __init__(self, input_size, output_size, mode='pass'):
+    def __init__(self, input_size, output_size, stride=1):
         super().__init__()
-        self.mode = mode
-        self.conv = nn.Sequential(
-            nn.Conv2d(input_size, output_size, 3, 1, 1),
-            Activation(inplace=True),
-            nn.Conv2d(output_size, output_size, 3, 1, 1),
-        )
-        if input_size != output_size:
-            self.shortcut = nn.Conv2d(input_size, output_size, 1, 1, 0)
+        if stride == 1:
+            self.conv = nn.Sequential(
+                Activation(),
+                nn.Conv2d(input_size, output_size, 3, 1, 1),
+                Activation(),
+                nn.Conv2d(output_size, output_size, 3, 1, 1),
+            )
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(input_size, output_size, 1, 1, 0)
+            )
         else:
-            self.shortcut = nn.Identity()
-        self.activation = Activation(inplace=True)
+            self.conv = nn.Sequential(
+                Activation(),
+                nn.Conv2d(input_size, output_size, 3, 1, 1),
+                Activation(),
+                nn.Conv2d(output_size, output_size, 3, 1, 1),
+                nn.AvgPool2d(2),
+            )
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(input_size, output_size, 1, 1, 0),
+                nn.AvgPool2d(2),
+            )
 
     def forward(self, input):
-        x = F.interpolate(input, scale_factor=2, mode='bilinear', align_corners=False) if self.mode == 'up' else input
+        shortcut = self.shortcut(input)
+        x = self.conv(input)
+        output = x + shortcut
+        return output
+
+
+class FirstDisResBlock(nn.Module):
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(input_size, output_size, 3, 1, 1),
+            Activation(),
+            nn.Conv2d(output_size, output_size, 3, 1, 1),
+            nn.AvgPool2d(2),
+        )
+        self.shortcut = nn.Sequential(
+            nn.Conv2d(input_size, output_size, 1, 1, 0),
+            nn.AvgPool2d(2),
+        )
+
+    def forward(self, input):
+        x = input
         shortcut = self.shortcut(x)
         x = self.conv(x)
-        x = self.activation(x + shortcut)
-        output = F.avg_pool2d(x, 2) if self.mode == 'down' else x
+        x = x + shortcut
+        output = x
         return output
+
+
+class GlobalSumPooling(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+    def forward(self, input):
+        x = input.sum(dim=[-2, -1]).view(input.size(0), -1)
+        return x
 
 
 class Discriminator(nn.Module):
@@ -89,13 +130,13 @@ class Discriminator(nn.Module):
         super().__init__()
         self.data_shape = data_shape
         self.embedding = nn.Linear(num_mode, embedding_size, bias=False)
-        blocks = [DisResBlock(data_shape[0] + embedding_size, hidden_size[0], mode='down')]
+        blocks = [FirstDisResBlock(data_shape[0] + embedding_size, hidden_size[0])]
         for i in range(len(hidden_size) - 2):
-            blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], mode='down'))
+            blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
         blocks.extend([
-            DisResBlock(hidden_size[-2], hidden_size[-1], mode='pass'),
-            nn.AdaptiveAvgPool2d(1),
-            nn.Flatten(),
+            DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
+            Activation(),
+            GlobalSumPooling(),
             nn.Linear(hidden_size[-1], 1)
         ])
         self.blocks = nn.Sequential(*blocks)
@@ -113,6 +154,7 @@ class CGAN(nn.Module):
     def __init__(self, data_shape, latent_size, generator_hidden_size, discriminator_hidden_size, num_mode,
                  embedding_size):
         super().__init__()
+        self.latent_size = latent_size
         self.generator = Generator(data_shape, latent_size, generator_hidden_size, num_mode, embedding_size)
         self.discriminator = Discriminator(data_shape, discriminator_hidden_size, num_mode, embedding_size)
         self.discriminator.apply(make_SpectralNormalization)
@@ -130,7 +172,7 @@ class CGAN(nn.Module):
         return discriminated
 
     def forward(self, input):
-        x = torch.randn(input['img'].size(0), cfg['latent_size'], device=cfg['device'])
+        x = torch.randn(input['img'].size(0), self.latent_size, device=cfg['device'])
         x = self.generate(input['label'], x)
         x = self.discriminate(x, input['label'])
         return x
@@ -138,11 +180,11 @@ class CGAN(nn.Module):
 
 def cgan():
     data_shape = cfg['data_shape']
-    latent_size = cfg['latent_size']
-    generator_hidden_size = cfg['generator_hidden_size']
-    discriminator_hidden_size = cfg['discriminator_hidden_size']
+    latent_size = cfg['gan']['latent_size']
+    generator_hidden_size = cfg['gan']['generator_hidden_size']
+    discriminator_hidden_size = cfg['gan']['discriminator_hidden_size']
     num_mode = cfg['classes_size']
-    embedding_size = cfg['embedding_size']
+    embedding_size = cfg['gan']['embedding_size']
     model = CGAN(data_shape, latent_size, generator_hidden_size, discriminator_hidden_size, num_mode, embedding_size)
     model.apply(init_param)
     return model

@@ -23,11 +23,11 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-if cfg['data_name'] in ['ImageNet32']:
+if cfg['data_name'] in ['ImageNet', 'ImageNet32']:
     cfg['batch_size'] = {'train': 512, 'test': 1024}
 else:
     cfg['batch_size'] = {'train': 128, 'test': 512}
-cfg['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
+cfg['metric_name'] = {'train': ['Loss'], 'test': ['Loss']}
 
 
 def main():
@@ -72,12 +72,12 @@ def test(data_loader, model, logger, epoch):
             input = to_device(input, cfg['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(cfg['metric_names']['test'], input, output)
+            evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
-        logger.write('test', cfg['metric_names']['test'])
+        logger.write('test', cfg['metric_name']['test'])
         input['reconstruct'] = True
         input['z'] = output['z']
         output = model.reverse(input)

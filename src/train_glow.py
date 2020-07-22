@@ -29,11 +29,11 @@ if args['control_name']:
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 cfg['pivot_metric'] = 'Loss'
 cfg['pivot'] = float('inf')
-if cfg['data_name'] in ['ImageNet32']:
+if cfg['data_name'] in ['ImageNet', 'ImageNet32']:
     cfg['batch_size'] = {'train': 256, 'test': 512}
 else:
     cfg['batch_size'] = {'train': 128, 'test': 512}
-cfg['metric_names'] = {'train': ['Loss'], 'test': ['Loss']}
+cfg['metric_name'] = {'train': ['Loss'], 'test': ['Loss']}
 cfg['optimizer_name'] = 'Adam'
 cfg['lr'] = 3e-4
 cfg['weight_decay'] = 0
@@ -76,13 +76,12 @@ def runExperiment():
     elif cfg['resume_mode'] == 2:
         last_epoch = 1
         _, model, _, _, _ = resume(model, cfg['model_tag'])
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/{}_{}'.format(cfg['model_tag'], current_time)
+        logger_path = 'output/runs/{}_{}'.format(cfg['model_tag'], datetime.datetime.now().strftime('%b%d_%H-%M-%S'))
         logger = Logger(logger_path)
     else:
         last_epoch = 1
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
+        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'],
+                                                       datetime.datetime.now().strftime('%b%d_%H-%M-%S'))
         logger = Logger(logger_path)
     if cfg['world_size'] > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
@@ -97,12 +96,12 @@ def runExperiment():
         logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         save_result = {
-            'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+            'cfg': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] > logger.mean['test/{}'.format('test/{}'.format(cfg['pivot_metric']))]:
-            cfg['pivot'] = logger.mean['test/{}'.format('test/{}'.format(cfg['pivot_metric']))]
+        if cfg['pivot'] > logger.mean['test/{}'.format(cfg['pivot_metric'])]:
+            cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
@@ -135,9 +134,9 @@ def train(data_loader, model, optimizer, logger, epoch):
                              'Learning rate: {}'.format(lr), 'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
-            evaluation = metric.evaluate(cfg['metric_names']['train'], input, output)
+            evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
             logger.append(evaluation, 'train', n=input_size)
-            logger.write('train', cfg['metric_names']['train'])
+            logger.write('train', cfg['metric_name']['train'])
     return
 
 
@@ -151,12 +150,12 @@ def test(data_loader, model, logger, epoch):
             input = to_device(input, cfg['device'])
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
-            evaluation = metric.evaluate(cfg['metric_names']['test'], input, output)
+            evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
-        logger.write('test', cfg['metric_names']['test'])
+        logger.write('test', cfg['metric_name']['test'])
         if cfg['show']:
             input['reconstruct'] = True
             input['z'] = output['z']

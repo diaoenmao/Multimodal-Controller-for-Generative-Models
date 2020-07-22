@@ -3,39 +3,34 @@ import numpy as np
 import os
 import shutil
 import torch
-from PIL import Image
+from PIL import Image, ImageFile
 from torch.utils.data import Dataset
-from utils import check_exists, save, load
-from .utils import IMG_EXTENSIONS
-from .utils import extract_file, make_classes_counts, make_img, make_tree, make_flat_index, makedir_exist_ok, \
-    download_url
+from utils import check_exists, save, load, makedir_exist_ok
+from .utils import download_url, extract_file, make_classes_counts, make_img, make_tree, make_flat_index
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 class ImageNet(Dataset):
     data_name = 'ImageNet'
-    file = [('http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_train.tar',
-             '1d675b47d978889d74fa0da5fadfb00e'),
-            ('http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_img_val.tar',
-             '29b22e2961454d5413ddabcf34fc5622'),
-            ('http://www.image-net.org/challenges/LSVRC/2012/nnoupb/ILSVRC2012_devkit_t12.tar.gz',
-             'fa75699e90414af021442c21a62c3abf')]
 
-    def __init__(self, root, split, subset, transform=None):
+    def __init__(self, root, split, subset, size, transform=None):
         self.root = os.path.expanduser(root)
         self.split = split
         self.subset = subset
         self.transform = transform
-        if not check_exists(self.processed_folder):
+        self.size = size
+        if not check_exists(os.path.join(self.processed_folder, str(self.size))):
             self.process()
-        self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
-        self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
+        self.img, self.target = load(os.path.join(self.processed_folder, str(self.size), '{}.pt'.format(self.split)))
+        self.target = self.target[self.subset]
+        self.classes_counts = make_classes_counts(self.target)
+        self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, str(self.size), 'meta.pt'))
         self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
-        self.classes_counts = make_classes_counts(self.target[self.subset])
 
     def __getitem__(self, index):
-        img, target = Image.open(self.img[index], mode='r').convert('RGB'), \
-                      {s: torch.tensor(self.target[s][index]) for s in self.target}
-        input = {'img': img, **target}
+        img, target = Image.open(self.img[index], mode='r').convert('RGB'), torch.tensor(self.target[index])
+        input = {'img': img, self.subset: target}
         if self.transform is not None:
             input = self.transform(input)
         return input
@@ -55,41 +50,49 @@ class ImageNet(Dataset):
         if not check_exists(self.raw_folder):
             raise RuntimeError('Dataset not found')
         train_set, test_set, meta = self.make_data()
-        save(train_set, os.path.join(self.processed_folder, 'train.pt'))
-        save(test_set, os.path.join(self.processed_folder, 'test.pt'))
-        save(meta, os.path.join(self.processed_folder, 'meta.pt'))
+        save(train_set, os.path.join(self.processed_folder, str(self.size), 'train.pt'))
+        save(test_set, os.path.join(self.processed_folder, str(self.size), 'test.pt'))
+        save(meta, os.path.join(self.processed_folder, str(self.size), 'meta.pt'))
         return
 
     def __repr__(self):
-        fmt_str = 'Dataset {}\nSize: {}\nRoot: {}\nSplit: {}\nSubset: {}\nTransforms: {}'.format(
-            self.__class__.__name__, self.__len__(), self.root, self.split, self.subset, self.transform.__repr__())
+        fmt_str = 'Dataset {}\nSize: {}\nRoot: {}\nSplit: {}\nSubset: {}\nSize: {}\nTransforms: {}'.format(
+            self.__class__.__name__, self.__len__(), self.root, self.split, self.subset, self.size,
+            self.transform.__repr__())
         return fmt_str
 
     def make_data(self):
-        train_path = os.path.join(self.raw_folder, 'ILSVRC2012_img_train')
-        test_path = os.path.join(self.raw_folder, 'ILSVRC2012_img_val')
-        meta_path = os.path.join(self.raw_folder, 'ILSVRC2012_devkit_t12')
-        extract_file(os.path.join(self.raw_folder, 'ILSVRC2012_img_train.tar'), train_path)
-        extract_file(os.path.join(self.raw_folder, 'ILSVRC2012_img_val.tar'), test_path)
-        extract_file(os.path.join(self.raw_folder, 'ILSVRC2012_devkit_t12.tar.gz'), meta_path)
-        for archive in [os.path.join(train_path, archive) for archive in os.listdir(train_path)]:
-            extract_file(archive, os.path.splitext(archive)[0], delete=True)
-        classes_to_labels, classes_size = make_meta(meta_path)
-        with open(os.path.join(meta_path, 'data', 'ILSVRC2012_validation_ground_truth.txt'), 'r') as f:
-            test_id = f.readlines()
-        test_id = [int(i) for i in test_id]
-        test_img = sorted([os.path.join(test_path, file) for file in os.listdir(test_path)])
-        test_wnid = []
-        for test_id_i in test_id:
-            test_node_i = anytree.find_by_attr(classes_to_labels['label'], name='id', value=test_id_i)
-            test_wnid.append(test_node_i.name)
-        for test_wnid_i in set(test_wnid):
-            os.mkdir(os.path.join(test_path, test_wnid_i))
-        for test_wnid_i, test_img in zip(test_wnid, test_img):
-            shutil.move(test_img, os.path.join(test_path, test_wnid_i, os.path.basename(test_img)))
-        train_img, train_label = make_img(os.path.join(self.raw_folder, 'ILSVRC2012_img_train'), IMG_EXTENSIONS,
+        if not check_exists(os.path.join(self.raw_folder, 'base')):
+            train_path = os.path.join(self.raw_folder, 'ILSVRC2012_img_train')
+            test_path = os.path.join(self.raw_folder, 'ILSVRC2012_img_val')
+            meta_path = os.path.join(self.raw_folder, 'ILSVRC2012_devkit_t12')
+            extract_file(os.path.join(self.raw_folder, 'ILSVRC2012_img_train.tar'), train_path)
+            extract_file(os.path.join(self.raw_folder, 'ILSVRC2012_img_val.tar'), test_path)
+            extract_file(os.path.join(self.raw_folder, 'ILSVRC2012_devkit_t12.tar'), meta_path)
+            for archive in [os.path.join(train_path, archive) for archive in os.listdir(train_path)]:
+                extract_file(archive, os.path.splitext(archive)[0], delete=True)
+            classes_to_labels, classes_size = make_meta(meta_path)
+            with open(os.path.join(meta_path, 'data', 'ILSVRC2012_validation_ground_truth.txt'), 'r') as f:
+                test_id = f.readlines()
+            test_id = [int(i) for i in test_id]
+            test_img = sorted([os.path.join(test_path, file) for file in os.listdir(test_path)])
+            test_wnid = []
+            for test_id_i in test_id:
+                test_node_i = anytree.find_by_attr(classes_to_labels['label'], name='id', value=test_id_i)
+                test_wnid.append(test_node_i.name)
+            for test_wnid_i in set(test_wnid):
+                os.mkdir(os.path.join(test_path, test_wnid_i))
+            for test_wnid_i, test_img in zip(test_wnid, test_img):
+                shutil.move(test_img, os.path.join(test_path, test_wnid_i, os.path.basename(test_img)))
+            shutil.move(train_path, os.path.join(self.raw_folder, 'base', 'ILSVRC2012_img_train'))
+            shutil.move(test_path, os.path.join(self.raw_folder, 'base', 'ILSVRC2012_img_val'))
+            shutil.move(meta_path, os.path.join(self.raw_folder, 'base', 'ILSVRC2012_devkit_t12'))
+        if not check_exists(os.path.join(self.raw_folder, str(self.size))):
+            raise ValueError('Need to run resizer')
+        classes_to_labels, classes_size = make_meta(os.path.join(self.raw_folder, 'base', 'ILSVRC2012_devkit_t12'))
+        train_img, train_label = make_img(os.path.join(self.raw_folder, str(self.size), 'ILSVRC2012_img_train'),
                                           classes_to_labels['label'])
-        test_img, test_label = make_img(os.path.join(self.raw_folder, 'ILSVRC2012_img_val'), IMG_EXTENSIONS,
+        test_img, test_label = make_img(os.path.join(self.raw_folder, str(self.size), 'ILSVRC2012_img_val'),
                                         classes_to_labels['label'])
         train_target = {'label': train_label}
         test_target = {'label': test_label}
@@ -171,9 +174,9 @@ class ImageNet32(Dataset):
         if not check_exists(self.raw_folder):
             self.download()
         train_set, test_set, meta = self.make_data()
-        save(train_set, os.path.join(self.processed_folder, 'train.npy'), mode='numpy')
-        save(test_set, os.path.join(self.processed_folder, 'test.npy'), mode='numpy')
-        save(meta, os.path.join(self.processed_folder, 'meta.npy'), mode='numpy')
+        save(train_set, os.path.join(self.processed_folder, 'train.pt'))
+        save(test_set, os.path.join(self.processed_folder, 'test.pt'))
+        save(meta, os.path.join(self.processed_folder, 'meta.pt'))
         return
 
     def download(self):
@@ -242,9 +245,9 @@ class ImageNet64(Dataset):
         if not check_exists(self.raw_folder):
             self.download()
         train_set, test_set, meta = self.make_data()
-        save(train_set, os.path.join(self.processed_folder, 'train.npy'), mode='numpy')
-        save(test_set, os.path.join(self.processed_folder, 'test.npy'), mode='numpy')
-        save(meta, os.path.join(self.processed_folder, 'meta.npy'), mode='numpy')
+        save(train_set, os.path.join(self.processed_folder, 'train.pt'))
+        save(test_set, os.path.join(self.processed_folder, 'test.pt'))
+        save(meta, os.path.join(self.processed_folder, 'meta.pt'))
         return
 
     def download(self):

@@ -104,8 +104,7 @@ class ConditionalGatedPixelCNN(nn.Module):
 
     def generate(self, C, x=None):
         if x is None:
-            x = torch.zeros((C.size(0), cfg['data_shape'][1] // 4, cfg['data_shape'][2] // 4),
-                            dtype=torch.long, device=cfg['device'])
+            x = torch.zeros((C.size(0), 8, 8), dtype=torch.long, device=cfg['device'])
         input = {'img': x, 'label': C}
         for i in range(x.size(1)):
             for j in range(x.size(2)):
@@ -116,9 +115,9 @@ class ConditionalGatedPixelCNN(nn.Module):
 
 
 def cpixelcnn():
-    num_embedding = cfg['num_embedding']
-    num_layer = cfg['num_layer']
-    hidden_size = cfg['hidden_size']
+    num_embedding = cfg['pixelcnn']['num_embedding']
+    num_layer = cfg['pixelcnn']['num_layer']
+    hidden_size = cfg['pixelcnn']['hidden_size']
     num_mode = cfg['classes_size']
     model = ConditionalGatedPixelCNN(input_size=num_embedding, hidden_size=hidden_size, num_layer=num_layer,
                                      num_mode=num_mode)

@@ -110,48 +110,76 @@ def process_control():
     elif cfg['data_name'] in ['Omniglot']:
         cfg['data_shape'] = [1, 32, 32]
         cfg['generate_per_mode'] = 20
-    elif cfg['data_name'] in ['SVHN', 'CIFAR10', 'CIFAR100']:
+    elif cfg['data_name'] in ['SVHN', 'CIFAR10']:
         cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 1000
-    elif cfg['data_name'] in ['ImageNet']:
+    elif cfg['data_name'] in ['CIFAR100']:
+        cfg['data_shape'] = [3, 32, 32]
+        cfg['generate_per_mode'] = 100
+    elif cfg['data_name'] in ['ImageNet32']:
+        cfg['data_shape'] = [3, 32, 32]
+        cfg['generate_per_mode'] = 20
+    elif cfg['data_name'] in ['CelebA-HQ', 'ImageNet']:
         cfg['data_shape'] = [3, 128, 128]
         cfg['generate_per_mode'] = 20
     else:
         raise ValueError('Not valid dataset')
     if cfg['ae_name'] in ['vqvae']:
-        cfg['hidden_size'] = 128
-        cfg['num_res_block'] = 2
-        cfg['embedding_size'] = 64
-        cfg['num_embedding'] = 512
-        cfg['vq_commit'] = 0.25
-    if cfg['model_name'] in ['cpixelcnn', 'mcpixelcnn']:
-        cfg['num_layer'] = 15
-        cfg['hidden_size'] = 128
-        cfg['num_embedding'] = 512
-    elif cfg['model_name'] in ['cvae', 'mcvae']:
-        cfg['hidden_size'] = [64, 128, 256]
-        cfg['latent_size'] = 128
-        cfg['num_res_block'] = 2
-        cfg['embedding_size'] = 32
-    elif cfg['model_name'] in ['cgan', 'mcgan']:
-        cfg['generator_normalization'] = 'bn'
-        cfg['discriminator_normalization'] = 'none'
-        cfg['generator_activation'] = 'relu'
-        cfg['discriminator_activation'] = 'relu'
-        cfg['latent_size'] = 128
-        if cfg['data_shape'][1] < 100:
-            cfg['generator_hidden_size'] = [512, 256, 128, 64]
-            cfg['discriminator_hidden_size'] = [64, 128, 256, 512]
+        cfg['vqvae'] = {}
+        if cfg['data_shape'][1] == 32:
+            cfg['vqvae']['hidden_size'] = [128, 128]
+        elif cfg['data_shape'][1] == 128:
+            cfg['vqvae']['hidden_size'] = [128, 128, 128, 128]
         else:
-            cfg['generator_hidden_size'] = [1024, 512, 256, 128, 64]
-            cfg['discriminator_hidden_size'] = [64, 128, 256, 512, 1024, 1024]
-        cfg['embedding_size'] = 32
+            raise ValueError('Not valid data shape')
+        cfg['vqvae']['num_res_block'] = 2
+        cfg['vqvae']['embedding_size'] = 64
+        cfg['vqvae']['num_embedding'] = 512
+        cfg['vqvae']['vq_commit'] = 0.25
+    if cfg['model_name'] in ['cpixelcnn', 'mcpixelcnn']:
+        cfg['pixelcnn'] = {}
+        cfg['pixelcnn']['num_layer'] = 15
+        cfg['pixelcnn']['hidden_size'] = 128
+        cfg['pixelcnn']['num_embedding'] = 512
+    elif cfg['model_name'] in ['cvae', 'mcvae']:
+        cfg['vae'] = {}
+        if cfg['data_shape'][1] == 32:
+            cfg['vae']['hidden_size'] = [64, 128, 256]
+            cfg['vae']['latent_size'] = 128
+        elif cfg['data_shape'][1] == 128:
+            cfg['vae']['hidden_size'] = [64, 128, 256, 512, 512]
+            cfg['vae']['latent_size'] = 256
+        else:
+            raise ValueError('Not valid data shape')
+        cfg['vae']['num_res_block'] = 2
+        cfg['vae']['embedding_size'] = 32
+    elif cfg['model_name'] in ['cgan', 'mcgan']:
+        cfg['gan'] = {}
+        cfg['gan']['latent_size'] = 128
+        if cfg['data_shape'][1] == 32:
+            cfg['gan']['generator_hidden_size'] = [512, 256, 128, 64]
+            cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512]
+        elif cfg['data_shape'][1] == 128:
+            cfg['gan']['generator_hidden_size'] = [1024, 512, 256, 128, 64]
+            cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512, 1024, 1024]
+        else:
+            raise ValueError('Not valid data shape')
+        cfg['gan']['embedding_size'] = 32
     elif cfg['model_name'] in ['cglow', 'mcglow']:
-        cfg['hidden_size'] = 512
-        cfg['K'] = 16
-        cfg['L'] = 3
-        cfg['affine'] = True
-        cfg['conv_lu'] = True
+        cfg['glow'] = {}
+        cfg['glow']['hidden_size'] = 512
+        if cfg['data_shape'][1] == 32:
+            cfg['glow']['K'] = 16
+            cfg['glow']['L'] = 3
+        elif cfg['data_shape'][1] == 128:
+            cfg['glow']['K'] = 16
+            cfg['glow']['L'] = 5
+        else:
+            raise ValueError('Not valid data shape')
+        cfg['glow']['affine'] = True
+        cfg['glow']['conv_lu'] = True
+    cfg['classifier'] = {}
+    cfg['classifier']['hidden_size'] = [8, 16, 32, 64]
     return
 
 

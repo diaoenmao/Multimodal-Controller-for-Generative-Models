@@ -1,19 +1,13 @@
 from .mnist import MNIST, EMNIST, FashionMNIST
-from .celeba import CelebA
+from .celebahq import CelebAHQ
 from .cifar import CIFAR10, CIFAR100
-from .cub200 import CUB200
 from .omniglot import Omniglot
-from .svhn import SVHN
-from .imagenet import ImageNet32, ImageNet64, ImageNet
-from .folder import ImageFolder
+from .imagenet import ImageNet, ImageNet32, ImageNet64
 from .utils import *
 from .transforms import *
 
-__all__ = ('MNIST','EMNIST', 'FashionMNIST',
-           'CelebA',
+__all__ = ('MNIST', 'EMNIST', 'FashionMNIST',
+           'CelebAHQ',
            'CIFAR10', 'CIFAR100',
-           'CUB200',
            'Omniglot',
-            'SVHN',
-           'ImageNet32', 'ImageNet64', 'ImageNet',
-           'ImageFolder')
+           'ImageNet', 'ImageNet32', 'ImageNet64')

@@ -25,14 +25,14 @@ class Omniglot(Dataset):
         if not check_exists(self.processed_folder):
             self.process()
         self.img, self.target = load(os.path.join(self.processed_folder, '{}.pt'.format(self.split)))
+        self.target = self.target[self.subset]
+        self.classes_counts = make_classes_counts(self.target)
         self.classes_to_labels, self.classes_size = load(os.path.join(self.processed_folder, 'meta.pt'))
         self.classes_to_labels, self.classes_size = self.classes_to_labels[self.subset], self.classes_size[self.subset]
-        self.classes_counts = make_classes_counts(self.target[self.subset])
 
     def __getitem__(self, index):
-        img, target = Image.open(self.img[index], mode='r').convert('L'), \
-                      {s: torch.tensor(self.target[s][index]) for s in self.target}
-        input = {'img': img, **target}
+        img, target = Image.open(self.img[index], mode='r').convert('L'), torch.tensor(self.target[index])
+        input = {'img': img, self.subset: target}
         if self.transform is not None:
             input = self.transform(input)
         return input
@@ -81,11 +81,6 @@ class Omniglot(Dataset):
             img_i = img[i]
             class_i = '/'.join(os.path.normpath(img_i).split(os.path.sep)[-3:-1])
             classes.add(class_i)
-            # idx_i = int(os.path.splitext(os.path.basename(img_i))[0].split('_')[1])
-            # if idx_i <= 10:
-            #     train_img.append(img_i)
-            # else:
-            #     test_img.append(img_i)
             train_img.append(img_i)
             test_img.append(img_i)
         classes = sorted(list(classes))
