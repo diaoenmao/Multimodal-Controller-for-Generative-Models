@@ -187,6 +187,8 @@ def train(data_loader, model, optimizer, logger, epoch):
             G_loss.backward()
             optimizer['generator'].step()
         output = {'loss': abs(D_loss - G_loss), 'loss_D': D_loss, 'loss_G': G_loss}
+        evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
+        logger.append(evaluation, 'train', n=input_size)
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             batch_time = time.time() - start_time
             generator_lr, discriminator_lr = optimizer['generator'].param_groups[0]['lr'], \
@@ -200,8 +202,6 @@ def train(data_loader, model, optimizer, logger, epoch):
                              'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
-            evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
-            logger.append(evaluation, 'train', n=input_size)
             logger.write('train', cfg['metric_name']['train'])
     return
 
