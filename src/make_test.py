@@ -15,7 +15,7 @@ def main():
     num_gpu = args['num_gpu']
     num_experiments = args['num_experiments']
     gpu_ids = [str(x) for x in list(range(num_gpu))]
-    tf_data_names = ['CIFAR10']
+    tf_data_names = ['CIFAR10', 'CIFAR100']
     pt_data_names = ['Omniglot']
     created_data_names = tf_data_names + pt_data_names
     model_names = ['c{}'.format(args['model']), 'mc{}'.format(model)]

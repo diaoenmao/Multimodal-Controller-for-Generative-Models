@@ -157,8 +157,12 @@ def process_control():
         cfg['gan'] = {}
         cfg['gan']['latent_size'] = 128
         if cfg['data_shape'][1] == 32:
-            cfg['gan']['generator_hidden_size'] = [512, 256, 128, 64]
-            cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512]
+            if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+                cfg['gan']['generator_hidden_size'] = [128, 128, 128, 128]
+                cfg['gan']['discriminator_hidden_size'] = [256, 256, 256, 256]
+            else:
+                cfg['gan']['generator_hidden_size'] = [512, 256, 128, 64]
+                cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512]
         elif cfg['data_shape'][1] == 128:
             cfg['gan']['generator_hidden_size'] = [1024, 512, 256, 128, 64]
             cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512, 1024, 1024]

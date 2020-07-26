@@ -10,14 +10,14 @@ Activation = nn.ReLU
 
 
 class GenResBlock(nn.Module):
-    def __init__(self, input_size, output_size, num_mode, controller_rate):
+    def __init__(self, input_size, output_size, num_mode, controller_rate, stride):
         super().__init__()
         self.mc_1 = MultimodalController(input_size, num_mode, controller_rate)
         self.mc_2 = MultimodalController(output_size, num_mode, controller_rate)
         self.conv = nn.Sequential(
             Wrapper(Normalization(input_size)),
             Wrapper(Activation()),
-            Wrapper(nn.Upsample(scale_factor=2, mode='nearest')),
+            Wrapper(nn.Upsample(scale_factor=stride, mode='nearest')),
             self.mc_1,
             Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
             Wrapper(Normalization(output_size)),
@@ -25,11 +25,19 @@ class GenResBlock(nn.Module):
             self.mc_2,
             Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
         )
-        self.shortcut = nn.Sequential(
-            Wrapper(nn.Upsample(scale_factor=2, mode='nearest')),
-            self.mc_1,
-            Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0))
-        )
+        if stride > 1:
+            self.shortcut = nn.Sequential(
+                Wrapper(nn.Upsample(scale_factor=stride, mode='nearest')),
+                self.mc_1,
+                Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0))
+            )
+        elif input_size != output_size:
+            self.shortcut = nn.Sequential(
+                self.mc_1,
+                nn.Conv2d(input_size, output_size, 1, 1, 0)
+            )
+        else:
+            self.shortcut = nn.Sequential()
 
     def forward(self, input):
         shortcut = self.shortcut(input)
@@ -46,7 +54,7 @@ class Generator(nn.Module):
         self.linear = Wrapper(nn.Linear(latent_size, hidden_size[0] * 4 * 4))
         blocks = []
         for i in range(len(hidden_size) - 1):
-            blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1], num_mode, controller_rate))
+            blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1], num_mode, controller_rate, stride=2))
         blocks.extend([
             Wrapper(Normalization(hidden_size[-1])),
             Wrapper(Activation()),
@@ -65,24 +73,11 @@ class Generator(nn.Module):
 
 
 class DisResBlock(nn.Module):
-    def __init__(self, input_size, output_size, num_mode, controller_rate, stride=1):
+    def __init__(self, input_size, output_size, num_mode, controller_rate, stride):
         super().__init__()
         self.mc_1 = MultimodalController(input_size, num_mode, controller_rate)
         self.mc_2 = MultimodalController(output_size, num_mode, controller_rate)
-        if stride == 1:
-            self.conv = nn.Sequential(
-                Wrapper(Activation()),
-                self.mc_1,
-                Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
-                Wrapper(Activation()),
-                self.mc_2,
-                Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
-            )
-            self.shortcut = nn.Sequential(
-                self.mc_1,
-                Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0))
-            )
-        else:
+        if stride > 1:
             self.conv = nn.Sequential(
                 Wrapper(Activation()),
                 self.mc_1,
@@ -97,6 +92,22 @@ class DisResBlock(nn.Module):
                 Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0)),
                 Wrapper(nn.AvgPool2d(2)),
             )
+        else:
+            self.conv = nn.Sequential(
+                Wrapper(Activation()),
+                self.mc_1,
+                Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
+                Wrapper(Activation()),
+                self.mc_2,
+                Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
+            )
+            if input_size != output_size:
+                self.shortcut = nn.Sequential(
+                    self.mc_1,
+                    Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0))
+                )
+            else:
+                self.shortcut = nn.Sequential()
 
     def forward(self, input):
         shortcut = self.shortcut(input)
@@ -133,7 +144,6 @@ class FirstDisResBlock(nn.Module):
 class GlobalSumPooling(nn.Module):
     def __init__(self):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
 
     def forward(self, input):
         x = input.sum(dim=[-2, -1]).view(input.size(0), -1)
@@ -145,15 +155,28 @@ class Discriminator(nn.Module):
         super().__init__()
         self.data_shape = data_shape
         blocks = [FirstDisResBlock(data_shape[0], hidden_size[0], num_mode, controller_rate)]
-        for i in range(len(hidden_size) - 2):
-            blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], num_mode, controller_rate, stride=2))
-        blocks.extend([
-            DisResBlock(hidden_size[-2], hidden_size[-1], num_mode, controller_rate, stride=1),
-            Wrapper(Activation()),
-            MultimodalController(hidden_size[-1], num_mode, controller_rate),
-            Wrapper(GlobalSumPooling()),
-            Wrapper(nn.Linear(hidden_size[-1], 1))
-        ])
+        if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+            for i in range(len(hidden_size) - 3):
+                blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], num_mode, controller_rate, stride=2))
+            blocks.extend([
+                DisResBlock(hidden_size[-3], hidden_size[-2], num_mode, controller_rate, stride=1),
+                Wrapper(Activation()),
+                DisResBlock(hidden_size[-2], hidden_size[-1], num_mode, controller_rate, stride=1),
+                Wrapper(Activation()),
+                MultimodalController(hidden_size[-1], num_mode, controller_rate),
+                Wrapper(GlobalSumPooling()),
+                Wrapper(nn.Linear(hidden_size[-1], 1))
+            ])
+        else:
+            for i in range(len(hidden_size) - 2):
+                blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], num_mode, controller_rate, stride=2))
+            blocks.extend([
+                DisResBlock(hidden_size[-2], hidden_size[-1], num_mode, controller_rate, stride=1),
+                Wrapper(Activation()),
+                MultimodalController(hidden_size[-1], num_mode, controller_rate),
+                Wrapper(GlobalSumPooling()),
+                Wrapper(nn.Linear(hidden_size[-1], 1))
+            ])
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, input, indicator):

@@ -48,7 +48,7 @@ def test(data_loader):
             generated.append(input['img'])
         generated = torch.cat(generated)
         generated = (generated + 1) / 2 * 255
-        save(generated.numpy(), './output/npy/generated_{}.npy'.format(cfg['data_name']), mode='numpy')
+        save(generated.numpy(), './output/npy/generated_0_{}.npy'.format(cfg['data_name']), mode='numpy')
     return
 
 

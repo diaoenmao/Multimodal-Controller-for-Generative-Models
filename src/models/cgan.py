@@ -9,21 +9,28 @@ Activation = nn.ReLU
 
 
 class GenResBlock(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, stride):
         super().__init__()
         self.conv = nn.Sequential(
             Normalization(input_size),
             Activation(),
-            nn.Upsample(scale_factor=2, mode='nearest'),
+            nn.Upsample(scale_factor=stride, mode='nearest'),
             nn.Conv2d(input_size, output_size, 3, 1, 1),
             Normalization(output_size),
             Activation(),
             nn.Conv2d(output_size, output_size, 3, 1, 1),
         )
-        self.shortcut = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='nearest'),
-            nn.Conv2d(input_size, output_size, 1, 1, 0)
-        )
+        if stride > 1:
+            self.shortcut = nn.Sequential(
+                nn.Upsample(scale_factor=stride, mode='nearest'),
+                nn.Conv2d(input_size, output_size, 1, 1, 0)
+            )
+        elif input_size != output_size:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(input_size, output_size, 1, 1, 0)
+            )
+        else:
+            self.shortcut = nn.Sequential()
 
     def forward(self, input):
         shortcut = self.shortcut(input)
@@ -40,7 +47,7 @@ class Generator(nn.Module):
         self.linear = nn.Linear(latent_size + embedding_size, hidden_size[0] * 4 * 4)
         blocks = []
         for i in range(len(hidden_size) - 1):
-            blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1]))
+            blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1], 2))
         blocks.extend([
             Normalization(hidden_size[-1]),
             Activation(),
@@ -60,17 +67,19 @@ class Generator(nn.Module):
 
 
 class DisResBlock(nn.Module):
-    def __init__(self, input_size, output_size, stride=1):
+    def __init__(self, input_size, output_size, stride):
         super().__init__()
-        if stride == 1:
+        if stride > 1:
             self.conv = nn.Sequential(
                 Activation(),
                 nn.Conv2d(input_size, output_size, 3, 1, 1),
                 Activation(),
                 nn.Conv2d(output_size, output_size, 3, 1, 1),
+                nn.AvgPool2d(2, stride=stride, padding=0),
             )
             self.shortcut = nn.Sequential(
-                nn.Conv2d(input_size, output_size, 1, 1, 0)
+                nn.Conv2d(input_size, output_size, 1, 1, 0),
+                nn.AvgPool2d(2, stride=stride, padding=0),
             )
         else:
             self.conv = nn.Sequential(
@@ -78,12 +87,13 @@ class DisResBlock(nn.Module):
                 nn.Conv2d(input_size, output_size, 3, 1, 1),
                 Activation(),
                 nn.Conv2d(output_size, output_size, 3, 1, 1),
-                nn.AvgPool2d(2),
             )
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(input_size, output_size, 1, 1, 0),
-                nn.AvgPool2d(2),
-            )
+            if input_size != output_size:
+                self.shortcut = nn.Sequential(
+                    nn.Conv2d(input_size, output_size, 1, 1, 0)
+                )
+            else:
+                self.shortcut = nn.Sequential()
 
     def forward(self, input):
         shortcut = self.shortcut(input)
@@ -118,7 +128,6 @@ class FirstDisResBlock(nn.Module):
 class GlobalSumPooling(nn.Module):
     def __init__(self):
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
 
     def forward(self, input):
         x = input.sum(dim=[-2, -1]).view(input.size(0), -1)
@@ -131,14 +140,26 @@ class Discriminator(nn.Module):
         self.data_shape = data_shape
         self.embedding = nn.Linear(num_mode, embedding_size, bias=False)
         blocks = [FirstDisResBlock(data_shape[0] + embedding_size, hidden_size[0])]
-        for i in range(len(hidden_size) - 2):
-            blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
-        blocks.extend([
-            DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
-            Activation(),
-            GlobalSumPooling(),
-            nn.Linear(hidden_size[-1], 1)
-        ])
+        if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+            for i in range(len(hidden_size) - 3):
+                blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
+            blocks.extend([
+                DisResBlock(hidden_size[-3], hidden_size[-2], stride=1),
+                Activation(),
+                DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
+                Activation(),
+                GlobalSumPooling(),
+                nn.Linear(hidden_size[-1], 1)
+            ])
+        else:
+            for i in range(len(hidden_size) - 2):
+                blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
+            blocks.extend([
+                DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
+                Activation(),
+                GlobalSumPooling(),
+                nn.Linear(hidden_size[-1], 1)
+            ])
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, input, indicator):

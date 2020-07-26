@@ -81,7 +81,7 @@ def runExperiment():
         logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         save_result = {
-            'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+            'cfg': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))

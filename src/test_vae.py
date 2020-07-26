@@ -54,7 +54,7 @@ def runExperiment():
     logger_path = 'output/runs/test_{}_{}'.format(cfg['model_tag'], datetime.datetime.now().strftime('%b%d_%H-%M-%S'))
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['test'], model, logger, last_epoch)
+    test(data_loader['train'], model, logger, last_epoch)
     logger.safe(False)
     save_result = {'cfg': cfg, 'epoch': last_epoch, 'logger': logger}
     save(save_result, './output/result/{}.pt'.format(cfg['model_tag']))

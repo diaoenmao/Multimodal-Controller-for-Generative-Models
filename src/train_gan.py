@@ -34,32 +34,37 @@ else:
     cfg['batch_size'] = {'train': 128, 'test': 512}
 cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
 cfg['optimizer_name'] = 'Adam'
-if cfg['model_name'] == 'mcgan':
-    if cfg['data_name'] in ['CIFAR10']:
-        cfg['lr'] = {'generator': 2e-4, 'discriminator': 5e-4}
-        cfg['iter'] = {'generator': 1, 'discriminator': 5}
-    elif cfg['data_name'] in ['CIFAR100']:
-        cfg['lr'] = {'generator': 2e-4, 'discriminator': 5e-4}
-        cfg['iter'] = {'generator': 1, 'discriminator': 5}
-    elif cfg['data_name'] in ['Omniglot']:
-        cfg['lr'] = {'generator': 2e-4, 'discriminator': 5e-4}
-        cfg['iter'] = {'generator': 1, 'discriminator': 5}
-elif cfg['model_name'] == 'cgan':
+if cfg['model_name'] == 'cgan':
     if cfg['data_name'] in ['CIFAR10']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
     elif cfg['data_name'] in ['CIFAR100']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
+    elif cfg['data_name'] in ['Omniglot']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 3}
+        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
+elif cfg['model_name'] == 'mcgan':
+    if cfg['data_name'] in ['CIFAR10']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0.5, 0.999)}
+    elif cfg['data_name'] in ['CIFAR100']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0.5, 0.999)}
     elif cfg['data_name'] in ['Omniglot']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
 else:
     raise ValueError('Not valid model name')
 cfg['weight_decay'] = 0
 cfg['scheduler_name'] = 'None'
 cfg['loss_type'] = 'Hinge'
-cfg['betas'] = (0.5, 0.999)
 
 
 def main():
@@ -81,8 +86,9 @@ def runExperiment():
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    optimizer = {'generator': make_optimizer(model.generator, cfg['lr']['generator']),
-                 'discriminator': make_optimizer(model.discriminator, cfg['lr']['discriminator'])}
+    optimizer = {'generator': make_optimizer(model.generator, cfg['lr']['generator'], cfg['betas']['generator']),
+                 'discriminator': make_optimizer(model.discriminator, cfg['lr']['discriminator'],
+                                                 cfg['betas']['discriminator'])}
     scheduler = {'generator': make_scheduler(optimizer['generator']),
                  'discriminator': make_scheduler(optimizer['discriminator'])}
     if cfg['resume_mode'] == 1:
@@ -116,7 +122,7 @@ def runExperiment():
             model.generator, model.discriminator = model.module.generator, model.module.discriminator
         model_state_dict = model.state_dict()
         save_result = {
-            'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+            'cfg': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
             'optimizer_dict': {'generator': optimizer['generator'].state_dict(),
                                'discriminator': optimizer['discriminator'].state_dict()},
             'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
@@ -226,7 +232,7 @@ def test(model, logger, epoch):
     return
 
 
-def make_optimizer(model, lr):
+def make_optimizer(model, lr, betas):
     if cfg['optimizer_name'] == 'SGD':
         optimizer = optim.SGD(model.parameters(), lr=lr, momentum=cfg['momentum'],
                               weight_decay=cfg['weight_decay'])
@@ -234,9 +240,9 @@ def make_optimizer(model, lr):
         optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=cfg['momentum'],
                                   weight_decay=cfg['weight_decay'])
     elif cfg['optimizer_name'] == 'Adam':
-        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=cfg['betas'])
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=betas)
     elif cfg['optimizer_name'] == 'Adamax':
-        optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=cfg['betas'])
+        optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=betas)
     else:
         raise ValueError('Not valid optimizer name')
     return optimizer

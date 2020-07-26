@@ -345,6 +345,12 @@ if __name__ == "__main__":
         images = np.transpose(images, (0, 2, 3, 1))
         valid_mask = np.sum(np.isnan(images), axis=(1, 2, 3)) == 0
         images = images[valid_mask]
+        # create_inception_graph(inception_path)
+        # with tf.Session() as sess:
+        #     sess.run(tf.global_variables_initializer())
+        #     mu0, sigma0 = calculate_activation_statistics(images, sess, batch_size=100)
+        # print(mu0, sigma0)
+        # np.savez('./metrics_tf/res/stats_tf/fid_stats_{}_train'.format(data_name.lower()), mu=mu0, sigma=sigma0)
         # load from precalculated
         f = np.load('./metrics_tf/res/stats_tf/fid_stats_{}_train.npz'.format(data_name.lower()))
         mu1, sigma1 = f['mu'][:], f['sigma'][:]

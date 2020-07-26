@@ -79,7 +79,7 @@ def runExperiment():
     for epoch in range(last_epoch, cfg['num_epochs'] + 1):
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['test'], model, logger, epoch)
+        test(data_loader['train'], model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])])
         else:
@@ -87,7 +87,7 @@ def runExperiment():
         logger.safe(False)
         model_state_dict = model.module.state_dict() if cfg['world_size'] > 1 else model.state_dict()
         save_result = {
-            'config': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
+            'cfg': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
