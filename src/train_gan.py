@@ -45,17 +45,17 @@ if cfg['model_name'] == 'cgan':
         cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
     elif cfg['data_name'] in ['Omniglot']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
-        cfg['iter'] = {'generator': 1, 'discriminator': 3}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
 elif cfg['model_name'] == 'mcgan':
     if cfg['data_name'] in ['CIFAR10']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
-        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0.5, 0.999)}
+        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
     elif cfg['data_name'] in ['CIFAR100']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
-        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0.5, 0.999)}
+        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
     elif cfg['data_name'] in ['Omniglot']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
