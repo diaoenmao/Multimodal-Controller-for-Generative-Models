@@ -5,9 +5,6 @@ import torch.nn.functional as F
 from config import cfg
 from .utils import init_param
 
-Normalization = nn.BatchNorm2d
-Activation = nn.ReLU
-
 
 def loss(input, output):
     CE = F.cross_entropy(output['label'], input['label'], reduction='mean')
@@ -19,20 +16,20 @@ class Classifier(nn.Module):
         super().__init__()
         blocks = [
             nn.Conv2d(data_shape[0], hidden_size[0], 3, 1, 1),
-            Normalization(hidden_size[0]),
-            Activation(inplace=True),
+            nn.BatchNorm2d(hidden_size[0]),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
             nn.Conv2d(hidden_size[0], hidden_size[1], 3, 1, 1),
-            Normalization(hidden_size[1]),
-            Activation(inplace=True),
+            nn.BatchNorm2d(hidden_size[1]),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
             nn.Conv2d(hidden_size[1], hidden_size[2], 3, 1, 1),
-            Normalization(hidden_size[2]),
-            Activation(inplace=True),
+            nn.BatchNorm2d(hidden_size[2]),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
             nn.Conv2d(hidden_size[2], hidden_size[3], 3, 1, 1),
-            Normalization(hidden_size[3]),
-            Activation(inplace=True),
+            nn.BatchNorm2d(hidden_size[3]),
+            nn.ReLU(inplace=True),
         ]
         self.blocks = nn.Sequential(*blocks)
         self.encoded_shape = [hidden_size[3], data_shape[1] // (2 ** (len(hidden_size) - 1)),

@@ -4,15 +4,12 @@ import torch.nn.functional as F
 from config import cfg
 from .utils import init_param
 
-Normalization = nn.BatchNorm2d
-Activation = nn.ReLU
-
 
 class GatedActivation(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
-        self.bn = Normalization(hidden_size)
-        self.activation = Activation(inplace=True)
+        self.bn = nn.BatchNorm2d(hidden_size)
+        self.activation = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x, y = x.chunk(2, dim=1)
@@ -39,7 +36,7 @@ class ConditionalGatedMaskedConv2d(nn.Module):
         self.gate_h = GatedActivation(hidden_size)
         self.horiz_resid = nn.Sequential(
             nn.Conv2d(hidden_size, hidden_size, 1),
-            Normalization(hidden_size),
+            nn.BatchNorm2d(hidden_size),
         )
 
     def make_causal(self):
@@ -83,8 +80,8 @@ class ConditionalGatedPixelCNN(nn.Module):
         # Add the output layer
         self.output_conv = nn.Sequential(
             nn.Conv2d(hidden_size, 512, 1),
-            Normalization(512),
-            Activation(True),
+            nn.BatchNorm2d(512),
+            nn.ReLU(True),
             nn.Conv2d(512, input_size, 1)
         )
 

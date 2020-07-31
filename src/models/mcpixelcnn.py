@@ -5,15 +5,12 @@ from config import cfg
 from modules import Wrapper, MultimodalController
 from .utils import init_param
 
-Normalization = nn.BatchNorm2d
-Activation = nn.ReLU
-
 
 class MCGatedActivation(nn.Module):
     def __init__(self, hidden_size, num_mode, controller_rate):
         super().__init__()
-        self.bn = Normalization(hidden_size)
-        self.activation = Activation(inplace=True)
+        self.bn = nn.BatchNorm2d(hidden_size)
+        self.activation = nn.ReLU(inplace=True)
         self.mc = MultimodalController(hidden_size, num_mode, controller_rate)
 
     def forward(self, x, indicator):
@@ -40,7 +37,7 @@ class MCGatedMaskedConv2d(nn.Module):
         self.gate_h = MCGatedActivation(hidden_size, num_mode, controller_rate)
         self.horiz_resid = nn.Sequential(
             Wrapper(nn.Conv2d(hidden_size, hidden_size, 1)),
-            Wrapper(Normalization(hidden_size)),
+            Wrapper(nn.BatchNorm2d(hidden_size)),
             MultimodalController(hidden_size, num_mode, controller_rate))
 
     def make_causal(self):
@@ -83,8 +80,8 @@ class MCGatedPixelCNN(nn.Module):
         # Add the output layer
         self.output_conv = nn.Sequential(
             Wrapper(nn.Conv2d(hidden_size, 512, 1)),
-            Wrapper(Normalization(512)),
-            Wrapper(Activation(inplace=True)),
+            Wrapper(nn.BatchNorm2d(512)),
+            Wrapper(nn.ReLU(inplace=True)),
             MultimodalController(512, num_mode, controller_rate),
             Wrapper(nn.Conv2d(512, input_size, 1))
         )

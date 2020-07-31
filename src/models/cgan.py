@@ -4,20 +4,17 @@ import torch.nn.functional as F
 from config import cfg
 from .utils import init_param, make_SpectralNormalization
 
-Normalization = nn.BatchNorm2d
-Activation = nn.ReLU
-
 
 class GenResBlock(nn.Module):
     def __init__(self, input_size, output_size, stride):
         super().__init__()
         self.conv = nn.Sequential(
-            Normalization(input_size),
-            Activation(),
+            nn.BatchNorm2d(input_size),
+            nn.ReLU(),
             nn.Upsample(scale_factor=stride, mode='nearest'),
             nn.Conv2d(input_size, output_size, 3, 1, 1),
-            Normalization(output_size),
-            Activation(),
+            nn.BatchNorm2d(output_size),
+            nn.ReLU(),
             nn.Conv2d(output_size, output_size, 3, 1, 1),
         )
         if stride > 1:
@@ -49,8 +46,8 @@ class Generator(nn.Module):
         for i in range(len(hidden_size) - 1):
             blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1], 2))
         blocks.extend([
-            Normalization(hidden_size[-1]),
-            Activation(),
+            nn.BatchNorm2d(hidden_size[-1]),
+            nn.ReLU(),
             nn.Conv2d(hidden_size[-1], data_shape[0], 3, 1, 1),
             nn.Tanh()
         ])
@@ -71,9 +68,9 @@ class DisResBlock(nn.Module):
         super().__init__()
         if stride > 1:
             self.conv = nn.Sequential(
-                Activation(),
+                nn.ReLU(),
                 nn.Conv2d(input_size, output_size, 3, 1, 1),
-                Activation(),
+                nn.ReLU(),
                 nn.Conv2d(output_size, output_size, 3, 1, 1),
                 nn.AvgPool2d(2, stride=stride, padding=0),
             )
@@ -83,9 +80,9 @@ class DisResBlock(nn.Module):
             )
         else:
             self.conv = nn.Sequential(
-                Activation(),
+                nn.ReLU(),
                 nn.Conv2d(input_size, output_size, 3, 1, 1),
-                Activation(),
+                nn.ReLU(),
                 nn.Conv2d(output_size, output_size, 3, 1, 1),
             )
             if input_size != output_size:
@@ -107,7 +104,7 @@ class FirstDisResBlock(nn.Module):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(input_size, output_size, 3, 1, 1),
-            Activation(),
+            nn.ReLU(),
             nn.Conv2d(output_size, output_size, 3, 1, 1),
             nn.AvgPool2d(2),
         )
@@ -145,9 +142,9 @@ class Discriminator(nn.Module):
                 blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
             blocks.extend([
                 DisResBlock(hidden_size[-3], hidden_size[-2], stride=1),
-                Activation(),
+                nn.ReLU(),
                 DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
-                Activation(),
+                nn.ReLU(),
                 GlobalSumPooling(),
                 nn.Linear(hidden_size[-1], 1)
             ])
@@ -156,7 +153,7 @@ class Discriminator(nn.Module):
                 blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
             blocks.extend([
                 DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
-                Activation(),
+                nn.ReLU(),
                 GlobalSumPooling(),
                 nn.Linear(hidden_size[-1], 1)
             ])

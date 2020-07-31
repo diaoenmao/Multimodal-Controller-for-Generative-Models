@@ -5,20 +5,17 @@ from config import cfg
 from modules import VectorQuantization
 from .utils import init_param
 
-Normalization = nn.BatchNorm2d
-Activation = nn.ReLU
-
 
 class ResBlock(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
-        self.activation = Activation(inplace=True)
+        self.activation = nn.ReLU(inplace=True)
         self.conv = nn.Sequential(
             nn.Conv2d(hidden_size, hidden_size, 3, 1, 1),
-            Normalization(hidden_size),
-            Activation(inplace=True),
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(inplace=True),
             nn.Conv2d(hidden_size, hidden_size, 3, 1, 1),
-            Normalization(hidden_size),
+            nn.BatchNorm2d(hidden_size),
         )
 
     def forward(self, input):
@@ -31,12 +28,12 @@ class Encoder(nn.Module):
     def __init__(self, data_shape, hidden_size, num_res_block, embedding_size):
         super().__init__()
         blocks = [nn.Conv2d(data_shape[0], hidden_size[0], 4, 2, 1),
-                  Normalization(hidden_size[0]),
-                  Activation(inplace=True)]
+                  nn.BatchNorm2d(hidden_size[0]),
+                  nn.ReLU(inplace=True)]
         for i in range(len(hidden_size) - 1):
             blocks.extend([nn.Conv2d(hidden_size[i], hidden_size[i + 1], 4, 2, 1),
-                           Normalization(hidden_size[i + 1]),
-                           Activation(inplace=True)])
+                           nn.BatchNorm2d(hidden_size[i + 1]),
+                           nn.ReLU(inplace=True)])
         for i in range(num_res_block):
             blocks.append(ResBlock(hidden_size[-1]))
         blocks.append(nn.Conv2d(hidden_size[-1], embedding_size, 3, 1, 1))
@@ -52,14 +49,14 @@ class Decoder(nn.Module):
     def __init__(self, data_shape, hidden_size, num_res_block, embedding_size):
         super().__init__()
         blocks = [nn.Conv2d(embedding_size, hidden_size[-1], 3, 1, 1),
-                  Normalization(hidden_size[-1]),
-                  Activation(inplace=True)]
+                  nn.BatchNorm2d(hidden_size[-1]),
+                  nn.ReLU(inplace=True)]
         for i in range(num_res_block):
             blocks.append(ResBlock(hidden_size[-1]))
         for i in range(len(hidden_size) - 1, 0, -1):
             blocks.extend([nn.ConvTranspose2d(hidden_size[i], hidden_size[i - 1], 4, 2, 1),
-                           Normalization(hidden_size[i - 1]),
-                           Activation(inplace=True)])
+                           nn.BatchNorm2d(hidden_size[i - 1]),
+                           nn.ReLU(inplace=True)])
         blocks.extend([nn.ConvTranspose2d(hidden_size[0], data_shape[0], 4, 2, 1),
                        nn.Tanh()])
         self.blocks = nn.Sequential(*blocks)
