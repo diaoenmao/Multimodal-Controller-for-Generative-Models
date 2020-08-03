@@ -112,8 +112,8 @@ def runExperiment():
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler['generator'].step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])][0])
-            scheduler['discriminator'].step(metrics=logger.tracker['test/{}'.format(cfg['pivot_metric'])][0])
+            scheduler['generator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])][0])
+            scheduler['discriminator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])][0])
         else:
             scheduler['generator'].step()
             scheduler['discriminator'].step()
