@@ -56,8 +56,8 @@ def runExperiment():
         is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
         print('Inception Score ({}): {}'.format(cfg['data_name'], is_result))
         print('FID ({}): {}'.format(cfg['data_name'], fid_result))
-        save(is_result, './output/result/is_{}.npy'.format(cfg['data_name']), mode='numpy')
-        save(fid_result, './output/result/fid_{}.npy'.format(cfg['data_name']), mode='numpy')
+        save(is_result, './output/result/is_generated_{}.npy'.format(cfg['data_name']), mode='numpy')
+        save(fid_result, './output/result/fid_generated_{}.npy'.format(cfg['data_name']), mode='numpy')
     else:
         generated = np.load('./output/npy/generated_{}.npy'.format(cfg['model_tag']), allow_pickle=True)
         test(generated)
@@ -75,8 +75,8 @@ def test(generated):
     is_result, fid_result = evaluation['InceptionScore'], evaluation['FID']
     print('Inception Score ({}): {}'.format(cfg['model_tag'], is_result))
     print('FID ({}): {}'.format(cfg['model_tag'], fid_result))
-    save(is_result, './output/result/is_{}.npy'.format(cfg['model_tag']), mode='numpy')
-    save(fid_result, './output/result/fid_{}.npy'.format(cfg['model_tag']), mode='numpy')
+    save(is_result, './output/result/is_generated_{}.npy'.format(cfg['model_tag']), mode='numpy')
+    save(fid_result, './output/result/fid_generated_{}.npy'.format(cfg['model_tag']), mode='numpy')
     return evaluation
 
 

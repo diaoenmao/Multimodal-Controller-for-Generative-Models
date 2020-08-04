@@ -77,7 +77,7 @@ def test(created):
         evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
     dbi_result = evaluation['DBI']
     print('Davies-Bouldin Index ({}): {}'.format(cfg['model_tag'], dbi_result))
-    save(dbi_result, './output/result/dbi_{}.npy'.format(cfg['model_tag']), mode='numpy')
+    save(dbi_result, './output/result/dbi_created_{}.npy'.format(cfg['model_tag']), mode='numpy')
     return evaluation
 
 

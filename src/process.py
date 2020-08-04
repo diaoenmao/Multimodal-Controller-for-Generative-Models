@@ -4,7 +4,7 @@ import json
 import numpy as np
 from utils import save, load
 
-data_name = ['CIFAR10', 'Omniglot']
+data_name = ['Omniglot', 'CIFAR10', 'CIFAR100']
 result_path = './output/result'
 num_Experiments = 12
 control_exp = [str(x) for x in list(range(num_Experiments))]
@@ -64,19 +64,19 @@ def extract_result(info):
                 extracted['base'][exp_idx] = result['logger'].mean[metric]
             else:
                 pass
-        is_result_path_i = '{}/is_{}.npy'.format(result_path, model_tag)
+        is_result_path_i = '{}/is_generated_{}.npy'.format(result_path, model_tag)
         if os.path.exists(is_result_path_i):
             result = np.load(is_result_path_i)
             exp_idx = control_exp.index(control_names_product[i][0])
             extracted['is'][exp_idx] = result
         else:
             pass
-        fid_result_path_i = '{}/fid_{}.npy'.format(result_path, model_tag)
+        fid_result_path_i = '{}/fid_generated_{}.npy'.format(result_path, model_tag)
         if os.path.exists(fid_result_path_i):
             result = load(fid_result_path_i, mode='numpy')
             exp_idx = control_exp.index(control_names_product[i][0])
             extracted['fid'][exp_idx] = result
-        dbi_result_path_i = '{}/dbi_{}.npy'.format(result_path, model_tag)
+        dbi_result_path_i = '{}/dbi_created_{}.npy'.format(result_path, model_tag)
         if os.path.exists(dbi_result_path_i):
             result = load(dbi_result_path_i, mode='numpy')
             exp_idx = control_exp.index(control_names_product[i][0])
@@ -110,8 +110,9 @@ def make_img(summarized):
     num_gpu = 1
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     filenames = ['generate', 'transit', 'create']
-    save_per_mode = {'generate': {'CIFAR10': 10, 'Omniglot': 10}, 'transit': {'CIFAR10': 10, 'Omniglot': 10},
-                     'create': {'CIFAR10': 10, 'Omniglot': 10}}
+    save_per_mode = {'generate': {'Omniglot': 10, 'CIFAR10': 10, 'CIFAR100': 10},
+                     'transit': {'Omniglot': 10, 'CIFAR10': 10, 'CIFAR100': 10},
+                     'create': {'Omniglot': 10, 'CIFAR10': 10, 'CIFAR100': 10}}
     pivot = 'is'
     s = '#!/bin/bash\n'
     for filename in filenames:
