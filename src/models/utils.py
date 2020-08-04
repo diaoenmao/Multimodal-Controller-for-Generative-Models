@@ -22,8 +22,8 @@ def make_SpectralNormalization(m):
 
 
 def create_embedding(embedding):
-    cfg['concentration'] = torch.ones(embedding.size(0))
-    m = torch.distributions.dirichlet.Dirichlet(cfg['concentration'].to(cfg['device']))
+    cfg['concentration'] = torch.ones(embedding.size(0), device=embedding.device)
+    m = torch.distributions.dirichlet.Dirichlet(cfg['concentration'])
     convex_combination = m.sample((cfg['classes_size'],))
     created_embedding = (convex_combination.matmul(embedding)).to(cfg['device'])
     return created_embedding
