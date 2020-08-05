@@ -106,7 +106,7 @@ def extract_result(info):
 
 
 def make_img(summarized):
-    round = 4
+    round = 1
     num_gpu = 1
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     filenames = ['generate', 'transit', 'create']
