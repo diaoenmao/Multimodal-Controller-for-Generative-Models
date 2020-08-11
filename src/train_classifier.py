@@ -26,12 +26,15 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['pivot_metric'] = 'Loss'
-cfg['pivot'] = float('inf')
-cfg['lr'] = 3e-4
+cfg['pivot_metric'] = 'Accuracy'
+cfg['pivot'] = -float('inf')
+cfg['lr'] = 1e-2
 cfg['batch_size'] = {'train': 128, 'test': 256}
 cfg['metric_name'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
-cfg['scheduler_name'] = 'ReduceLROnPlateau'
+cfg['scheduler_name'] = 'MultiStepLR'
+cfg['milestones'] = [100, 200]
+cfg['factor'] = 0.1
+cfg['num_epochs'] = 300
 
 
 def main():
@@ -85,7 +88,7 @@ def runExperiment():
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] > logger.mean['test/{}'.format(cfg['pivot_metric'])]:
+        if cfg['pivot'] < logger.mean['test/{}'.format(cfg['pivot_metric'])]:
             cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
@@ -97,8 +100,8 @@ def runExperiment():
 def train(data_loader, model, optimizer, logger, epoch):
     metric = Metric()
     model.train(True)
+    start_time = time.time()
     for i, input in enumerate(data_loader):
-        start_time = time.time()
         input = collate(input)
         input_size = input['img'].size(0)
         input = to_device(input, cfg['device'])
@@ -111,7 +114,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
         logger.append(evaluation, 'train', n=input_size)
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
-            batch_time = time.time() - start_time
+            batch_time = (time.time() - start_time) / (i + 1)
             lr = optimizer.param_groups[0]['lr']
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
             exp_finished_time = epoch_finished_time + datetime.timedelta(

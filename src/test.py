@@ -1,7 +1,3 @@
-import config
-
-config.init()
-import argparse
 import datetime
 import torch
 import torch.nn as nn
@@ -11,7 +7,7 @@ import math
 import models
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, load, to_device, process_control_name, process_dataset, resume, collate, save_img
+from utils import save, load, to_device, process_dataset, resume, collate, save_img
 from logger import Logger
 
 # if __name__ == "__main__":
@@ -1096,3 +1092,18 @@ import itertools
 #         break
 #     save_img(input['img'], './output/img/test.png')
 #     exit()
+
+
+if __name__ == "__main__":
+    data_name = 'Dogs'
+    subset = 'label'
+    dataset = fetch_dataset(data_name, subset)
+    process_dataset(dataset['train'])
+    data_loader = make_data_loader(dataset)
+    for i, input in enumerate(data_loader['train']):
+        input = collate(input)
+        print(input['img'].size())
+        print(input[subset].size())
+        break
+    save_img(input['img'], './output/img/test.png', range=(-1, 1))
+    exit()

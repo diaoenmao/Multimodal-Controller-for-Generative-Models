@@ -46,7 +46,7 @@ if cfg['model_name'] == 'cgan':
     elif cfg['data_name'] in ['Omniglot']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
-        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
 elif cfg['model_name'] == 'mcgan':
     if cfg['data_name'] in ['CIFAR10']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
@@ -140,8 +140,8 @@ def runExperiment():
 def train(data_loader, model, optimizer, logger, epoch):
     metric = Metric()
     model.train(True)
+    start_time = time.time()
     for i, input in enumerate(data_loader):
-        start_time = time.time()
         input = collate(input)
         input_size = input['img'].size(0)
         input = to_device(input, cfg['device'])
@@ -190,7 +190,7 @@ def train(data_loader, model, optimizer, logger, epoch):
         evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
         logger.append(evaluation, 'train', n=input_size)
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
-            batch_time = time.time() - start_time
+            batch_time = (time.time() - start_time) / (i + 1)
             generator_lr, discriminator_lr = optimizer['generator'].param_groups[0]['lr'], \
                                              optimizer['discriminator'].param_groups[0]['lr']
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
@@ -213,9 +213,9 @@ def test(model, logger, epoch):
         model.train(False)
         C = torch.arange(cfg['classes_size'])
         C = C.repeat(cfg['generate_per_mode'])
-        cfg['z'] = torch.randn([C.size(0), cfg['gan']['latent_size']]) if 'z' not in cfg else cfg['z']
+        z = torch.randn([C.size(0), cfg['gan']['latent_size']])
         C_generated = torch.split(C, sample_per_iter)
-        z_generated = torch.split(cfg['z'], sample_per_iter)
+        z_generated = torch.split(z, sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i].to(cfg['device'])

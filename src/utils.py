@@ -110,7 +110,7 @@ def process_control():
     elif cfg['data_name'] in ['Omniglot']:
         cfg['data_shape'] = [1, 32, 32]
         cfg['generate_per_mode'] = 20
-    elif cfg['data_name'] in ['SVHN', 'CIFAR10']:
+    elif cfg['data_name'] in ['SVHN', 'CIFAR10', 'Dogs', 'CUB200', 'Cars']:
         cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 1000
     elif cfg['data_name'] in ['CIFAR100']:
@@ -158,8 +158,8 @@ def process_control():
         cfg['gan']['latent_size'] = 128
         if cfg['data_shape'][1] == 32:
             if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
-                cfg['gan']['generator_hidden_size'] = [128, 128, 128, 128]
-                cfg['gan']['discriminator_hidden_size'] = [256, 256, 256, 256]
+                cfg['gan']['generator_hidden_size'] = [256, 256, 256, 256]
+                cfg['gan']['discriminator_hidden_size'] = [128, 128, 128, 128]
             else:
                 cfg['gan']['generator_hidden_size'] = [512, 256, 128, 64]
                 cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512]

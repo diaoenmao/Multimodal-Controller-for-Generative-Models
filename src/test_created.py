@@ -23,7 +23,7 @@ if args['control_name']:
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 cfg['metric_name'] = {'test': ['DBI']}
-cfg['raw'] = False
+cfg['raw'] = True
 
 
 def main():

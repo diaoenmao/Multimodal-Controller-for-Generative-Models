@@ -25,6 +25,9 @@ def create_embedding(embedding):
     cfg['concentration'] = torch.ones(embedding.size(0), device=embedding.device)
     m = torch.distributions.dirichlet.Dirichlet(cfg['concentration'])
     convex_combination = m.sample((cfg['classes_size'],))
+    convex_combination = torch.zeros(cfg['classes_size'], embedding.size(0), device=embedding.device)
+    convex_combination[:, 0] = 0.5
+    convex_combination[:, 1] = 0.5
     created_embedding = (convex_combination.matmul(embedding)).to(cfg['device'])
     return created_embedding
 

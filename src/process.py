@@ -4,7 +4,7 @@ import json
 import numpy as np
 from utils import save, load
 
-data_name = ['Omniglot', 'CIFAR10', 'CIFAR100']
+data_name = ['CIFAR10', 'CIFAR100', 'Omniglot']
 result_path = './output/result'
 num_Experiments = 12
 control_exp = [str(x) for x in list(range(num_Experiments))]
@@ -41,7 +41,7 @@ def main():
         summarized[data_name[i]] = summarized_i
     print(summarized)
     with open('{}/summarized.json'.format(result_path), 'w') as fp:
-        json.dump(summarized, fp, indent=4)
+        json.dump(summarized, fp, indent=2)
     save((extracted, summarized), '{}/processed_result.pt'.format(result_path))
     make_img(summarized)
     return
@@ -92,14 +92,14 @@ def extract_result(info):
     best_name_fid = '_'.join(control_names_product[np.argmin(extracted['fid']).item()])
     best_name_dbi = '_'.join(control_names_product[np.argmin(extracted['dbi']).item()])
     summarized = {
-        'base': {'mean': np.mean(extracted['base']), 'stderr': np.std(extracted['base']) / np.sqrt(num_Experiments),
+        'base': {'mean': np.mean(extracted['base']), 'std': np.std(extracted['base']),
                  'best': best_base, 'best_name': best_name_base},
         'is': {'mean': np.mean(extracted['is'], axis=0).tolist(),
-               'stderr': (np.std(extracted['is'], axis=0) / np.sqrt(num_Experiments)).tolist(),
+               'std': (np.std(extracted['is'], axis=0)).tolist(),
                'best': best_is, 'best_name': best_name_is},
-        'fid': {'mean': np.mean(extracted['fid']), 'stderr': np.std(extracted['fid']) / np.sqrt(num_Experiments),
+        'fid': {'mean': np.mean(extracted['fid']), 'std': np.std(extracted['fid']),
                 'best': best_fid, 'best_name': best_name_fid},
-        'dbi': {'mean': np.mean(extracted['dbi']), 'stderr': np.std(extracted['dbi']) / np.sqrt(num_Experiments),
+        'dbi': {'mean': np.mean(extracted['dbi']), 'std': np.std(extracted['dbi']),
                 'best': best_dbi, 'best_name': best_name_dbi}}
 
     return extracted, summarized

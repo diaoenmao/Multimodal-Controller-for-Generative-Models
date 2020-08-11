@@ -33,7 +33,7 @@ def PSNR(output, target, MAX=1.0):
     return psnr
 
 
-def InceptionScore(img, splits=10):
+def InceptionScore(img, splits=1):
     N = len(img)
     batch_size = 64
     data_loader = DataLoader(img, batch_size=batch_size)
