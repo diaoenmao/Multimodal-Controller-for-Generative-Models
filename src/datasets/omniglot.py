@@ -73,10 +73,8 @@ class Omniglot(Dataset):
     def make_data(self):
         img = make_data(self.raw_folder, IMG_EXTENSIONS)
         classes = set()
-        train_img = []
-        test_img = []
-        train_label = []
-        test_label = []
+        train_img, train_label = [], []
+        test_img, test_label = [], []
         for i in range(len(img)):
             img_i = img[i]
             class_i = '/'.join(os.path.normpath(img_i).split(os.path.sep)[-3:-1])

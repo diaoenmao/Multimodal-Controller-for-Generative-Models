@@ -1095,7 +1095,7 @@ import itertools
 
 
 if __name__ == "__main__":
-    data_name = 'Dogs'
+    data_name = 'COIL100'
     subset = 'label'
     dataset = fetch_dataset(data_name, subset)
     process_dataset(dataset['train'])

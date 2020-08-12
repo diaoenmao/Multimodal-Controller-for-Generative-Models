@@ -1,7 +1,6 @@
 import anytree
 import numpy as np
 import os
-import shutil
 import scipy.io
 import torch
 from PIL import Image
@@ -10,7 +9,7 @@ from utils import check_exists, makedir_exist_ok, save, load
 from .utils import download_url, extract_file, make_classes_counts, make_tree, make_flat_index
 
 
-class Cars():
+class Cars(Dataset):
     data_name = 'Cars'
     file = [('http://imagenet.stanford.edu/internal/car196/car_ims.tgz', None),
             ('http://imagenet.stanford.edu/internal/car196/car_devkit.tgz', None)]
@@ -61,7 +60,6 @@ class Cars():
             filename = os.path.basename(url)
             download_url(url, self.raw_folder, filename, md5)
             extract_file(os.path.join(self.raw_folder, filename))
-        exit()
         return
 
     def __repr__(self):

@@ -29,12 +29,11 @@ cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 cfg['pivot_metric'] = 'Accuracy'
 cfg['pivot'] = -float('inf')
 cfg['lr'] = 1e-2
-cfg['batch_size'] = {'train': 128, 'test': 256}
 cfg['metric_name'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
 cfg['scheduler_name'] = 'MultiStepLR'
-cfg['milestones'] = [100, 200]
+cfg['milestones'] = [100]
 cfg['factor'] = 0.1
-cfg['num_epochs'] = 300
+cfg['num_epochs'] = 200
 
 
 def main():

@@ -6,9 +6,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
 
-def fetch_dataset(data_name, subset):
+def fetch_dataset(data_name, subset, verbose=True):
     dataset = {}
-    print('fetching data {}...'.format(data_name))
+    if verbose:
+        print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
     if data_name in ['MNIST', 'FashionMNIST', 'SVHN']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
@@ -61,7 +62,7 @@ def fetch_dataset(data_name, subset):
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                       transforms.Normalize((0.5,), (0.5,))])
         }
-    elif data_name in ['CUB200', 'Cars', 'Dogs']:
+    elif data_name in ['CUB200', 'Cars', 'Dogs', 'COIL100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
@@ -76,7 +77,8 @@ def fetch_dataset(data_name, subset):
         raise ValueError('Not valid dataset name')
     dataset['train'].transform = cfg['transform']['train']
     dataset['test'].transform = cfg['transform']['test']
-    print('data ready')
+    if verbose:
+        print('data ready')
     return dataset
 
 

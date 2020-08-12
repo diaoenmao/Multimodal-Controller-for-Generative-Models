@@ -28,10 +28,6 @@ if args['control_name']:
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 cfg['pivot_metric'] = 'MSE'
 cfg['pivot'] = float('inf')
-if cfg['data_name'] in ['ImageNet', 'ImageNet32']:
-    cfg['batch_size'] = {'train': 512, 'test': 1024}
-else:
-    cfg['batch_size'] = {'train': 128, 'test': 512}
 cfg['metric_name'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
 cfg['optimizer_name'] = 'Adam'
 cfg['lr'] = 3e-4

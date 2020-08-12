@@ -1,7 +1,5 @@
 import anytree
-import numpy as np
 import os
-import shutil
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
@@ -9,7 +7,7 @@ from utils import check_exists, makedir_exist_ok, save, load
 from .utils import download_url, extract_file, make_classes_counts, make_tree, make_flat_index
 
 
-class CUB200():
+class CUB200(Dataset):
     data_name = 'CUB200'
     file = [('http://www.vision.caltech.edu/visipedia-data/CUB-200-2011/CUB_200_2011.tgz',
              '97eceeb196236b17998738112f37df78')]
@@ -79,6 +77,7 @@ class CUB200():
             else:
                 test_img.append(os.path.join(self.raw_folder, 'CUB_200_2011', 'images', images[i]))
                 test_label.append(image_class_labels[i])
+
         train_target, test_target = {'label': train_label}, {'label': test_label}
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         for c in classes:

@@ -110,10 +110,10 @@ def process_control():
     elif cfg['data_name'] in ['Omniglot']:
         cfg['data_shape'] = [1, 32, 32]
         cfg['generate_per_mode'] = 20
-    elif cfg['data_name'] in ['SVHN', 'CIFAR10', 'Dogs', 'CUB200', 'Cars']:
+    elif cfg['data_name'] in ['SVHN', 'CIFAR10']:
         cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 1000
-    elif cfg['data_name'] in ['CIFAR100']:
+    elif cfg['data_name'] in ['CIFAR100', 'Dogs', 'CUB200', 'Cars', 'COIL100']:
         cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 100
     elif cfg['data_name'] in ['ImageNet32']:
@@ -165,7 +165,7 @@ def process_control():
                 cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512]
         elif cfg['data_shape'][1] == 128:
             cfg['gan']['generator_hidden_size'] = [1024, 512, 256, 128, 64]
-            cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512, 1024, 1024]
+            cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512, 1024]
         else:
             raise ValueError('Not valid data shape')
         cfg['gan']['embedding_size'] = 32
@@ -182,8 +182,13 @@ def process_control():
             raise ValueError('Not valid data shape')
         cfg['glow']['affine'] = True
         cfg['glow']['conv_lu'] = True
-    cfg['classifier'] = {}
-    cfg['classifier']['hidden_size'] = [8, 16, 32, 64]
+    cfg['classifier'] = {'hidden_size': [8, 16, 32, 64]}
+    if cfg['data_shape'][1] == 32:
+        cfg['batch_size'] = {'train': 128, 'test': 512}
+    elif cfg['data_shape'][1] == 128:
+        cfg['batch_size'] = {'train': 32, 'test': 128}
+    else:
+        raise ValueError('Not valid data shape')
     return
 
 

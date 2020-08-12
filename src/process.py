@@ -15,9 +15,9 @@ def main():
     for i in range(len(data_name)):
         result_control = {
             'CVAE': {
-                'control_names': [control_exp, [data_name[i]], ['label'], ['cvae']], 'metric': 'test/MSE'},
+                'control_names': [control_exp, [data_name[i]], ['label'], ['cvae']], 'metric': 'test/NLL'},
             'MCVAE': {
-                'control_names': [control_exp, [data_name[i]], ['label'], ['mcvae'], ['0.5']], 'metric': 'test/MSE'},
+                'control_names': [control_exp, [data_name[i]], ['label'], ['mcvae'], ['0.5']], 'metric': 'test/NLL'},
             'VQVAE': {
                 'control_names': [control_exp, [data_name[i]], ['label'], ['vqvae']], 'metric': 'test/MSE'},
             'CPixelCNN': {

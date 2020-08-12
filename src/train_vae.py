@@ -26,13 +26,9 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['pivot_metric'] = 'MSE'
+cfg['pivot_metric'] = 'BCE'
 cfg['pivot'] = float('inf')
-if cfg['data_name'] in ['ImageNet', 'ImageNet32']:
-    cfg['batch_size'] = {'train': 1024, 'test': 1024}
-else:
-    cfg['batch_size'] = {'train': 128, 'test': 512}
-cfg['metric_name'] = {'train': ['Loss', 'MSE'], 'test': ['Loss', 'MSE']}
+cfg['metric_name'] = {'train': ['Loss', 'BCE'], 'test': ['Loss', 'BCE']}
 cfg['optimizer_name'] = 'Adam'
 cfg['lr'] = 3e-4
 cfg['weight_decay'] = 0

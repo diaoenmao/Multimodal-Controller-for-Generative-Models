@@ -19,10 +19,18 @@ def MSE(output, target):
     return mse
 
 
+def BCE(output, target):
+    with torch.no_grad():
+        output = (output + 1) / 2
+        target = (target + 1) / 2
+        bce = F.binary_cross_entropy(output, target, reduction='mean').item()
+    return bce
+
+
 def NLL(output, target):
     with torch.no_grad():
-        NLL = F.cross_entropy(output, target, reduction='mean').item()
-    return NLL
+        nll = F.cross_entropy(output, target, reduction='mean').item()
+    return nll
 
 
 def PSNR(output, target, MAX=1.0):
@@ -37,7 +45,7 @@ def InceptionScore(img, splits=1):
     N = len(img)
     batch_size = 64
     data_loader = DataLoader(img, batch_size=batch_size)
-    if cfg['data_name'] in ['MNIST', 'Omniglot']:
+    if cfg['data_name'] in ['COIL100', 'Omniglot']:
         model = models.classifier().to(cfg['device'])
         model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
         model_tag = '_'.join(filter(None, model_tag))
@@ -77,31 +85,54 @@ def InceptionScore(img, splits=1):
 
 
 def FID(img):
-    batch_size = 256
+    batch_size = 64
     cfg['batch_size']['train'] = batch_size
-    dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
+    dataset = fetch_dataset(cfg['data_name'], cfg['subset'], verbose=False)
     real_data_loader = make_data_loader(dataset)['train']
     generated_data_loader = DataLoader(img, batch_size=batch_size)
-    model = models.classifier().to(cfg['device'])
-    model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
-    model_tag = '_'.join(filter(None, model_tag))
-    checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
-    model.load_state_dict(checkpoint['model_dict'])
-    model.train(False)
-    real_feature = []
-    for i, input in enumerate(real_data_loader):
-        input = collate(input)
-        input = to_device(input, cfg['device'])
-        real_feature_i = model.feature(input)
-        real_feature.append(real_feature_i)
-    real_feature = torch.cat(real_feature, dim=0).cpu().numpy()
-    generated_feature = []
-    for i, input in enumerate(generated_data_loader):
-        input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
-        input = to_device(input, cfg['device'])
-        generated_feature_i = model.feature(input)
-        generated_feature.append(generated_feature_i)
-    generated_feature = torch.cat(generated_feature, dim=0).cpu().numpy()
+    if cfg['data_name'] in ['COIL100', 'Omniglot']:
+        model = models.classifier().to(cfg['device'])
+        model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
+        model_tag = '_'.join(filter(None, model_tag))
+        checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
+        model.load_state_dict(checkpoint['model_dict'])
+        model.train(False)
+        real_feature = []
+        for i, input in enumerate(real_data_loader):
+            input = collate(input)
+            input = to_device(input, cfg['device'])
+            real_feature_i = model.feature(input)
+            real_feature.append(real_feature_i.cpu().numpy())
+        real_feature = np.concatenate(real_feature, axis=0)
+        generated_feature = []
+        for i, input in enumerate(generated_data_loader):
+            input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
+            input = to_device(input, cfg['device'])
+            generated_feature_i = model.feature(input)
+            generated_feature.append(generated_feature_i.cpu().numpy())
+        generated_feature = np.concatenate(generated_feature, axis=0)
+    else:
+        model = inception_v3(pretrained=True, transform_input=False).to(cfg['device'])
+        up = nn.Upsample(size=(299, 299), mode='bilinear', align_corners=False)
+        model.feature = nn.Sequential(
+            *[up, model.Conv2d_1a_3x3, model.Conv2d_2a_3x3, model.Conv2d_2b_3x3, nn.MaxPool2d(kernel_size=3, stride=2),
+              model.Conv2d_3b_1x1, model.Conv2d_4a_3x3, nn.MaxPool2d(kernel_size=3, stride=2), model.Mixed_5b,
+              model.Mixed_5c, model.Mixed_5d, model.Mixed_6a, model.Mixed_6b, model.Mixed_6c, model.Mixed_6d,
+              model.Mixed_6e, model.Mixed_7a, model.Mixed_7b, model.Mixed_7c, nn.AdaptiveAvgPool2d(1), nn.Flatten()])
+        model.train(False)
+        real_feature = []
+        for i, input in enumerate(real_data_loader):
+            input = collate(input)
+            input = to_device(input, cfg['device'])
+            real_feature_i = model.feature(input['img'])
+            real_feature.append(real_feature_i.cpu().numpy())
+        real_feature = np.concatenate(real_feature, axis=0)
+        generated_feature = []
+        for i, input in enumerate(generated_data_loader):
+            input = to_device(input, cfg['device'])
+            generated_feature_i = model.feature(input)
+            generated_feature.append(generated_feature_i.cpu().numpy())
+        generated_feature = np.concatenate(generated_feature, axis=0)
     mu1 = np.mean(real_feature, axis=0)
     sigma1 = np.cov(real_feature, rowvar=False)
     mu2 = np.mean(generated_feature, axis=0)
@@ -154,6 +185,7 @@ class Metric(object):
                        'DBI': (lambda input, output: recur(DBI, output['img'], output['label'])),
                        'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
                        'MSE': (lambda input, output: recur(MSE, output['img'], input['img'])),
+                       'BCE': (lambda input, output: recur(BCE, output['img'], input['img'])),
                        'NLL': (lambda input, output: recur(NLL, output['logits'], input['img'])),
                        'PSNR': (lambda input, output: recur(PSNR, output['img']))}
 

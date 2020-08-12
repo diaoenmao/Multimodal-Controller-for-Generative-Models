@@ -7,9 +7,10 @@ from .utils import init_param
 
 
 def loss(input, output):
-    CE = F.binary_cross_entropy(output['img'], input['img'], reduction='sum')
-    KLD = 0.5 * torch.sum(output['mu'].pow(2) + output['logvar'].exp() - 1 - output['logvar'])
-    return CE + KLD
+    bce = F.binary_cross_entropy(output['img'], input['img'], reduction='sum')
+    kld = 0.5 * torch.sum(output['mu'].pow(2) + output['logvar'].exp() - 1 - output['logvar'])
+    loss = (bce + kld) / input['img'].numel()
+    return loss
 
 
 class ResBlock(nn.Module):

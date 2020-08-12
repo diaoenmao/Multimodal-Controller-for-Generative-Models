@@ -1,20 +1,17 @@
 import anytree
-import numpy as np
 import os
-import scipy.io
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from utils import check_exists, makedir_exist_ok, save, load
-from .utils import download_url, extract_file, make_classes_counts, make_tree, make_flat_index
+from .utils import download_url, extract_file, make_classes_counts, make_tree, make_flat_index, \
+    has_file_allowed_extension, \
+    IMG_EXTENSIONS
 
 
-class Dogs(Dataset):
-    data_name = 'Dogs'
-    file = [('http://vision.stanford.edu/aditya86/ImageNetDogs/images.tar', None),
-            ('http://vision.stanford.edu/aditya86/ImageNetDogs/annotation.tar', None),
-            ('http://vision.stanford.edu/aditya86/ImageNetDogs/lists.tar', None),
-            ('http://vision.stanford.edu/aditya86/ImageNetDogs/README.txt', None)]
+class COIL100(Dataset):
+    data_name = 'COIL100'
+    file = [('http://www.cs.columbia.edu/CAVE/databases/SLAM_coil-20_coil-100/coil-100/coil-100.zip', None)]
 
     def __init__(self, root, split, subset, transform=None):
         self.root = os.path.expanduser(root)
@@ -70,23 +67,31 @@ class Dogs(Dataset):
         return fmt_str
 
     def make_data(self):
-        train_img = scipy.io.loadmat(os.path.join(self.raw_folder, 'train_list.mat'))['file_list']
-        train_label = scipy.io.loadmat(os.path.join(self.raw_folder, 'train_list.mat'))['labels']
-        test_img = scipy.io.loadmat(os.path.join(self.raw_folder, 'test_list.mat'))['file_list']
-        test_label = scipy.io.loadmat(os.path.join(self.raw_folder, 'test_list.mat'))['labels']
-        classes = list(sorted(set([train_img[i][0].item().split('/')[0] for i in range(len(train_img))])))
-        train_img = [os.path.join(self.raw_folder, 'Images', train_img[i][0].item()) for i in range(len(train_img))]
-        train_label = [train_label[i].item() for i in range(len(train_label))]
-        test_img = [os.path.join(self.raw_folder, 'Images', test_img[i][0].item()) for i in range(len(test_img))]
-        test_label = [test_label[i].item() for i in range(len(test_label))]
-        ## No test
-        train_img = train_img + test_img
-        train_label = np.array(train_label + test_label, dtype=np.int64) - 1
-        test_img = []
-        test_label = np.array([], dtype=np.int64) - 1
-        train_target, test_target = {'label': train_label}, {'label': test_label}
+        filenames = os.listdir(os.path.join(self.raw_folder, 'coil-100'))
+        train_img, train_label = [], []
+        test_img, test_label = [], []
+        classes = set()
+        for filename in filenames:
+            if has_file_allowed_extension(filename, IMG_EXTENSIONS):
+                train_img.append(os.path.join(self.raw_folder, 'coil-100', filename))
+                test_img.append(os.path.join(self.raw_folder, 'coil-100', filename))
+                classes.add(filename.split('_')[0])
+        classes = sorted(list(classes))
         classes_to_labels = {'label': anytree.Node('U', index=[])}
         for c in classes:
             make_tree(classes_to_labels['label'], [c])
         classes_size = {'label': make_flat_index(classes_to_labels['label'])}
+        r = anytree.resolver.Resolver()
+        for i in range(len(train_img)):
+            train_img_i = train_img[i]
+            train_class_i = os.path.basename(train_img_i).split('_')[0]
+            node = r.get(classes_to_labels['label'], train_class_i)
+            train_label.append(node.flat_index)
+        for i in range(len(test_img)):
+            test_img_i = test_img[i]
+            test_class_i = os.path.basename(test_img_i).split('_')[0]
+            node = r.get(classes_to_labels['label'], test_class_i)
+            test_label.append(node.flat_index)
+        train_target = {'label': train_label}
+        test_target = {'label': test_label}
         return (train_img, train_target), (test_img, test_target), (classes_to_labels, classes_size)

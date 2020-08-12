@@ -291,5 +291,5 @@ if __name__ == '__main__':
                 img = scipy.misc.imread(file, mode='RGB')
                 img_list.append(img)
             random.shuffle(img_list)
-            is_mean, is_std = get_inception_score(img_list, splits=10)
+            is_mean, is_std = get_inception_score(img_list, splits=1)
             print(is_mean, is_std)

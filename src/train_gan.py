@@ -28,35 +28,23 @@ if args['control_name']:
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
 cfg['pivot_metric'] = 'InceptionScore'
 cfg['pivot'] = -float('inf')
-if cfg['data_name'] in ['ImageNet', 'ImageNet32']:
-    cfg['batch_size'] = {'train': 1024, 'test': 1024}
-else:
-    cfg['batch_size'] = {'train': 128, 'test': 512}
-cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore']}
+cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore', 'FID']}
 cfg['optimizer_name'] = 'Adam'
 if cfg['model_name'] == 'cgan':
-    if cfg['data_name'] in ['CIFAR10']:
+    if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
-    elif cfg['data_name'] in ['CIFAR100']:
-        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
-        cfg['iter'] = {'generator': 1, 'discriminator': 5}
-        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
-    elif cfg['data_name'] in ['Omniglot']:
+    elif cfg['data_name'] in ['COIL100', 'Omniglot']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
 elif cfg['model_name'] == 'mcgan':
-    if cfg['data_name'] in ['CIFAR10']:
+    if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
-    elif cfg['data_name'] in ['CIFAR100']:
-        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
-        cfg['iter'] = {'generator': 1, 'discriminator': 5}
-        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
-    elif cfg['data_name'] in ['Omniglot']:
+    elif cfg['data_name'] in ['COIL100', 'Omniglot']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
@@ -104,10 +92,10 @@ def runExperiment():
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
         logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
-    if cfg['world_size'] > 1:
-        model.generator = torch.nn.DataParallel(model.generator, device_ids=list(range(cfg['world_size'])))
-        model.discriminator = torch.nn.DataParallel(model.discriminator, device_ids=list(range(cfg['world_size'])))
     for epoch in range(last_epoch, cfg['num_epochs'] + 1):
+        if cfg['world_size'] > 1:
+            model.generator = torch.nn.DataParallel(model.generator, device_ids=list(range(cfg['world_size'])))
+            model.discriminator = torch.nn.DataParallel(model.discriminator, device_ids=list(range(cfg['world_size'])))
         logger.safe(True)
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(model, logger, epoch)
@@ -119,7 +107,7 @@ def runExperiment():
             scheduler['discriminator'].step()
         logger.safe(False)
         if cfg['world_size'] > 1:
-            model.generator, model.discriminator = model.module.generator, model.module.discriminator
+            model.generator, model.discriminator = model.generator.module, model.discriminator.module
         model_state_dict = model.state_dict()
         save_result = {
             'cfg': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
@@ -213,9 +201,9 @@ def test(model, logger, epoch):
         model.train(False)
         C = torch.arange(cfg['classes_size'])
         C = C.repeat(cfg['generate_per_mode'])
-        z = torch.randn([C.size(0), cfg['gan']['latent_size']])
+        cfg['z'] = torch.randn([C.size(0), cfg['gan']['latent_size']]) if 'z' not in cfg else cfg['z']
         C_generated = torch.split(C, sample_per_iter)
-        z_generated = torch.split(z, sample_per_iter)
+        z_generated = torch.split(cfg['z'], sample_per_iter)
         generated = []
         for i in range(len(C_generated)):
             C_generated_i = C_generated[i].to(cfg['device'])
