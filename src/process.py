@@ -51,7 +51,7 @@ def extract_result(info):
     control_names = info['control_names']
     metric = info['metric']
     control_names_product = list(itertools.product(*control_names))
-    extracted = {'base': np.zeros(len(control_exp)), 'is': np.zeros((len(control_exp), 2)),
+    extracted = {'base': np.zeros(len(control_exp)), 'is': np.zeros((len(control_exp))),
                  'fid': np.zeros(len(control_exp)), 'dbi': np.zeros(len(control_exp))}
     for i in range(len(control_names_product)):
         control_name = list(control_names_product[i])
@@ -84,11 +84,11 @@ def extract_result(info):
         else:
             pass
     best_base = np.min(extracted['base']).item()
-    best_is = np.max(extracted['is'][:, 0]).item()
+    best_is = np.max(extracted['is']).item()
     best_fid = np.min(extracted['fid']).item()
     best_dbi = np.min(extracted['dbi']).item()
     best_name_base = '_'.join(control_names_product[np.argmin(extracted['base']).item()])
-    best_name_is = '_'.join(control_names_product[np.argmax(extracted['is'][:, 0]).item()])
+    best_name_is = '_'.join(control_names_product[np.argmax(extracted['is']).item()])
     best_name_fid = '_'.join(control_names_product[np.argmin(extracted['fid']).item()])
     best_name_dbi = '_'.join(control_names_product[np.argmin(extracted['dbi']).item()])
     summarized = {

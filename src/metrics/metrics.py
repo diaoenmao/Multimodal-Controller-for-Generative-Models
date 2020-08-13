@@ -79,9 +79,8 @@ def InceptionScore(img, splits=1):
             pyx = part[i, :]
             scores.append(entropy(pyx, py))
         split_scores.append(np.exp(np.mean(scores)))
-    is_mean = np.mean(split_scores).item()
-    is_std = np.std(split_scores).item()
-    return is_mean, is_std
+    inception_score = np.mean(split_scores).item()
+    return inception_score
 
 
 def FID(img):

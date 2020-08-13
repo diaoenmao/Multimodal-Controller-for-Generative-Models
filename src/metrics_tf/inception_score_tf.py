@@ -105,7 +105,7 @@ softmax = None
 # Call this function with list of images. Each of elements should be a
 # numpy array with values ranging from 0 to 255.
 # numpy array shape should be in C x H x W
-def get_inception_score(images, splits=10, bs=256):
+def get_inception_score(images, splits=1, bs=256):
     assert (isinstance(images, np.ndarray))
     assert (images.ndim == 4)
     assert (np.max(images[0]) > 10)
@@ -271,7 +271,7 @@ if __name__ == '__main__':
             valid_mask = np.sum(np.isnan(images), axis=(1,2,3)) == 0
             images = images[valid_mask]
             is_mean, is_std = get_inception_score(images)
-            result = np.array([is_mean, is_std])
+            result = is_mean
             print('Inception Score ({}): {}'.format(model_tag, result))
             try:
                 os.makedirs('./output/result')
@@ -291,5 +291,5 @@ if __name__ == '__main__':
                 img = scipy.misc.imread(file, mode='RGB')
                 img_list.append(img)
             random.shuffle(img_list)
-            is_mean, is_std = get_inception_score(img_list, splits=1)
-            print(is_mean, is_std)
+            is_mean, is_std = get_inception_score(img_list)
+            print(is_mean)

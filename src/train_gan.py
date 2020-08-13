@@ -100,8 +100,8 @@ def runExperiment():
         train(data_loader['train'], model, optimizer, logger, epoch)
         test(model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
-            scheduler['generator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])][0])
-            scheduler['discriminator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])][0])
+            scheduler['generator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])])
+            scheduler['discriminator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])])
         else:
             scheduler['generator'].step()
             scheduler['discriminator'].step()
@@ -116,8 +116,8 @@ def runExperiment():
             'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
                                'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] < logger.mean['test/{}'.format(cfg['pivot_metric'])][0]:
-            cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])][0]
+        if cfg['pivot'] < logger.mean['test/{}'.format(cfg['pivot_metric'])]:
+            cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
