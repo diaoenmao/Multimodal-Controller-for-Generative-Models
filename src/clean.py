@@ -4,7 +4,7 @@ from utils import makedir_exist_ok
 
 
 def main():
-    img_folder = './output/img/test'
+    img_folder = './output/vis/test'
     filenames = os.listdir(img_folder)
     for filename in filenames:
         if os.path.isfile(os.path.join(img_folder, filename)):

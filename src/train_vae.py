@@ -143,8 +143,8 @@ def test(data_loader, model, logger, epoch):
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
         if cfg['show']:
-            save_img(input['img'][:100], './output/img/input_{}.png'.format(cfg['model_tag']), range=(-1, 1))
-            save_img(output['img'][:100], './output/img/output_{}.png'.format(cfg['model_tag']), range=(-1, 1))
+            save_img(input['img'][:100], './output/vis/input_{}.png'.format(cfg['model_tag']), range=(-1, 1))
+            save_img(output['img'][:100], './output/vis/output_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 

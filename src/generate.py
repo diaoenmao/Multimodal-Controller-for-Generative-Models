@@ -80,7 +80,7 @@ def generate(model, ae=None):
                 for i in range(0, cfg['classes_size'] * save_per_mode, cfg['classes_size']):
                     saved.append(generated[i:i + save_num_mode])
                 saved = torch.cat(saved)
-                save_img(saved, './output/img/generated_{}.{}'.format(cfg['model_tag'], cfg['save_format']),
+                save_img(saved, './output/vis/generated_{}.{}'.format(cfg['model_tag'], cfg['save_format']),
                          nrow=save_num_mode, range=(0, 255))
         else:
             save_per_mode = cfg['save_per_mode']
@@ -103,7 +103,7 @@ def generate(model, ae=None):
                         saved_i = ae.decode_code(code_i)
                     saved.append(saved_i.cpu())
                 saved = torch.cat(saved)
-                save_img(saved, './output/img/generated_{}_{}.{}'.format(
+                save_img(saved, './output/vis/generated_{}_{}.{}'.format(
                     cfg['model_tag'], save_num_mode, cfg['save_format']), nrow=save_num_mode, range=(-1, 1))
     return
 

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 model_path = './output/model'
-vis_path = './output/vis'
+vis_path = './output/vis/lc'
 num_experiments = 1
 exp = [str(x) for x in list(range(num_experiments))]
 colors = {'c': 'b', 'mc': 'r'}
@@ -16,9 +16,9 @@ metrics = ['test/InceptionScore', 'test/FID']
 
 
 def main():
-    c_controls = [exp, ['COIL100'], ['label'], ['cgan']]
+    c_controls = [exp, ['CIFAR10', 'CIFAR100', 'COIL100', 'Omniglot'], ['label'], ['cgan']]
     c_controls = list(itertools.product(*c_controls))
-    mc_controls = [exp, ['COIL100'], ['label'], ['mcgan'], ['0.5']]
+    mc_controls = [exp, ['CIFAR10', 'CIFAR100', 'COIL100', 'Omniglot'], ['label'], ['mcgan'], ['0.5']]
     mc_controls = list(itertools.product(*mc_controls))
     controls = c_controls + mc_controls
     processed_result = process_result(controls)

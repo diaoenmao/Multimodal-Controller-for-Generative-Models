@@ -16,7 +16,7 @@ def main():
     num_experiments = args['num_experiments']
     gpu_ids = [str(x) for x in list(range(num_gpu))]
     tf_data_names = ['CIFAR10', 'CIFAR100']
-    pt_data_names = ['Omniglot']
+    pt_data_names = ['COIL100', 'Omniglot']
     created_data_names = tf_data_names + pt_data_names
     model_names = ['c{}'.format(args['model']), 'mc{}'.format(model)]
     control_exp = [str(x) for x in list(range(num_experiments))]
@@ -77,7 +77,7 @@ def main():
     run_file.close()
     s = '#!/bin/bash\n'
     k = 0
-    model_names = ['mc{}'.format(model)]
+    model_names = ['c{}'.format(model), 'mc{}'.format(model)]
     for i in range(len(created_data_names)):
         data_name = created_data_names[i]
         script_name = 'test_created.py'
