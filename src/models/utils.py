@@ -22,13 +22,26 @@ def make_SpectralNormalization(m):
 
 
 def create_embedding(embedding):
-    cfg['concentration'] = torch.ones(embedding.size(0), device=embedding.device)
-    m = torch.distributions.dirichlet.Dirichlet(cfg['concentration'])
-    convex_combination = m.sample((cfg['classes_size'],))
-    convex_combination = torch.zeros(cfg['classes_size'], embedding.size(0), device=embedding.device)
-    convex_combination[:, 0] = 0.5
-    convex_combination[:, 1] = 0.5
-    created_embedding = (convex_combination.matmul(embedding)).to(cfg['device'])
+    C, K = embedding.size(0), embedding.size(1)
+    create_mode = cfg['create_mode']
+    classes_size = cfg['classes_size']
+    if create_mode == 'uniform':
+        concentration = torch.ones(C, device=embedding.device)
+        m = torch.distributions.dirichlet.Dirichlet(concentration)
+        convex_combination = m.sample((classes_size,))
+        created_embedding = (convex_combination.matmul(embedding)).to(cfg['device'])
+    elif create_mode == 'pairwise':
+        created_embedding = set()
+        while len(created_embedding) < classes_size:
+            selected_parents = torch.randint(C, (2,))
+            parents = embedding[selected_parents]
+            alpha = torch.rand(1, device=parents.device)
+            created_embedding_c = alpha * parents[0] + (1 - alpha) * parents[1]
+            created_embedding_c = tuple(created_embedding_c.tolist())
+            created_embedding.add(created_embedding_c)
+        created_embedding = torch.tensor(list(created_embedding)[:classes_size], dtype=torch.float).to(cfg['device'])
+    else:
+        raise ValueError('Not valid create mode')
     return created_embedding
 
 
@@ -36,31 +49,24 @@ def create_codebook(codebook):
     C, K = codebook.size(0), codebook.size(1)
     create_mode = cfg['create_mode']
     classes_size = cfg['classes_size']
-    if create_mode == 'random':
+    if create_mode == 'uniform':
         d = torch.distributions.bernoulli.Bernoulli(probs=0.5)
         created_codebook = set()
         while len(created_codebook) < classes_size:
             created_codebook_c = d.sample((classes_size, K))
             created_codebook_c = [tuple(c) for c in created_codebook_c.tolist()]
             created_codebook.update(created_codebook_c)
-    else:
-        mutate_threshold = 0.5
+    elif create_mode == 'pairwise':
         created_codebook = set()
         while len(created_codebook) < classes_size:
             selected_parents = torch.randint(C, (2,))
             parents = codebook[selected_parents]
-            if create_mode == 'single':
-                crossover_point = torch.randint(K, (1,)).to(cfg['device'])
-                created_codebook_c = torch.cat([parents[0, :crossover_point], parents[1, crossover_point:]])
-            elif create_mode == 'uniform':
-                crossover_point = torch.randint(2, (K,)).to(cfg['device'])
-                created_codebook_c = parents.gather(0, crossover_point.view(1, -1)).squeeze()
-            else:
-                raise ValueError('Not valid crossover mode')
-            mutate_mask = torch.rand(K) < mutate_threshold
-            created_codebook_c[mutate_mask] = torch.fmod(created_codebook_c[mutate_mask] + 1, 2)
+            crossover_point = torch.randint(K, (1,)).to(cfg['device'])
+            created_codebook_c = torch.cat([parents[0, :crossover_point], parents[1, crossover_point:]])
             created_codebook_c = tuple(created_codebook_c.tolist())
             created_codebook.add(created_codebook_c)
+    else:
+        raise ValueError('Not valid create mode')
     created_codebook = torch.tensor(list(created_codebook)[:classes_size], dtype=torch.float).to(cfg['device'])
     return created_codebook
 

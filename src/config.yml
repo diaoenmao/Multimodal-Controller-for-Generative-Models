@@ -45,10 +45,10 @@ world_size: 1
 resume_mode: 0
 # other
 ae_name: vqvae
-create_mode: random
+create_mode: uniform
 show: False
 raw: False
-save_npy: True
+save_npy: False
 save_img: True
 save_per_mode: 10
-save_format: pdf
+save_format: png
