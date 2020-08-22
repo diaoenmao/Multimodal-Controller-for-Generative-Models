@@ -35,7 +35,7 @@ def main():
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy generated_{}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, model_tag)
             if k % round == round - 1:
-                s = s[:-2] + '\n'
+                s = s[:-2] + '\nwait\n'
             k = k + 1
     k = 0
     for i in range(len(tf_data_names)):
@@ -51,7 +51,7 @@ def main():
             s = s + 'CUDA_VISIBLE_DEVICES=\"{}\" python {} npy generated_{}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, model_tag)
             if k % round == round - 1:
-                s = s[:-2] + '\n'
+                s = s[:-2] + '\nwait\n'
             k = k + 1
     k = 0
     for i in range(len(pt_data_names)):
@@ -69,7 +69,7 @@ def main():
                     '--control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, *controls[j])
             if k % round == round - 1:
-                s = s[:-2] + '\n'
+                s = s[:-2] + '\nwait\n'
             k = k + 1
     print(s)
     run_file = open('./test_generated.sh', 'w')
@@ -93,7 +93,7 @@ def main():
                     '--control_name {}&\n'.format(
                 gpu_ids[k % len(gpu_ids)], script_name, *controls[j])
             if k % round == round - 1:
-                s = s[:-2] + '\n'
+                s = s[:-2] + '\nwait\n'
             k = k + 1
     print(s)
     run_file = open('./test_created.sh', 'w')

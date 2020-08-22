@@ -84,11 +84,10 @@ def generate(model, ae=None):
                          nrow=save_num_mode, range=(0, 255))
         else:
             save_per_mode = cfg['save_per_mode']
-            if cfg['classes_size'] > 10:
-                max_save_num_mode = [10, 50, 100]
-            else:
-                max_save_num_mode = [10]
+            max_save_num_mode = [10, 50, 100]
             for i in range(len(max_save_num_mode)):
+                if max_save_num_mode[i] > cfg['classes_size']:
+                    continue
                 save_num_mode = min(max_save_num_mode[i], cfg['classes_size'])
                 C = torch.arange(save_num_mode)
                 C = C.repeat(save_per_mode)

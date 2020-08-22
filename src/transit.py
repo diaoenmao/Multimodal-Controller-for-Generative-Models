@@ -49,14 +49,13 @@ def runExperiment():
 def transit(model):
     with torch.no_grad():
         model.train(False)
-        if cfg['data_name'] in ['Omniglot']:
-            max_save_num_mode = [10, 50, 100]
-        else:
-            max_save_num_mode = [100]
         root = 0
         save_num_step = cfg['save_per_mode']
         alphas = np.linspace(0, 1, save_num_step + 1)
+        max_save_num_mode = [10, 50, 100]
         for i in range(len(max_save_num_mode)):
+            if max_save_num_mode[i] > cfg['classes_size']:
+                continue
             save_num_mode = min(max_save_num_mode[i], cfg['classes_size'])
             C = torch.arange(save_num_mode).to(cfg['device'])
             if cfg['model_name'] in ['cvae', 'mcvae']:
@@ -78,7 +77,7 @@ def transit(model):
                 transited.append(transited_i.cpu())
             transited = torch.stack(transited, dim=0)
             transited = transited.view(-1, *transited.size()[2:])
-            save_img(transited, './output/img/transited_{}_{}.{}'.format(
+            save_img(transited, './output/vis/transited_{}_{}.{}'.format(
                 cfg['model_tag'], save_num_mode, cfg['save_format']), nrow=save_num_mode, range=(-1, 1))
     return
 
