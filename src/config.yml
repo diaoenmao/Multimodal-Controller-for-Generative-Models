@@ -48,7 +48,7 @@ ae_name: vqvae
 create_mode: uniform
 show: False
 raw: False
-save_npy: True
+save_npy: False
 save_img: True
 save_per_mode: 10
 save_format: pdf

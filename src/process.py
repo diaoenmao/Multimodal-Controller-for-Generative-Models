@@ -31,7 +31,7 @@ def main():
     for i in range(len(controls_list)):
         controls.extend(list(itertools.product(*controls_list[i])))
     processed_result = process_result(controls)
-    with open('{}/summarized.json'.format(result_path), 'w') as fp:
+    with open('{}/processed_result.json'.format(result_path), 'w') as fp:
         json.dump(processed_result, fp, indent=2)
     save(processed_result, os.path.join(result_path, 'processed_result.pt'))
     make_vis(processed_result)

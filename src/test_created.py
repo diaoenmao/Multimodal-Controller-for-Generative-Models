@@ -56,7 +56,7 @@ def runExperiment():
         evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
         dbi_result = evaluation['DBI']
         print('Davies-Bouldin Index ({}): {}'.format(cfg['data_name'], dbi_result))
-        save(dbi_result, './output/result/dbi_{}.npy'.format(cfg['data_name']), mode='numpy')
+        save(dbi_result, './output/result/dbi_created_{}.npy'.format(cfg['data_name']), mode='numpy')
     else:
         created = np.load('./output/npy/created_{}.npy'.format(cfg['model_tag']), allow_pickle=True)
         test(created)

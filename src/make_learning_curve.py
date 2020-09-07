@@ -76,10 +76,13 @@ def make_vis(processed_result):
         metric_name = k.split('_')[-1].split('/')
         save_fig_name = '_'.join(k.split('_')[:-1] + ['_'.join(metric_name)])
         fig[k] = plt.figure(k)
-        plt.xlabel('iter', fontsize=12)
-        plt.ylabel(metric_name[-1], fontsize=12)
+        plt.xlabel('Epoch', fontsize=15)
+        plt.ylabel(metric_name[-1], fontsize=15)
         plt.grid()
-        plt.legend()
+        if metric_name[-1] == 'FID':
+            plt.legend(loc='upper right', fontsize=15)
+        else:
+            plt.legend(loc='lower right', fontsize=15)
         fig_path = '{}/{}.{}'.format(vis_path, save_fig_name, cfg['save_format'])
         makedir_exist_ok(vis_path)
         fig[k].savefig(fig_path, dpi=300, bbox_inches='tight', pad_inches=0)
@@ -104,7 +107,7 @@ def vis(fig, control, processed_result):
         y_std = processed_result['std']
         fig_name = '{}_{}_{}'.format(data_name, label, metric)
         fig[fig_name] = plt.figure(fig_name)
-        plt.errorbar(x, y_mean, yerr=y_std, c=color, label=model_name)
+        plt.plot(x, y_mean, c=color, label=model_name)
     else:
         for k, v in processed_result.items():
             vis(fig, control + [k], v)
