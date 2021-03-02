@@ -1094,16 +1094,16 @@ import itertools
 #     exit()
 
 
-if __name__ == "__main__":
-    data_name = 'COIL100'
-    subset = 'label'
-    dataset = fetch_dataset(data_name, subset)
-    process_dataset(dataset['train'])
-    data_loader = make_data_loader(dataset)
-    for i, input in enumerate(data_loader['train']):
-        input = collate(input)
-        print(input['img'].size())
-        print(input[subset].size())
-        break
-    save_img(input['img'], './output/img/test.png', range=(-1, 1))
-    exit()
+# if __name__ == "__main__":
+#     data_name = 'COIL100'
+#     subset = 'label'
+#     dataset = fetch_dataset(data_name, subset)
+#     process_dataset(dataset['train'])
+#     data_loader = make_data_loader(dataset)
+#     for i, input in enumerate(data_loader['train']):
+#         input = collate(input)
+#         print(input['img'].size())
+#         print(input[subset].size())
+#         break
+#     save_img(input['img'], './output/img/test.png', range=(-1, 1))
+#     exit()

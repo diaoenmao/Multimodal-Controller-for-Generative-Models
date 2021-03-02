@@ -13,53 +13,25 @@ from scipy.stats import entropy
 from sklearn.metrics import davies_bouldin_score
 
 
-def MSE(output, target):
-    with torch.no_grad():
-        mse = F.mse_loss(output, target, reduction='mean').item()
-    return mse
-
-
-def BCE(output, target):
-    with torch.no_grad():
-        output = (output + 1) / 2
-        target = (target + 1) / 2
-        bce = F.binary_cross_entropy(output, target, reduction='mean').item()
-    return bce
-
-
-def NLL(output, target):
-    with torch.no_grad():
-        nll = F.cross_entropy(output, target, reduction='mean').item()
-    return nll
-
-
-def PSNR(output, target, MAX=1.0):
-    with torch.no_grad():
-        max = torch.tensor(MAX).to(cfg['device'])
-        mse = F.mse_loss(output.to(torch.float64), target.to(torch.float64))
-        psnr = (20 * torch.log10(max) - 10 * torch.log10(mse)).item()
-    return psnr
-
-
 def InceptionScore(img, splits=1):
     with torch.no_grad():
         N = len(img)
         batch_size = 32
         data_loader = DataLoader(img, batch_size=batch_size)
-        if cfg['data_name'] in ['COIL100', 'Omniglot']:
-            model = models.classifier().to(cfg['device'])
-            model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
+        if cfg['data_name'] in ['MNIST']:
+            model = models.conv().to(cfg['device'])
+            model_tag = ['0', cfg['data_name'], 'conv']
             model_tag = '_'.join(filter(None, model_tag))
-            checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
+            checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
             model.load_state_dict(checkpoint['model_dict'])
             model.train(False)
-            pred = torch.zeros((N, cfg['classes_size']))
+            pred = torch.zeros((N, cfg['target_size']))
             for i, input in enumerate(data_loader):
-                input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
+                input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
                 input = to_device(input, cfg['device'])
-                input_size_i = input['img'].size(0)
+                input_size_i = input['data'].size(0)
                 output = model(input)
-                pred[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['label'], dim=-1).cpu()
+                pred[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['target'], dim=-1).cpu()
         else:
             model = inception_v3(pretrained=True, transform_input=False).to(cfg['device'])
             model.train(False)
@@ -83,16 +55,14 @@ def InceptionScore(img, splits=1):
 
 def FID(img):
     with torch.no_grad():
-        batch_size = 32
-        cfg['batch_size']['train'] = batch_size
-        dataset = fetch_dataset(cfg['data_name'], cfg['subset'], verbose=False)
-        real_data_loader = make_data_loader(dataset)['train']
-        generated_data_loader = DataLoader(img, batch_size=batch_size)
-        if cfg['data_name'] in ['COIL100', 'Omniglot']:
-            model = models.classifier().to(cfg['device'])
-            model_tag = ['0', cfg['data_name'], cfg['subset'], 'classifier']
+        dataset = fetch_dataset(cfg['data_name'], verbose=False)
+        real_data_loader = make_data_loader(dataset, cfg['model_name'])['train']
+        generated_data_loader = DataLoader(img, batch_size=cfg[cfg['model_name']]['batch_size']['train'])
+        if cfg['data_name'] in ['MNIST']:
+            model = models.conv().to(cfg['device'])
+            model_tag = ['0', cfg['data_name'], 'conv']
             model_tag = '_'.join(filter(None, model_tag))
-            checkpoint = load('./metrics_tf/res/classifier/{}_best.pt'.format(model_tag))
+            checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
             model.load_state_dict(checkpoint['model_dict'])
             model.train(False)
             real_feature = []
@@ -104,7 +74,7 @@ def FID(img):
             real_feature = np.concatenate(real_feature, axis=0)
             generated_feature = []
             for i, input in enumerate(generated_data_loader):
-                input = {'img': input, 'label': input.new_zeros(input.size(0)).long()}
+                input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
                 input = to_device(input, cfg['device'])
                 generated_feature_i = model.feature(input)
                 generated_feature.append(generated_feature_i.cpu().numpy())
@@ -124,7 +94,7 @@ def FID(img):
             for i, input in enumerate(real_data_loader):
                 input = collate(input)
                 input = to_device(input, cfg['device'])
-                real_feature_i = model.feature(input['img'])
+                real_feature_i = model.feature(input['data'])
                 real_feature.append(real_feature_i.cpu().numpy())
             real_feature = np.concatenate(real_feature, axis=0)
             generated_feature = []
@@ -161,11 +131,6 @@ def FID(img):
     return fid
 
 
-def DBI(img, label):
-    dbi = davies_bouldin_score(img.view(img.size(0), -1).cpu().numpy(), label.cpu().numpy())
-    return dbi
-
-
 def Accuracy(output, target, topk=1):
     with torch.no_grad():
         batch_size = target.size(0)
@@ -176,21 +141,43 @@ def Accuracy(output, target, topk=1):
 
 
 class Metric(object):
-    def __init__(self):
+    def __init__(self, metric_name):
+        self.metric_name = self.make_metric_name(metric_name)
+        self.pivot, self.pivot_name, self.pivot_direction = self.make_pivot()
         self.metric = {'Loss': (lambda input, output: output['loss'].item()),
                        'Loss_G': (lambda input, output: output['loss_G'].item()),
                        'Loss_D': (lambda input, output: output['loss_D'].item()),
-                       'InceptionScore': (lambda input, output: recur(InceptionScore, output['img'])),
-                       'FID': (lambda input, output: recur(FID, output['img'])),
-                       'DBI': (lambda input, output: recur(DBI, output['img'], output['label'])),
-                       'Accuracy': (lambda input, output: recur(Accuracy, output['label'], input['label'])),
-                       'MSE': (lambda input, output: recur(MSE, output['img'], input['img'])),
-                       'BCE': (lambda input, output: recur(BCE, output['img'], input['img'])),
-                       'NLL': (lambda input, output: recur(NLL, output['logits'], input['img'])),
-                       'PSNR': (lambda input, output: recur(PSNR, output['img']))}
+                       'InceptionScore': (lambda input, output: recur(InceptionScore, output['data'])),
+                       'FID': (lambda input, output: recur(FID, output['data'])),
+                       'Accuracy': (lambda input, output: recur(Accuracy, output['target'], input['target'])),}
+
+    def make_metric_name(self, metric_name):
+        return metric_name
+
+    def make_pivot(self):
+        if cfg['data_name'] in ['MNIST', 'CIFAR10']:
+            pivot = -float('inf')
+            pivot_name = 'InceptionScore'
+            pivot_direction = 'up'
+        else:
+            raise ValueError('Not valid data name')
+        return pivot, pivot_name, pivot_direction
 
     def evaluate(self, metric_names, input, output):
         evaluation = {}
         for metric_name in metric_names:
             evaluation[metric_name] = self.metric[metric_name](input, output)
         return evaluation
+
+    def compare(self, val):
+        if self.pivot_direction == 'down':
+            compared = self.pivot > val
+        elif self.pivot_direction == 'up':
+            compared = self.pivot < val
+        else:
+            raise ValueError('Not valid pivot direction')
+        return compared
+
+    def update(self, val):
+        self.pivot = val
+        return

@@ -3,6 +3,7 @@ import errno
 import numpy as np
 import os
 import torch
+import torch.optim as optim
 from itertools import repeat
 from torchvision.utils import save_image
 from config import cfg
@@ -91,117 +92,71 @@ def recur(fn, input, *args):
         output = {}
         for key in input:
             output[key] = recur(fn, input[key], *args)
+    elif input is None:
+        output = None
     else:
         raise ValueError('Not valid input type')
     return output
 
 
 def process_dataset(dataset):
-    cfg['classes_size'] = dataset.classes_size
+    cfg['target_size'] = dataset['train'].target_size
+    cfg['data_size'] = {split: len(dataset[split]) for split in dataset}
     return
 
 
 def process_control():
-    if 'controller_rate' in cfg['control']:
-        cfg['controller_rate'] = float(cfg['control']['controller_rate'])
-    if cfg['data_name'] in ['MNIST', 'FashionMNIST']:
-        cfg['data_shape'] = [1, 32, 32]
-        cfg['generate_per_mode'] = 1000
-    elif cfg['data_name'] in ['Omniglot']:
-        cfg['data_shape'] = [1, 32, 32]
-        cfg['generate_per_mode'] = 20
-    elif cfg['data_name'] in ['SVHN', 'CIFAR10']:
-        cfg['data_shape'] = [3, 32, 32]
-        cfg['generate_per_mode'] = 1000
-    elif cfg['data_name'] in ['CIFAR100', 'Dogs', 'CUB200', 'Cars', 'COIL100']:
-        cfg['data_shape'] = [3, 32, 32]
-        cfg['generate_per_mode'] = 100
-    elif cfg['data_name'] in ['ImageNet32']:
-        cfg['data_shape'] = [3, 32, 32]
-        cfg['generate_per_mode'] = 20
-    elif cfg['data_name'] in ['CelebA-HQ', 'ImageNet']:
-        cfg['data_shape'] = [3, 128, 128]
-        cfg['generate_per_mode'] = 20
+    cfg['mask_mode'] = cfg['control']['mask_mode'] if 'mask_mode' in cfg['control'] else None
+    data_shape = {'MNIST': [1, 32, 32], 'CIFAR10': [3, 32, 32]}
+    cfg['data_shape'] = data_shape[cfg['data_name']]
+    cfg['cgan'] = {'latent_size': 128, 'generator_hidden_size': [128, 128, 128, 128],
+                   'discriminator_hidden_size': [128, 128, 128, 128], 'embedding_size': 128}
+    cfg['mcgan'] = {'latent_size': 128, 'generator_hidden_size': [128, 128, 128, 128],
+                   'discriminator_hidden_size': [128, 128, 128, 128]}
+    cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
+    if 'continue' in cfg['control'] and cfg['control']['continue'] == 0:
+        for model_name in ['cgan', 'mcgan']:
+            cfg[model_name]['shuffle'] = {'train': True, 'test': False}
+            cfg[model_name]['optimizer_name'] = 'Adam'
+            cfg[model_name]['weight_decay'] = 0
+            cfg[model_name]['batch_size'] = {'train': 64, 'test': 128}
+            cfg[model_name]['lr'] = 1e-4
+            cfg[model_name]['num_critic'] = 5
+            cfg[model_name]['betas'] = (0.5, 0.9)
+            cfg[model_name]['num_epochs'] = 200
+            cfg[model_name]['scheduler_name'] = 'None'
     else:
-        raise ValueError('Not valid dataset')
-    if cfg['ae_name'] in ['vqvae']:
-        cfg['vqvae'] = {}
-        if cfg['data_shape'][1] == 32:
-            cfg['vqvae']['hidden_size'] = [128, 128]
-        elif cfg['data_shape'][1] == 128:
-            cfg['vqvae']['hidden_size'] = [128, 128, 128, 128]
-        else:
-            raise ValueError('Not valid data shape')
-        cfg['vqvae']['num_res_block'] = 2
-        cfg['vqvae']['embedding_size'] = 64
-        cfg['vqvae']['num_embedding'] = 512
-        cfg['vqvae']['vq_commit'] = 0.25
-    if cfg['model_name'] in ['cpixelcnn', 'mcpixelcnn']:
-        cfg['pixelcnn'] = {}
-        cfg['pixelcnn']['num_layer'] = 15
-        cfg['pixelcnn']['hidden_size'] = 128
-        cfg['pixelcnn']['num_embedding'] = 512
-    elif cfg['model_name'] in ['cvae', 'mcvae']:
-        cfg['vae'] = {}
-        if cfg['data_shape'][1] == 32:
-            cfg['vae']['hidden_size'] = [64, 128, 256]
-            cfg['vae']['latent_size'] = 128
-        elif cfg['data_shape'][1] == 128:
-            cfg['vae']['hidden_size'] = [64, 128, 256, 512, 512]
-            cfg['vae']['latent_size'] = 256
-        else:
-            raise ValueError('Not valid data shape')
-        cfg['vae']['num_res_block'] = 2
-        cfg['vae']['embedding_size'] = 32
-    elif cfg['model_name'] in ['cgan', 'mcgan']:
-        cfg['gan'] = {}
-        cfg['gan']['latent_size'] = 128
-        if cfg['data_shape'][1] == 32:
-            if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
-                cfg['gan']['generator_hidden_size'] = [256, 256, 256, 256]
-                cfg['gan']['discriminator_hidden_size'] = [128, 128, 128, 128]
-            else:
-                cfg['gan']['generator_hidden_size'] = [512, 256, 128, 64]
-                cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512]
-        elif cfg['data_shape'][1] == 128:
-            cfg['gan']['generator_hidden_size'] = [1024, 512, 256, 128, 64]
-            cfg['gan']['discriminator_hidden_size'] = [64, 128, 256, 512, 1024]
-        else:
-            raise ValueError('Not valid data shape')
-        cfg['gan']['embedding_size'] = 32
-    elif cfg['model_name'] in ['cglow', 'mcglow']:
-        cfg['glow'] = {}
-        cfg['glow']['hidden_size'] = 512
-        if cfg['data_shape'][1] == 32:
-            cfg['glow']['K'] = 16
-            cfg['glow']['L'] = 3
-        elif cfg['data_shape'][1] == 128:
-            cfg['glow']['K'] = 16
-            cfg['glow']['L'] = 5
-        else:
-            raise ValueError('Not valid data shape')
-        cfg['glow']['affine'] = True
-        cfg['glow']['conv_lu'] = True
-    cfg['classifier'] = {'hidden_size': [8, 16, 32, 64]}
-    if cfg['data_shape'][1] == 32:
-        cfg['batch_size'] = {'train': 128, 'test': 512}
-    elif cfg['data_shape'][1] == 128:
-        cfg['batch_size'] = {'train': 32, 'test': 128}
-    else:
-        raise ValueError('Not valid data shape')
+        for model_name in ['cgan', 'mcgan']:
+            cfg[model_name]['shuffle'] = {'train': True, 'test': False}
+            cfg[model_name]['optimizer_name'] = 'Adam'
+            cfg[model_name]['weight_decay'] = 0
+            cfg[model_name]['batch_size'] = {'train': 64, 'test': 128}
+            cfg[model_name]['lr'] = 1e-4
+            cfg[model_name]['num_critic'] = 5
+            cfg[model_name]['betas'] = (0.5, 0.9)
+            cfg[model_name]['num_epochs'] = 200
+            cfg[model_name]['scheduler_name'] = 'None'
+    cfg['conv']['shuffle'] = {'train': True, 'test': False}
+    cfg['conv']['optimizer_name'] = 'SGD'
+    cfg['conv']['momentum'] = 0.9
+    cfg['conv']['weight_decay'] = 0
+    cfg['conv']['batch_size'] = {'train': 512, 'test': 512}
+    cfg['conv']['lr'] = 1e-1
+    cfg['conv']['num_epochs'] = 200
+    cfg['conv']['scheduler_name'] = 'MultiStepLR'
+    cfg['conv']['factor'] = 0.1
+    cfg['conv']['milestones'] = [50, 100]
     return
 
 
-def make_stats(dataset):
-    if os.path.exists('./data/stats/{}.pt'.format(dataset.data_name)):
-        stats = load('./data/stats/{}.pt'.format(dataset.data_name))
-    elif dataset is not None:
-        data_loader = torch.utils.data.DataLoader(dataset, batch_size=100, shuffle=False, num_workers=0)
-        stats = Stats(dim=1)
-        with torch.no_grad():
-            for input in data_loader:
-                stats.update(input['img'])
-        save(stats, './data/stats/{}.pt'.format(dataset.data_name))
+def make_stats():
+    stats = {}
+    stats_path = './res/stats'
+    makedir_exist_ok(stats_path)
+    filenames = os.listdir(stats_path)
+    for filename in filenames:
+        stats_name = os.path.splitext(filename)[0]
+        stats[stats_name] = load(os.path.join(stats_path, filename))
     return stats
 
 
@@ -232,6 +187,44 @@ class Stats(object):
                     old_mean - new_mean) ** 2)
             self.n_samples += n
         return
+
+
+def make_optimizer(model, tag):
+    if cfg[tag]['optimizer_name'] == 'SGD':
+        optimizer = optim.SGD(model.parameters(), lr=cfg[tag]['lr'], momentum=cfg[tag]['momentum'],
+                              weight_decay=cfg[tag]['weight_decay'])
+    elif cfg[tag]['optimizer_name'] == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=cfg[tag]['lr'], weight_decay=cfg[tag]['weight_decay'])
+    elif cfg[tag]['optimizer_name'] == 'LBFGS':
+        optimizer = optim.LBFGS(model.parameters(), lr=cfg[tag]['lr'])
+    else:
+        raise ValueError('Not valid optimizer name')
+    return optimizer
+
+
+def make_scheduler(optimizer, tag):
+    if cfg[tag]['scheduler_name'] == 'None':
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
+    elif cfg[tag]['scheduler_name'] == 'StepLR':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg[tag]['step_size'], gamma=cfg[tag]['factor'])
+    elif cfg[tag]['scheduler_name'] == 'MultiStepLR':
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg[tag]['milestones'],
+                                                   gamma=cfg[tag]['factor'])
+    elif cfg[tag]['scheduler_name'] == 'ExponentialLR':
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    elif cfg[tag]['scheduler_name'] == 'CosineAnnealingLR':
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg[tag]['num_epochs']['global'],
+                                                         eta_min=cfg[tag]['min_lr'])
+    elif cfg[tag]['scheduler_name'] == 'ReduceLROnPlateau':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg[tag]['factor'],
+                                                         patience=cfg[tag]['patience'], verbose=False,
+                                                         threshold=cfg[tag]['threshold'], threshold_mode='rel',
+                                                         min_lr=cfg[tag]['min_lr'])
+    elif cfg[tag]['scheduler_name'] == 'CyclicLR':
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg[tag]['lr'], max_lr=10 * cfg[tag]['lr'])
+    else:
+        raise ValueError('Not valid scheduler name')
+    return scheduler
 
 
 def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint', verbose=True):
