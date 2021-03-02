@@ -115,24 +115,24 @@ def process_control():
                     'discriminator_hidden_size': [128, 128, 128, 128]}
     cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
     if 'continue' in cfg['control'] and cfg['control']['continue'] == 0:
-        for model_name in ['cgan', 'mcgan']:
+        for model_name in ['mcgan']:
             cfg[model_name]['shuffle'] = {'train': True, 'test': False}
             cfg[model_name]['optimizer_name'] = 'Adam'
             cfg[model_name]['weight_decay'] = 0
             cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
             cfg[model_name]['lr'] = 2e-4
-            cfg[model_name]['num_critic'] = 5
+            cfg[model_name]['num_critic'] = 1
             cfg[model_name]['betas'] = (0, 0.9)
             cfg[model_name]['num_epochs'] = 200
             cfg[model_name]['scheduler_name'] = 'LinearLR'
     else:
-        for model_name in ['cgan', 'mcgan']:
+        for model_name in ['mcgan']:
             cfg[model_name]['shuffle'] = {'train': True, 'test': False}
             cfg[model_name]['optimizer_name'] = 'Adam'
             cfg[model_name]['weight_decay'] = 0
             cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
             cfg[model_name]['lr'] = 2e-4
-            cfg[model_name]['num_critic'] = 5
+            cfg[model_name]['num_critic'] = 1
             cfg[model_name]['betas'] = (0, 0.9)
             cfg[model_name]['num_epochs'] = 200
             cfg[model_name]['scheduler_name'] = 'LinearLR'
@@ -230,7 +230,7 @@ def make_scheduler(optimizer, tag):
 
 
 def linear_decay(epoch):
-    duration = 50
+    duration = int(0.1 * cfg[cfg['model_name']]['num_epochs'])
     lr = 1.0 - max(0, epoch - (cfg[cfg['model_name']]['num_epochs'] - duration)) / duration
     return lr
 
