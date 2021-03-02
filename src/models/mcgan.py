@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from config import cfg
 from modules import Wrapper, MultimodalController
-from .utils import init_param
+from .utils import init_param, make_SpectralNormalization
 
 
 class GenResBlock(nn.Module):
@@ -167,6 +167,7 @@ class MCGAN(nn.Module):
         self.latent_size = latent_size
         self.generator = Generator(data_shape, latent_size, generator_hidden_size, num_mode)
         self.discriminator = Discriminator(data_shape, discriminator_hidden_size, num_mode)
+        self.discriminator.apply(make_SpectralNormalization)
 
     def forward(self, input):
         x = torch.randn(input['data'].size(0), cfg['mcgan']['latent_size'], device=cfg['device'])

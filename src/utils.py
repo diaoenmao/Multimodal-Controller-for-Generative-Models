@@ -107,35 +107,35 @@ def process_dataset(dataset):
 
 def process_control():
     cfg['mask_mode'] = cfg['control']['mask_mode'] if 'mask_mode' in cfg['control'] else None
-    data_shape = {'MNIST': [1, 32, 32], 'CIFAR10': [3, 32, 32]}
+    data_shape = {'MNIST': [1, 32, 32], 'FashionMNIST': [1, 32, 32], 'CIFAR10': [3, 32, 32]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
     cfg['cgan'] = {'latent_size': 128, 'generator_hidden_size': [128, 128, 128, 128],
                    'discriminator_hidden_size': [128, 128, 128, 128], 'embedding_size': 128}
     cfg['mcgan'] = {'latent_size': 128, 'generator_hidden_size': [128, 128, 128, 128],
-                   'discriminator_hidden_size': [128, 128, 128, 128]}
+                    'discriminator_hidden_size': [128, 128, 128, 128]}
     cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
     if 'continue' in cfg['control'] and cfg['control']['continue'] == 0:
         for model_name in ['cgan', 'mcgan']:
             cfg[model_name]['shuffle'] = {'train': True, 'test': False}
             cfg[model_name]['optimizer_name'] = 'Adam'
             cfg[model_name]['weight_decay'] = 0
-            cfg[model_name]['batch_size'] = {'train': 64, 'test': 128}
-            cfg[model_name]['lr'] = 1e-4
+            cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
+            cfg[model_name]['lr'] = 2e-4
             cfg[model_name]['num_critic'] = 5
-            cfg[model_name]['betas'] = (0.5, 0.9)
+            cfg[model_name]['betas'] = (0, 0.9)
             cfg[model_name]['num_epochs'] = 200
-            cfg[model_name]['scheduler_name'] = 'None'
+            cfg[model_name]['scheduler_name'] = 'LinearLR'
     else:
         for model_name in ['cgan', 'mcgan']:
             cfg[model_name]['shuffle'] = {'train': True, 'test': False}
             cfg[model_name]['optimizer_name'] = 'Adam'
             cfg[model_name]['weight_decay'] = 0
-            cfg[model_name]['batch_size'] = {'train': 64, 'test': 128}
-            cfg[model_name]['lr'] = 1e-4
+            cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
+            cfg[model_name]['lr'] = 2e-4
             cfg[model_name]['num_critic'] = 5
-            cfg[model_name]['betas'] = (0.5, 0.9)
+            cfg[model_name]['betas'] = (0, 0.9)
             cfg[model_name]['num_epochs'] = 200
-            cfg[model_name]['scheduler_name'] = 'None'
+            cfg[model_name]['scheduler_name'] = 'LinearLR'
     cfg['conv']['shuffle'] = {'train': True, 'test': False}
     cfg['conv']['optimizer_name'] = 'SGD'
     cfg['conv']['momentum'] = 0.9
@@ -222,9 +222,17 @@ def make_scheduler(optimizer, tag):
                                                          min_lr=cfg[tag]['min_lr'])
     elif cfg[tag]['scheduler_name'] == 'CyclicLR':
         scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg[tag]['lr'], max_lr=10 * cfg[tag]['lr'])
+    elif cfg[tag]['scheduler_name'] == 'LinearLR':
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=linear_decay)
     else:
         raise ValueError('Not valid scheduler name')
     return scheduler
+
+
+def linear_decay(epoch):
+    duration = 50
+    lr = 1.0 - max(0, epoch - (cfg[cfg['model_name']]['num_epochs'] - duration)) / duration
+    return lr
 
 
 def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint', verbose=True):

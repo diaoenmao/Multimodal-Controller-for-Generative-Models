@@ -1,8 +1,8 @@
 ---
 # control
 control:
-  mask_mode: 'random'
   continue: '0'
+  mask_mode: 'random'
 # data
 data_name: MNIST
 # MNIST

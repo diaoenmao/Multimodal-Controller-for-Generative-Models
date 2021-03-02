@@ -108,14 +108,13 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         ############################
         # (1) Update D network
         ###########################
-        real = input['data']
         optimizer['discriminator'].zero_grad()
+        real = input['data']
+        real_validity = model.discriminator(real.detach(), input['target'])
         z = torch.randn(real.size(0), cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
         fake = model.generator(z, input['target'])
-        real_validity = model.discriminator(real.detach(), input['target'])
         fake_validity = model.discriminator(fake.detach(), input['target'])
-        D_loss = models.discriminator_loss_fn(real_validity, fake_validity, model.discriminator, real.detach(),
-                                              fake.detach(), input['target'])
+        D_loss = models.discriminator_loss_fn(real_validity, fake_validity)
         D_loss.backward()
         optimizer['discriminator'].step()
         ############################

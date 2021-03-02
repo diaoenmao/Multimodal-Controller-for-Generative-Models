@@ -12,7 +12,7 @@ def fetch_dataset(data_name, verbose=True):
     if verbose:
         print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
-    if data_name in ['MNIST']:
+    if data_name in ['MNIST', 'FashionMNIST']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
                                 'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
