@@ -47,18 +47,18 @@ def main():
     filename = '{}_{}'.format(run, model)
     model_names = [[model]]
     if file == 'gan':
-        if model in ['cgan', 'mcgan']:
+        if model in ['mcgan']:
             data_names = [['MNIST', 'CIFAR10']]
-            control_name = [[['random', 'learn']]]
+            control_name = [[['0'], ['random']]]
             control = make_controls(script_name, data_names, model_names, init_seeds, world_size, num_experiments,
                                     resume_mode, control_name)
             controls = control
         else:
             raise ValueError('Not valid model')
     elif file == 'gan_continue':
-        if model in ['cgan', 'mcgan']:
-            data_names = [['MNIST', 'CIFAR10']]
-            control_name = [[['random', 'learn']]]
+        if model in ['mcgan']:
+            data_names = [['CIFAR10']]
+            control_name = [[['1'], ['random']]]
             control = make_controls(script_name, data_names, model_names, init_seeds, world_size, num_experiments,
                                     resume_mode, control_name)
             controls = control

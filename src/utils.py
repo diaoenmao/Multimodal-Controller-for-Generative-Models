@@ -121,8 +121,8 @@ def process_control():
             cfg[model_name]['weight_decay'] = 0
             cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
             cfg[model_name]['lr'] = 2e-4
-            cfg[model_name]['num_critic'] = 1
-            cfg[model_name]['betas'] = (0, 0.9)
+            cfg[model_name]['num_critic'] = 5
+            cfg[model_name]['betas'] = (0.5, 0.9)
             cfg[model_name]['num_epochs'] = 200
             cfg[model_name]['scheduler_name'] = 'LinearLR'
     else:
@@ -132,8 +132,8 @@ def process_control():
             cfg[model_name]['weight_decay'] = 0
             cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
             cfg[model_name]['lr'] = 2e-4
-            cfg[model_name]['num_critic'] = 1
-            cfg[model_name]['betas'] = (0, 0.9)
+            cfg[model_name]['num_critic'] = 5
+            cfg[model_name]['betas'] = (0.5, 0.9)
             cfg[model_name]['num_epochs'] = 200
             cfg[model_name]['scheduler_name'] = 'LinearLR'
     cfg['conv']['shuffle'] = {'train': True, 'test': False}
