@@ -11,26 +11,38 @@ from torch.utils.data import DataLoader
 from torchvision.models.inception import inception_v3
 from scipy.stats import entropy
 from sklearn.metrics import davies_bouldin_score
+from .inception import InceptionV3
 
 
 def InceptionScore(img, splits=1):
     with torch.no_grad():
         N = len(img)
-        batch_size = 32
+        batch_size = cfg[cfg['model_name']]['batch_size']['train']
         data_loader = DataLoader(img, batch_size=batch_size)
-        model = models.conv().to(cfg['device'])
-        model_tag = ['0', cfg['data_name'], 'conv']
-        model_tag = '_'.join(filter(None, model_tag))
-        checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
-        model.load_state_dict(checkpoint['model_dict'])
-        model.train(False)
-        pred = torch.zeros((N, cfg['target_size']))
-        for i, input in enumerate(data_loader):
-            input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
-            input = to_device(input, cfg['device'])
-            input_size_i = input['data'].size(0)
-            output = model(input)
-            pred[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['target'], dim=-1).cpu()
+        if cfg['data_name'] in ['CIFAR10'] and cfg['eval']:
+            block_idx = InceptionV3.BLOCK_INDEX_BY_DIM['prob']
+            model = InceptionV3([block_idx]).to(cfg['device'])
+            model.train(False)
+            pred = []
+            for i, input in enumerate(data_loader):
+                input = input.to(cfg['device'])
+                output = model(input)[0]
+                pred.append(output.cpu())
+            pred = torch.cat(pred, dim=0)
+        else:
+            model = models.conv().to(cfg['device'])
+            model_tag = ['0', cfg['data_name'], 'conv']
+            model_tag = '_'.join(filter(None, model_tag))
+            checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
+            model.load_state_dict(checkpoint['model_dict'])
+            model.train(False)
+            pred = torch.zeros((N, cfg['target_size']))
+            for i, input in enumerate(data_loader):
+                input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
+                input = to_device(input, cfg['device'])
+                input_size_i = input['data'].size(0)
+                output = model(input)
+                pred[i * batch_size:i * batch_size + input_size_i] = F.softmax(output['target'], dim=-1).cpu()
         split_scores = []
         for k in range(splits):
             part = pred[k * (N // splits): (k + 1) * (N // splits), :]
@@ -41,31 +53,52 @@ def InceptionScore(img, splits=1):
     return inception_score
 
 
+
 def FID(img):
     with torch.no_grad():
         dataset = fetch_dataset(cfg['data_name'], verbose=False)
         real_data_loader = make_data_loader(dataset, cfg['model_name'])['train']
         generated_data_loader = DataLoader(img, batch_size=cfg[cfg['model_name']]['batch_size']['train'])
-        model = models.conv().to(cfg['device'])
-        model_tag = ['0', cfg['data_name'], 'conv']
-        model_tag = '_'.join(filter(None, model_tag))
-        checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
-        model.load_state_dict(checkpoint['model_dict'])
-        model.train(False)
-        real_feature = []
-        for i, input in enumerate(real_data_loader):
-            input = collate(input)
-            input = to_device(input, cfg['device'])
-            real_feature_i = model.feature(input)
-            real_feature.append(real_feature_i.cpu().numpy())
-        real_feature = np.concatenate(real_feature, axis=0)
-        generated_feature = []
-        for i, input in enumerate(generated_data_loader):
-            input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
-            input = to_device(input, cfg['device'])
-            generated_feature_i = model.feature(input)
-            generated_feature.append(generated_feature_i.cpu().numpy())
-        generated_feature = np.concatenate(generated_feature, axis=0)
+        if cfg['data_name'] in ['CIFAR10'] and cfg['eval']:
+            block_idx1 = InceptionV3.BLOCK_INDEX_BY_DIM[2048]
+            model = InceptionV3([block_idx1]).to(cfg['device'])
+            model.train(False)
+            real_feature = []
+            for i, input in enumerate(real_data_loader):
+                input = collate(input)
+                input = to_device(input, cfg['device'])
+                input_size_i = input['data'].size(0)
+                real_feature_i = model(input['data'])[0].view(input_size_i, -1)
+                real_feature.append(real_feature_i.cpu().numpy())
+            real_feature = np.concatenate(real_feature, axis=0)
+            generated_feature = []
+            for i, input in enumerate(generated_data_loader):
+                input = input.to(cfg['device'])
+                input_size_i = input.size(0)
+                generated_feature_i = model(input)[0].view(input_size_i, -1)
+                generated_feature.append(generated_feature_i.cpu().numpy())
+            generated_feature = np.concatenate(generated_feature, axis=0)
+        else:
+            model = models.conv().to(cfg['device'])
+            model_tag = ['0', cfg['data_name'], 'conv']
+            model_tag = '_'.join(filter(None, model_tag))
+            checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
+            model.load_state_dict(checkpoint['model_dict'])
+            model.train(False)
+            real_feature = []
+            for i, input in enumerate(real_data_loader):
+                input = collate(input)
+                input = to_device(input, cfg['device'])
+                real_feature_i = model.feature(input)
+                real_feature.append(real_feature_i.cpu().numpy())
+            real_feature = np.concatenate(real_feature, axis=0)
+            generated_feature = []
+            for i, input in enumerate(generated_data_loader):
+                input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
+                input = to_device(input, cfg['device'])
+                generated_feature_i = model.feature(input)
+                generated_feature.append(generated_feature_i.cpu().numpy())
+            generated_feature = np.concatenate(generated_feature, axis=0)
         mu1 = np.mean(real_feature, axis=0)
         sigma1 = np.cov(real_feature, rowvar=False)
         mu2 = np.mean(generated_feature, axis=0)
@@ -112,7 +145,7 @@ class Metric(object):
                        'Loss_D': (lambda input, output: output['loss_D'].item()),
                        'InceptionScore': (lambda input, output: recur(InceptionScore, output['data'])),
                        'FID': (lambda input, output: recur(FID, output['data'])),
-                       'Accuracy': (lambda input, output: recur(Accuracy, output['target'], input['target'])),}
+                       'Accuracy': (lambda input, output: recur(Accuracy, output['target'], input['target'])), }
 
     def make_metric_name(self, metric_name):
         return metric_name

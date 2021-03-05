@@ -178,9 +178,9 @@ class MCGAN(nn.Module):
 
 def mcgan():
     data_shape = cfg['data_shape']
-    latent_size = cfg['cgan']['latent_size']
-    generator_hidden_size = cfg['cgan']['generator_hidden_size']
-    discriminator_hidden_size = cfg['cgan']['discriminator_hidden_size']
+    latent_size = cfg['mcgan']['latent_size']
+    generator_hidden_size = cfg['mcgan']['generator_hidden_size']
+    discriminator_hidden_size = cfg['mcgan']['discriminator_hidden_size']
     num_mode = cfg['target_size']
     model = MCGAN(data_shape, latent_size, generator_hidden_size, discriminator_hidden_size, num_mode)
     model.apply(init_param)

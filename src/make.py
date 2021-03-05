@@ -49,7 +49,7 @@ def main():
     if file == 'gan':
         if model in ['mcgan']:
             data_names = [['MNIST', 'CIFAR10']]
-            control_name = [[['0'], ['random']]]
+            control_name = [[['0'], ['random', 'learn']]]
             control = make_controls(script_name, data_names, model_names, init_seeds, world_size, num_experiments,
                                     resume_mode, control_name)
             controls = control
@@ -58,7 +58,7 @@ def main():
     elif file == 'gan_continue':
         if model in ['mcgan']:
             data_names = [['CIFAR10']]
-            control_name = [[['1'], ['random']]]
+            control_name = [[['1'], ['random', 'learn']]]
             control = make_controls(script_name, data_names, model_names, init_seeds, world_size, num_experiments,
                                     resume_mode, control_name)
             controls = control

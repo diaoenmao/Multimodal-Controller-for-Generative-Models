@@ -109,20 +109,18 @@ def process_control():
     cfg['mask_mode'] = cfg['control']['mask_mode'] if 'mask_mode' in cfg['control'] else None
     data_shape = {'MNIST': [1, 32, 32], 'FashionMNIST': [1, 32, 32], 'CIFAR10': [3, 32, 32]}
     cfg['data_shape'] = data_shape[cfg['data_name']]
-    cfg['cgan'] = {'latent_size': 128, 'generator_hidden_size': [128, 128, 128, 128],
-                   'discriminator_hidden_size': [128, 128, 128, 128], 'embedding_size': 128}
     cfg['mcgan'] = {'latent_size': 128, 'generator_hidden_size': [128, 128, 128, 128],
                     'discriminator_hidden_size': [128, 128, 128, 128]}
     cfg['conv'] = {'hidden_size': [64, 128, 256, 512]}
-    if 'continue' in cfg['control'] and cfg['control']['continue'] == 0:
+    if cfg['control']['continue'] == 0:
         for model_name in ['mcgan']:
             cfg[model_name]['shuffle'] = {'train': True, 'test': False}
             cfg[model_name]['optimizer_name'] = 'Adam'
             cfg[model_name]['weight_decay'] = 0
             cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
             cfg[model_name]['lr'] = 2e-4
-            cfg[model_name]['num_critic'] = 5
-            cfg[model_name]['betas'] = (0.5, 0.9)
+            cfg[model_name]['num_critic'] = 1
+            cfg[model_name]['betas'] = (0, 0.9)
             cfg[model_name]['num_epochs'] = 200
             cfg[model_name]['scheduler_name'] = 'LinearLR'
     else:
@@ -132,8 +130,8 @@ def process_control():
             cfg[model_name]['weight_decay'] = 0
             cfg[model_name]['batch_size'] = {'train': 128, 'test': 128}
             cfg[model_name]['lr'] = 2e-4
-            cfg[model_name]['num_critic'] = 5
-            cfg[model_name]['betas'] = (0.5, 0.9)
+            cfg[model_name]['num_critic'] = 1
+            cfg[model_name]['betas'] = (0, 0.9)
             cfg[model_name]['num_epochs'] = 200
             cfg[model_name]['scheduler_name'] = 'LinearLR'
     cfg['conv']['shuffle'] = {'train': True, 'test': False}
@@ -235,24 +233,26 @@ def linear_decay(epoch):
     return lr
 
 
-def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint', verbose=True):
+def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
     if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
         checkpoint = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
         last_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['model_dict'])
         if optimizer is not None:
-            optimizer.load_state_dict(checkpoint['optimizer_dict'])
+            optimizer['generator'].load_state_dict(checkpoint['optimizer_dict']['generator'])
+            optimizer['discriminator'].load_state_dict(checkpoint['optimizer_dict']['discriminator'])
         if scheduler is not None:
-            scheduler.load_state_dict(checkpoint['scheduler_dict'])
+            scheduler['generator'].load_state_dict(checkpoint['scheduler_dict']['generator'])
+            scheduler['discriminator'].load_state_dict(checkpoint['scheduler_dict']['discriminator'])
         logger = checkpoint['logger']
-        if verbose:
-            print('Resume from {}'.format(last_epoch))
+        print('Resume from {}'.format(last_epoch))
     else:
         print('Not exists model tag: {}, start from scratch'.format(model_tag))
-        from datetime import datetime
+        import datetime
         from logger import Logger
         last_epoch = 1
-        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], datetime.now().strftime('%b%d_%H-%M-%S'))
+        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
     return last_epoch, model, optimizer, scheduler, logger
 

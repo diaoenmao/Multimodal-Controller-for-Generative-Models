@@ -26,7 +26,8 @@ class MultimodalController(nn.Module):
         code = (code - self.weight).detach() + self.weight
         code = code[label]
         code = code.view(*code.size(), *([1] * (x.dim() - 2)))
-        x = [input[0] * code, *input[1:]]
+        scale = code.mean(dim=1, keepdim=True)
+        x = [input[0] * code / scale, *input[1:]]
         return x
 
 

@@ -54,12 +54,6 @@ def runExperiment():
     metric = Metric({'train': ['Loss_D', 'Loss_G'], 'test': ['InceptionScore', 'FID']})
     if cfg['resume_mode'] == 1:
         last_epoch, model, optimizer, scheduler, logger = resume(model, cfg['model_tag'], optimizer, scheduler)
-    elif cfg['resume_mode'] == 2:
-        last_epoch = 1
-        _, model, _, _, _ = resume(model, cfg['model_tag'])
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/{}_{}'.format(cfg['model_tag'], current_time)
-        logger = Logger(logger_path)
     else:
         last_epoch = 1
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
@@ -149,6 +143,7 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
 
 
 def test(model, metric, logger, epoch):
+    cfg['eval'] = False
     sample_per_iter = cfg[cfg['model_name']]['batch_size']['test']
     generate_per_mode = 1000
     with torch.no_grad():
@@ -172,30 +167,6 @@ def test(model, metric, logger, epoch):
         logger.append(info, 'test', mean=False)
         print(logger.write('test', metric.metric_name['test']))
     return
-
-
-def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
-    if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
-        checkpoint = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
-        last_epoch = checkpoint['epoch']
-        model.load_state_dict(checkpoint['model_dict'])
-        if optimizer is not None:
-            optimizer['generator'].load_state_dict(checkpoint['optimizer_dict']['generator'])
-            optimizer['discriminator'].load_state_dict(checkpoint['optimizer_dict']['discriminator'])
-        if scheduler is not None:
-            scheduler['generator'].load_state_dict(checkpoint['scheduler_dict']['generator'])
-            scheduler['discriminator'].load_state_dict(checkpoint['scheduler_dict']['discriminator'])
-        logger = checkpoint['logger']
-        print('Resume from {}'.format(last_epoch))
-    else:
-        print('Not exists model tag: {}, start from scratch'.format(model_tag))
-        import datetime
-        from logger import Logger
-        last_epoch = 1
-        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
-        logger = Logger(logger_path)
-    return last_epoch, model, optimizer, scheduler, logger
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ control:
 # data
 data_name: MNIST
 # MNIST
-model_name: cgan
+model_name: mcgan
 # experiment
 num_workers: 0
 init_seed: 0
