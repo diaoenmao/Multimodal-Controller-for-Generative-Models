@@ -12,12 +12,12 @@ class GenResBlock(nn.Module):
         self.mc_1 = MultimodalController(input_size, num_mode)
         self.mc_2 = MultimodalController(output_size, num_mode)
         self.conv = nn.Sequential(
-            Wrapper(nn.BatchNorm2d(input_size)),
+            # Wrapper(nn.BatchNorm2d(input_size)),
             Wrapper(nn.ReLU()),
             Wrapper(nn.Upsample(scale_factor=stride, mode='nearest')),
             self.mc_1,
             Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
-            Wrapper(nn.BatchNorm2d(output_size)),
+            # Wrapper(nn.BatchNorm2d(output_size)),
             Wrapper(nn.ReLU()),
             self.mc_2,
             Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
@@ -52,7 +52,7 @@ class Generator(nn.Module):
         for i in range(len(hidden_size) - 1):
             blocks.append(GenResBlock(hidden_size[i], hidden_size[i + 1], num_mode, stride=2))
         blocks.extend([
-            Wrapper(nn.BatchNorm2d(hidden_size[-1])),
+            # Wrapper(nn.BatchNorm2d(hidden_size[-1])),
             Wrapper(nn.ReLU()),
             MultimodalController(hidden_size[-1], num_mode),
             Wrapper(nn.Conv2d(hidden_size[-1], data_shape[0], 3, 1, 1)),
@@ -65,6 +65,30 @@ class Generator(nn.Module):
         x = self.linear((x, label))
         x[0] = x[0].view(x[0].size(0), -1, 4, 4)
         x = self.blocks(x)[0]
+        return x
+
+
+class FirstDisResBlock(nn.Module):
+    def __init__(self, input_size, output_size, num_mode):
+        super().__init__()
+        self.mc_1 = MultimodalController(output_size, num_mode)
+        self.conv = nn.Sequential(
+            Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
+            Wrapper(nn.ReLU()),
+            self.mc_1,
+            Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
+            Wrapper(nn.AvgPool2d(2)),
+        )
+        self.shortcut = nn.Sequential(
+            Wrapper(nn.AvgPool2d(2)),
+            Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0)),
+        )
+
+    def forward(self, input):
+        x = input
+        shortcut = self.shortcut(x)
+        x = self.conv(input)
+        x[0] = x[0] + shortcut[0]
         return x
 
 
@@ -103,34 +127,10 @@ class DisResBlock(nn.Module):
                     Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0))
                 )
             else:
-                self.shortcut = nn.Sequential()
+                self.shortcut = nn.Identity()
 
     def forward(self, input):
         shortcut = self.shortcut(input)
-        x = self.conv(input)
-        x[0] = x[0] + shortcut[0]
-        return x
-
-
-class FirstDisResBlock(nn.Module):
-    def __init__(self, input_size, output_size, num_mode):
-        super().__init__()
-        self.mc_1 = MultimodalController(output_size, num_mode)
-        self.conv = nn.Sequential(
-            Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
-            Wrapper(nn.ReLU()),
-            self.mc_1,
-            Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
-            Wrapper(nn.AvgPool2d(2)),
-        )
-        self.shortcut = nn.Sequential(
-            Wrapper(nn.AvgPool2d(2)),
-            Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0)),
-        )
-
-    def forward(self, input):
-        x = input
-        shortcut = self.shortcut(x)
         x = self.conv(input)
         x[0] = x[0] + shortcut[0]
         return x
@@ -145,7 +145,6 @@ class Discriminator(nn.Module):
             blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], num_mode, stride=2))
         blocks.extend([
             DisResBlock(hidden_size[-3], hidden_size[-2], num_mode, stride=1),
-            Wrapper(nn.ReLU()),
             DisResBlock(hidden_size[-2], hidden_size[-1], num_mode, stride=1),
             Wrapper(nn.ReLU()),
             MultimodalController(hidden_size[-1], num_mode),
@@ -167,6 +166,7 @@ class MCGAN(nn.Module):
         self.latent_size = latent_size
         self.generator = Generator(data_shape, latent_size, generator_hidden_size, num_mode)
         self.discriminator = Discriminator(data_shape, discriminator_hidden_size, num_mode)
+        self.generator.apply(make_SpectralNormalization)
         self.discriminator.apply(make_SpectralNormalization)
 
     def forward(self, input):

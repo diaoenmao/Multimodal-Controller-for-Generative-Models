@@ -60,7 +60,6 @@ def runExperiment():
 
 
 def test(model, metric, logger, epoch):
-    cfg['eval'] = True
     sample_per_iter = cfg[cfg['model_name']]['batch_size']['test']
     generate_per_mode = 1000
     with torch.no_grad():

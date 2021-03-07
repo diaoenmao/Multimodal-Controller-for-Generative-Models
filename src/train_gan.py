@@ -102,26 +102,26 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
         ############################
         # (1) Update D network
         ###########################
-        optimizer['discriminator'].zero_grad()
-        real = input['data']
-        real_validity = model.discriminator(real.detach(), input['target'])
-        z = torch.randn(real.size(0), cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
-        fake = model.generator(z, input['target'])
-        fake_validity = model.discriminator(fake.detach(), input['target'])
-        D_loss = models.discriminator_loss_fn(real_validity, fake_validity)
-        D_loss.backward()
-        optimizer['discriminator'].step()
+        for _ in range(cfg[cfg['model_name']]['num_critic']):
+            optimizer['discriminator'].zero_grad()
+            real = input['data']
+            real_validity = model.discriminator(real.detach(), input['target'])
+            z = torch.randn(real.size(0), cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
+            fake = model.generator(z, input['target'])
+            fake_validity = model.discriminator(fake.detach(), input['target'])
+            D_loss = models.discriminator_loss_fn(real_validity, fake_validity)
+            D_loss.backward()
+            optimizer['discriminator'].step()
         ############################
         # (2) Update G network
         ###########################
-        if i % cfg[cfg['model_name']]['num_critic'] == 0:
-            optimizer['generator'].zero_grad()
-            z = torch.randn(real.size(0), cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
-            fake = model.generator(z, input['target'])
-            fake_validity = model.discriminator(fake, input['target'])
-            G_loss = models.generator_loss_fn(fake_validity)
-            G_loss.backward()
-            optimizer['generator'].step()
+        optimizer['generator'].zero_grad()
+        z = torch.randn(input_size, cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
+        fake = model.generator(z, input['target'])
+        fake_validity = model.discriminator(fake, input['target'])
+        G_loss = models.generator_loss_fn(fake_validity)
+        G_loss.backward()
+        optimizer['generator'].step()
         output = {'loss_D': D_loss, 'loss_G': G_loss}
         evaluation = metric.evaluate(metric.metric_name['train'], input, output)
         logger.append(evaluation, 'train', n=input_size)
@@ -143,7 +143,6 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
 
 
 def test(model, metric, logger, epoch):
-    cfg['eval'] = False
     sample_per_iter = cfg[cfg['model_name']]['batch_size']['test']
     generate_per_mode = 1000
     with torch.no_grad():

@@ -88,20 +88,20 @@ def summarize(data_loader, model):
             summary['module'][key]['output_size'].append(output_size)
             for name, param in module.named_parameters():
                 if param.requires_grad:
-                    if name in ['weight', 'in_proj_weight', 'out_proj.weight']:
+                    if name in ['weight', 'weight_orig']:
                         if name not in summary['module'][key]['params']:
-                            summary['module'][key]['params'][name] = {}
-                            summary['module'][key]['params'][name]['size'] = list(param.size())
+                            summary['module'][key]['params']['weight'] = {}
+                            summary['module'][key]['params']['weight']['size'] = list(param.size())
                             summary['module'][key]['coordinates'] = []
-                            summary['module'][key]['params'][name]['mask'] = torch.zeros(
-                                summary['module'][key]['params'][name]['size'], dtype=torch.long,
+                            summary['module'][key]['params']['weight']['mask'] = torch.zeros(
+                                summary['module'][key]['params']['weight']['size'], dtype=torch.long,
                                 device=cfg['device'])
-                    elif name in ['bias', 'in_proj_bias', 'out_proj.bias']:
+                    elif name in ['bias']:
                         if name not in summary['module'][key]['params']:
-                            summary['module'][key]['params'][name] = {}
-                            summary['module'][key]['params'][name]['size'] = list(param.size())
-                            summary['module'][key]['params'][name]['mask'] = torch.zeros(
-                                summary['module'][key]['params'][name]['size'], dtype=torch.long,
+                            summary['module'][key]['params']['bias'] = {}
+                            summary['module'][key]['params']['bias']['size'] = list(param.size())
+                            summary['module'][key]['params']['bias']['mask'] = torch.zeros(
+                                summary['module'][key]['params']['bias']['size'], dtype=torch.long,
                                 device=cfg['device'])
                     else:
                         continue

@@ -19,7 +19,7 @@ def InceptionScore(img, splits=1):
         N = len(img)
         batch_size = cfg[cfg['model_name']]['batch_size']['train']
         data_loader = DataLoader(img, batch_size=batch_size)
-        if cfg['data_name'] in ['CIFAR10'] and cfg['eval']:
+        if cfg['data_name'] in ['CIFAR10']:
             block_idx = InceptionV3.BLOCK_INDEX_BY_DIM['prob']
             model = InceptionV3([block_idx]).to(cfg['device'])
             model.train(False)
@@ -53,24 +53,13 @@ def InceptionScore(img, splits=1):
     return inception_score
 
 
-
 def FID(img):
     with torch.no_grad():
-        dataset = fetch_dataset(cfg['data_name'], verbose=False)
-        real_data_loader = make_data_loader(dataset, cfg['model_name'])['train']
         generated_data_loader = DataLoader(img, batch_size=cfg[cfg['model_name']]['batch_size']['train'])
-        if cfg['data_name'] in ['CIFAR10'] and cfg['eval']:
+        if cfg['data_name'] in ['CIFAR10']:
             block_idx1 = InceptionV3.BLOCK_INDEX_BY_DIM[2048]
             model = InceptionV3([block_idx1]).to(cfg['device'])
             model.train(False)
-            real_feature = []
-            for i, input in enumerate(real_data_loader):
-                input = collate(input)
-                input = to_device(input, cfg['device'])
-                input_size_i = input['data'].size(0)
-                real_feature_i = model(input['data'])[0].view(input_size_i, -1)
-                real_feature.append(real_feature_i.cpu().numpy())
-            real_feature = np.concatenate(real_feature, axis=0)
             generated_feature = []
             for i, input in enumerate(generated_data_loader):
                 input = input.to(cfg['device'])
@@ -85,13 +74,6 @@ def FID(img):
             checkpoint = load('./res/classifier/{}_best.pt'.format(model_tag))
             model.load_state_dict(checkpoint['model_dict'])
             model.train(False)
-            real_feature = []
-            for i, input in enumerate(real_data_loader):
-                input = collate(input)
-                input = to_device(input, cfg['device'])
-                real_feature_i = model.feature(input)
-                real_feature.append(real_feature_i.cpu().numpy())
-            real_feature = np.concatenate(real_feature, axis=0)
             generated_feature = []
             for i, input in enumerate(generated_data_loader):
                 input = {'data': input, 'target': input.new_zeros(input.size(0)).long()}
@@ -99,8 +81,7 @@ def FID(img):
                 generated_feature_i = model.feature(input)
                 generated_feature.append(generated_feature_i.cpu().numpy())
             generated_feature = np.concatenate(generated_feature, axis=0)
-        mu1 = np.mean(real_feature, axis=0)
-        sigma1 = np.cov(real_feature, rowvar=False)
+        mu1, sigma1 = load('./res/fid_stats/{}.pt'.format(cfg['data_name']))
         mu2 = np.mean(generated_feature, axis=0)
         sigma2 = np.cov(generated_feature, rowvar=False)
         mu1 = np.atleast_1d(mu1)
@@ -152,9 +133,9 @@ class Metric(object):
 
     def make_pivot(self):
         if cfg['data_name'] in ['MNIST', 'CIFAR10']:
-            pivot = float('inf')
-            pivot_name = 'FID'
-            pivot_direction = 'down'
+            pivot = -float('inf')
+            pivot_name = 'InceptionScore'
+            pivot_direction = 'up'
         else:
             raise ValueError('Not valid data name')
         return pivot, pivot_name, pivot_direction
