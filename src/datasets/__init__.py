@@ -1,5 +1,21 @@
-from .mnist import MNIST
-from .cifar import CIFAR10
+from .mnist import MNIST, EMNIST, FashionMNIST
+from .celebahq import CelebAHQ
+from .cifar import CIFAR10, CIFAR100
+from .cars import Cars
+from .coil import COIL100
+from .cub import CUB200
+from .dogs import Dogs
+from .omniglot import Omniglot
+from .imagenet import ImageNet, ImageNet32, ImageNet64
 from .utils import *
+from .transforms import *
 
-__all__ = ('MNIST', 'CIFAR10')
+__all__ = ('MNIST', 'EMNIST', 'FashionMNIST',
+           'CelebAHQ',
+           'CIFAR10', 'CIFAR100',
+           'Cars',
+           'COIL100',
+           'CUB200',
+           'Dogs',
+           'Omniglot',
+           'ImageNet', 'ImageNet32', 'ImageNet64')

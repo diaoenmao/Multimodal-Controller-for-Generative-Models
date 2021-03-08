@@ -3,6 +3,7 @@ import hashlib
 import os
 import glob
 import gzip
+import requests
 import tarfile
 import zipfile
 import numpy as np
@@ -10,6 +11,7 @@ from PIL import Image
 from tqdm import tqdm
 from collections import Counter
 from utils import makedir_exist_ok
+from .transforms import *
 
 IMG_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif']
 
@@ -88,9 +90,6 @@ def check_integrity(path, md5=None):
 
 def download_url(url, root, filename, md5):
     from six.moves import urllib
-    opener = urllib.request.build_opener()
-    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-    urllib.request.install_opener(opener)
     path = os.path.join(root, filename)
     makedir_exist_ok(root)
     if os.path.isfile(path) and check_integrity(path, md5):
@@ -105,6 +104,37 @@ def download_url(url, root, filename, md5):
                 print('Failed download. Trying https -> http instead.'
                       ' Downloading ' + url + ' to ' + path)
                 urllib.request.urlretrieve(url, path, reporthook=make_bar_updater(tqdm(unit='B', unit_scale=True)))
+        if not check_integrity(path, md5):
+            raise RuntimeError('Not valid downloaded file')
+    return
+
+
+def download_google(id, root, filename, md5):
+    google_url = "https://docs.google.com/uc?export=download"
+    path = os.path.join(root, filename)
+    makedir_exist_ok(root)
+    if os.path.isfile(path) and check_integrity(path, md5):
+        print('Using downloaded and verified file: ' + path)
+    else:
+        session = requests.Session()
+        response = session.get(google_url, params={'id': id}, stream=True)
+        token = None
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                token = value
+                break
+        if token:
+            params = {'id': id, 'confirm': token}
+            response = session.get(google_url, params=params, stream=True)
+        with open(path, "wb") as f:
+            pbar = tqdm(total=None)
+            progress = 0
+            for chunk in response.iter_content(32768):
+                if chunk:
+                    f.write(chunk)
+                    progress += len(chunk)
+                    pbar.update(progress - pbar.n)
+            pbar.close()
         if not check_integrity(path, md5):
             raise RuntimeError('Not valid downloaded file')
     return
@@ -198,7 +228,10 @@ class Compose(object):
 
     def __call__(self, input):
         for t in self.transforms:
-            input['data'] = t(input['data'])
+            if isinstance(t, CustomTransform):
+                input['img'] = t(input)
+            else:
+                input['img'] = t(input['img'])
         return input
 
     def __repr__(self):

@@ -23,7 +23,7 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['metric_name'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
+cfg['metric_name'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
 
 
 def main():
@@ -32,6 +32,8 @@ def main():
     for i in range(cfg['num_experiments']):
         model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['model_name'], cfg['control_name']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
+        ae_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['ae_name']]
+        cfg['ae_tag'] = '_'.join([x for x in ae_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
     return
@@ -44,34 +46,39 @@ def runExperiment():
     dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
+    ae = eval('models.{}().to(cfg["device"])'.format(cfg['ae_name']))
+    _, ae, _, _, _ = resume(ae, cfg['ae_tag'], load_tag='best')
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     load_tag = 'best'
     last_epoch, model, _, _, _ = resume(model, cfg['model_tag'], load_tag=load_tag)
     current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/test_{}_{}'.format(cfg['model_tag'], current_time)
+    logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
     logger = Logger(logger_path)
     logger.safe(True)
-    test(data_loader['train'], model, logger, last_epoch)
+    test(data_loader['train'], ae, model, logger, last_epoch)
     logger.safe(False)
     save_result = {'cfg': cfg, 'epoch': last_epoch, 'logger': logger}
     save(save_result, './output/result/{}.pt'.format(cfg['model_tag']))
     return
 
 
-def test(data_loader, model, logger, epoch):
+def test(data_loader, ae, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
+        ae.train(False)
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, cfg['device'])
+            _, _, input['img'] = ae.encode(input['img'])
+            input['img'] = input['img'].detach()
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(cfg['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        logger.append(evaluation, 'test')
+        info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
     return

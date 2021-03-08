@@ -26,14 +26,13 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['pivot_metric'] = 'Accuracy'
-cfg['pivot'] = -float('inf')
-cfg['lr'] = 1e-2
-cfg['metric_name'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
-cfg['scheduler_name'] = 'MultiStepLR'
-cfg['milestones'] = [100]
-cfg['factor'] = 0.1
-cfg['num_epochs'] = 200
+cfg['pivot_metric'] = 'NLL'
+cfg['pivot'] = float('inf')
+cfg['metric_name'] = {'train': ['Loss', 'NLL'], 'test': ['Loss', 'NLL']}
+cfg['optimizer_name'] = 'Adam'
+cfg['lr'] = 3e-4
+cfg['weight_decay'] = 0
+cfg['scheduler_name'] = 'ReduceLROnPlateau'
 
 
 def main():
@@ -42,6 +41,8 @@ def main():
     for i in range(cfg['num_experiments']):
         model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['model_name'], cfg['control_name']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
+        ae_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['ae_name']]
+        cfg['ae_tag'] = '_'.join([x for x in ae_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
     return
@@ -54,6 +55,8 @@ def runExperiment():
     dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
     process_dataset(dataset['train'])
     data_loader = make_data_loader(dataset)
+    ae = eval('models.{}().to(cfg["device"])'.format(cfg['ae_name']))
+    _, ae, _, _, _ = resume(ae, cfg['ae_tag'], load_tag='best')
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     optimizer = make_optimizer(model)
     scheduler = make_scheduler(optimizer)
@@ -74,8 +77,8 @@ def runExperiment():
         model = torch.nn.DataParallel(model, device_ids=list(range(cfg['world_size'])))
     for epoch in range(last_epoch, cfg['num_epochs'] + 1):
         logger.safe(True)
-        train(data_loader['train'], model, optimizer, logger, epoch)
-        test(data_loader['train'], model, logger, epoch)
+        train(data_loader['train'], ae, model, optimizer, logger, epoch)
+        test(data_loader['train'], ae, model, logger, epoch)
         if cfg['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler.step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])])
         else:
@@ -87,7 +90,7 @@ def runExperiment():
             'optimizer_dict': optimizer.state_dict(), 'scheduler_dict': scheduler.state_dict(),
             'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if cfg['pivot'] < logger.mean['test/{}'.format(cfg['pivot_metric'])]:
+        if cfg['pivot'] > logger.mean['test/{}'.format(cfg['pivot_metric'])]:
             cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
@@ -96,14 +99,18 @@ def runExperiment():
     return
 
 
-def train(data_loader, model, optimizer, logger, epoch):
+def train(data_loader, ae, model, optimizer, logger, epoch):
     metric = Metric()
+    ae.train(False)
     model.train(True)
     start_time = time.time()
     for i, input in enumerate(data_loader):
         input = collate(input)
         input_size = input['img'].size(0)
         input = to_device(input, cfg['device'])
+        with torch.no_grad():
+            _, _, input['img'] = ae.encode(input['img'])
+            input['img'] = input['img'].detach()
         optimizer.zero_grad()
         output = model(input)
         output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
@@ -127,20 +134,23 @@ def train(data_loader, model, optimizer, logger, epoch):
     return
 
 
-def test(data_loader, model, logger, epoch):
+def test(data_loader, ae, model, logger, epoch):
     with torch.no_grad():
         metric = Metric()
+        ae.train(False)
         model.train(False)
         for i, input in enumerate(data_loader):
             input = collate(input)
             input_size = input['img'].size(0)
             input = to_device(input, cfg['device'])
+            _, _, input['img'] = ae.encode(input['img'])
+            input['img'] = input['img'].detach()
             output = model(input)
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(cfg['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        logger.append(evaluation, 'test')
+        info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
     return

@@ -1,17 +1,54 @@
 ---
 # control
 control:
-  continue: '0'
-  mask_mode: 'random'
+  controller_rate: '0.5'
 # data
-data_name: MNIST
-# MNIST
-model_name: mcgan
-# experiment
+data_name: CIFAR10
+subset: label
+batch_size:
+  train: 128
+  test: 128
+shuffle:
+  train: True
+  test: False
 num_workers: 0
+model_name: mcvae
+metric_name:
+  train:
+    - Loss
+    - NLL
+  test:
+    - Loss
+    - NLL
+# optimizer
+optimizer_name: Adam
+lr: 1.0e-3
+momentum: 0
+weight_decay: 0
+# scheduler
+scheduler_name: None
+step_size: 1
+milestones:
+  - 100
+  - 150
+patience: 10
+threshold: 1.0e-3
+factor: 0.5
+min_lr: 1.0e-5
+# experiment
 init_seed: 0
 num_experiments: 1
+num_epochs: 200
 log_interval: 0.25
 device: cuda
 world_size: 1
 resume_mode: 0
+# other
+ae_name: vqvae
+create_mode: uniform
+show: False
+raw: False
+save_npy: False
+save_img: True
+save_per_mode: 10
+save_format: pdf

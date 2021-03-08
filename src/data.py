@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import datasets
 from config import cfg
 from torchvision import transforms
@@ -7,30 +6,72 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
 
-def fetch_dataset(data_name, verbose=True):
+def fetch_dataset(data_name, subset, verbose=True):
     dataset = {}
     if verbose:
         print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
-    if data_name in ['MNIST', 'FashionMNIST']:
-        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
-                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+    if data_name in ['MNIST', 'FashionMNIST', 'SVHN']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        cfg['transform'] = {
+            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
+                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
+                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        }
+    elif data_name == 'EMNIST':
+        dataset['train'] = datasets.EMNIST(root=root, split='train', subset=subset,
+                                           transform=datasets.Compose([transforms.ToTensor()]))
+        dataset['test'] = datasets.EMNIST(root=root, split='test', subset=subset,
+                                          transform=datasets.Compose([transforms.ToTensor()]))
+        cfg['transform'] = {
+            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
+                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
+                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        }
+    elif data_name in ['CIFAR10', 'CIFAR100']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        cfg['transform'] = {
+            'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+            'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        }
+    elif data_name in ['ImageNet']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset, size=128,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset, size=128,'
+                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
+        cfg['transform'] = {
+            'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+            'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        }
+    elif data_name == 'Omniglot':
+        dataset['train'] = datasets.Omniglot(root=root, split='train', subset=subset,
+                                             transform=datasets.Compose([transforms.ToTensor()]))
+        dataset['test'] = datasets.Omniglot(root=root, split='test', subset=subset,
+                                            transform=datasets.Compose([transforms.ToTensor()]))
         cfg['transform'] = {
             'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                        transforms.Normalize((0.5,), (0.5,))]),
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                       transforms.Normalize((0.5,), (0.5,))])
         }
-    elif data_name in ['CIFAR10']:
-        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', '
-                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', '
+    elif data_name in ['CUB200', 'Cars', 'Dogs', 'COIL100']:
+        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
+                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
+        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         cfg['transform'] = {
-            'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-            'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
+                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
+            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
+                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         }
     else:
         raise ValueError('Not valid dataset name')
@@ -52,11 +93,10 @@ def input_collate(batch):
         return default_collate(batch)
 
 
-def make_data_loader(dataset, tag, shuffle=None):
+def make_data_loader(dataset):
     data_loader = {}
     for k in dataset:
-        _shuffle = cfg[tag]['shuffle'][k] if shuffle is None else shuffle[k]
-        data_loader[k] = DataLoader(dataset=dataset[k], shuffle=_shuffle, batch_size=cfg[tag]['batch_size'][k],
-                                    pin_memory=True, num_workers=cfg['num_workers'], collate_fn=input_collate,
-                                    worker_init_fn=np.random.seed(cfg['seed']))
+        data_loader[k] = torch.utils.data.DataLoader(dataset=dataset[k], shuffle=cfg['shuffle'][k],
+                                                     batch_size=cfg['batch_size'][k], pin_memory=True,
+                                                     num_workers=cfg['num_workers'], collate_fn=input_collate)
     return data_loader

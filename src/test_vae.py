@@ -7,7 +7,7 @@ import models
 from config import cfg
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control, process_dataset, resume, collate
+from utils import save, to_device, process_control, process_dataset, resume, collate, save_img
 from logger import Logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -23,7 +23,7 @@ if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
 cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
-cfg['metric_name'] = {'train': ['Loss', 'Accuracy'], 'test': ['Loss', 'Accuracy']}
+cfg['metric_name'] = {'train': ['Loss', 'BCE'], 'test': ['Loss', 'BCE']}
 
 
 def main():
@@ -47,8 +47,7 @@ def runExperiment():
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
     load_tag = 'best'
     last_epoch, model, _, _, _ = resume(model, cfg['model_tag'], load_tag=load_tag)
-    current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    logger_path = 'output/runs/test_{}_{}'.format(cfg['model_tag'], current_time)
+    logger_path = 'output/runs/test_{}_{}'.format(cfg['model_tag'], datetime.datetime.now().strftime('%b%d_%H-%M-%S'))
     logger = Logger(logger_path)
     logger.safe(True)
     test(data_loader['train'], model, logger, last_epoch)
@@ -70,10 +69,12 @@ def test(data_loader, model, logger, epoch):
             output['loss'] = output['loss'].mean() if cfg['world_size'] > 1 else output['loss']
             evaluation = metric.evaluate(cfg['metric_name']['test'], input, output)
             logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(cfg['model_tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
+        logger.append(evaluation, 'test')
+        info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
         logger.write('test', cfg['metric_name']['test'])
+        save_img(input['img'][:100], './output/vis/input_{}.png'.format(cfg['model_tag']), range=(-1, 1))
+        save_img(output['img'][:100], './output/vis/output_{}.png'.format(cfg['model_tag']), range=(-1, 1))
     return
 
 

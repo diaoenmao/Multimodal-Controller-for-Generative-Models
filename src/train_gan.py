@@ -6,10 +6,11 @@ import shutil
 import time
 import torch
 import torch.backends.cudnn as cudnn
+import torch.optim as optim
 from config import cfg
 from data import fetch_dataset, make_data_loader
 from metrics import Metric
-from utils import save, to_device, process_control, process_dataset, make_optimizer, make_scheduler, resume, collate
+from utils import save, load, to_device, process_control, process_dataset, collate, save_img
 from logger import Logger
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -24,15 +25,41 @@ for k in cfg:
 if args['control_name']:
     cfg['control'] = {k: v for k, v in zip(cfg['control'].keys(), args['control_name'].split('_'))} \
         if args['control_name'] != 'None' else {}
-cfg['control_name'] = '_'.join(
-    [cfg['control'][k] for k in cfg['control'] if cfg['control'][k]]) if 'control' in cfg else ''
+cfg['control_name'] = '_'.join([cfg['control'][k] for k in cfg['control']])
+cfg['pivot_metric'] = 'InceptionScore'
+cfg['pivot'] = -float('inf')
+cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore', 'FID']}
+cfg['optimizer_name'] = 'Adam'
+if cfg['model_name'] == 'cgan':
+    if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
+    elif cfg['data_name'] in ['COIL100', 'Omniglot']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
+elif cfg['model_name'] == 'mcgan':
+    if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
+    elif cfg['data_name'] in ['COIL100', 'Omniglot']:
+        cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
+        cfg['iter'] = {'generator': 1, 'discriminator': 5}
+        cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}
+else:
+    raise ValueError('Not valid model name')
+cfg['weight_decay'] = 0
+cfg['scheduler_name'] = 'None'
+cfg['loss_type'] = 'Hinge'
 
 
 def main():
     process_control()
     seeds = list(range(cfg['init_seed'], cfg['init_seed'] + cfg['num_experiments']))
     for i in range(cfg['num_experiments']):
-        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['model_name'], cfg['control_name']]
+        model_tag_list = [str(seeds[i]), cfg['data_name'], cfg['subset'], cfg['model_name'], cfg['control_name']]
         cfg['model_tag'] = '_'.join([x for x in model_tag_list if x])
         print('Experiment: {}'.format(cfg['model_tag']))
         runExperiment()
@@ -40,41 +67,47 @@ def main():
 
 
 def runExperiment():
-    cfg['seed'] = int(cfg['model_tag'].split('_')[0])
-    torch.manual_seed(cfg['seed'])
-    torch.cuda.manual_seed(cfg['seed'])
-    dataset = fetch_dataset(cfg['data_name'])
-    process_dataset(dataset)
-    data_loader = make_data_loader(dataset, cfg['model_name'])
+    seed = int(cfg['model_tag'].split('_')[0])
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    dataset = fetch_dataset(cfg['data_name'], cfg['subset'])
+    process_dataset(dataset['train'])
+    data_loader = make_data_loader(dataset)
     model = eval('models.{}().to(cfg["device"])'.format(cfg['model_name']))
-    optimizer = {'generator': make_optimizer(model.generator, cfg['model_name']),
-                 'discriminator': make_optimizer(model.discriminator, cfg['model_name'])}
-    scheduler = {'generator': make_scheduler(optimizer['generator'], cfg['model_name']),
-                 'discriminator': make_scheduler(optimizer['discriminator'], cfg['model_name'])}
-    metric = Metric({'train': ['Loss_D', 'Loss_G'], 'test': ['InceptionScore', 'FID']})
+    optimizer = {'generator': make_optimizer(model.generator, cfg['lr']['generator'], cfg['betas']['generator']),
+                 'discriminator': make_optimizer(model.discriminator, cfg['lr']['discriminator'],
+                                                 cfg['betas']['discriminator'])}
+    scheduler = {'generator': make_scheduler(optimizer['generator']),
+                 'discriminator': make_scheduler(optimizer['discriminator'])}
     if cfg['resume_mode'] == 1:
         last_epoch, model, optimizer, scheduler, logger = resume(model, cfg['model_tag'], optimizer, scheduler)
+    elif cfg['resume_mode'] == 2:
+        last_epoch = 1
+        _, model, _, _, _ = resume(model, cfg['model_tag'])
+        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+        logger_path = 'output/runs/{}_{}'.format(cfg['model_tag'], current_time)
+        logger = Logger(logger_path)
     else:
         last_epoch = 1
         current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
         logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
         logger = Logger(logger_path)
-    for epoch in range(last_epoch, cfg[cfg['model_name']]['num_epochs'] + 1):
-        logger.safe(True)
+    for epoch in range(last_epoch, cfg['num_epochs'] + 1):
         if cfg['world_size'] > 1:
             model.generator = torch.nn.DataParallel(model.generator, device_ids=list(range(cfg['world_size'])))
             model.discriminator = torch.nn.DataParallel(model.discriminator, device_ids=list(range(cfg['world_size'])))
-        train(data_loader['train'], model, optimizer, metric, logger, epoch)
-        test(model, metric, logger, epoch)
-        if cfg[cfg['model_name']]['scheduler_name'] == 'ReduceLROnPlateau':
+        logger.safe(True)
+        train(data_loader['train'], model, optimizer, logger, epoch)
+        test(model, logger, epoch)
+        if cfg['scheduler_name'] == 'ReduceLROnPlateau':
             scheduler['generator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])])
             scheduler['discriminator'].step(metrics=logger.mean['test/{}'.format(cfg['pivot_metric'])])
         else:
             scheduler['generator'].step()
             scheduler['discriminator'].step()
+        logger.safe(False)
         if cfg['world_size'] > 1:
             model.generator, model.discriminator = model.generator.module, model.discriminator.module
-        logger.safe(False)
         model_state_dict = model.state_dict()
         save_result = {
             'cfg': cfg, 'epoch': epoch + 1, 'model_dict': model_state_dict,
@@ -83,8 +116,8 @@ def runExperiment():
             'scheduler_dict': {'generator': scheduler['generator'].state_dict(),
                                'discriminator': scheduler['discriminator'].state_dict()}, 'logger': logger}
         save(save_result, './output/model/{}_checkpoint.pt'.format(cfg['model_tag']))
-        if metric.compare(logger.mean['test/{}'.format(metric.pivot_name)]):
-            metric.update(logger.mean['test/{}'.format(metric.pivot_name)])
+        if cfg['pivot'] < logger.mean['test/{}'.format(cfg['pivot_metric'])]:
+            cfg['pivot'] = logger.mean['test/{}'.format(cfg['pivot_metric'])]
             shutil.copy('./output/model/{}_checkpoint.pt'.format(cfg['model_tag']),
                         './output/model/{}_best.pt'.format(cfg['model_tag']))
         logger.reset()
@@ -92,38 +125,57 @@ def runExperiment():
     return
 
 
-def train(data_loader, model, optimizer, metric, logger, epoch):
+def train(data_loader, model, optimizer, logger, epoch):
+    metric = Metric()
     model.train(True)
     start_time = time.time()
     for i, input in enumerate(data_loader):
         input = collate(input)
-        input_size = input['data'].size(0)
+        input_size = input['img'].size(0)
         input = to_device(input, cfg['device'])
         ############################
         # (1) Update D network
         ###########################
-        for _ in range(cfg[cfg['model_name']]['num_critic']):
+        for _ in range(cfg['iter']['discriminator']):
+            # train with real
             optimizer['discriminator'].zero_grad()
-            real = input['data']
-            real_validity = model.discriminator(real.detach(), input['target'])
-            z = torch.randn(real.size(0), cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
-            fake = model.generator(z, input['target'])
-            fake_validity = model.discriminator(fake.detach(), input['target'])
-            D_loss = models.discriminator_loss_fn(real_validity, fake_validity)
+            optimizer['generator'].zero_grad()
+            D_x = model.discriminate(input['img'], input[cfg['subset']])
+            # train with fake
+            z1 = torch.randn(input['img'].size(0), cfg['gan']['latent_size'], device=cfg['device'])
+            generated = model.generate(input[cfg['subset']], z1)
+            D_G_z1 = model.discriminate(generated.detach(), input[cfg['subset']])
+            if cfg['loss_type'] == 'BCE':
+                D_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                    D_x, torch.ones((input['img'].size(0), 1), device=cfg['device'])) + \
+                         torch.nn.functional.binary_cross_entropy_with_logits(
+                             D_G_z1, torch.zeros((input['img'].size(0), 1), device=cfg['device']))
+            elif cfg['loss_type'] == 'Hinge':
+                D_loss = torch.nn.functional.relu(1.0 - D_x).mean() + torch.nn.functional.relu(1.0 + D_G_z1).mean()
+            else:
+                raise ValueError('Not valid loss type')
             D_loss.backward()
             optimizer['discriminator'].step()
         ############################
         # (2) Update G network
         ###########################
-        optimizer['generator'].zero_grad()
-        z = torch.randn(input_size, cfg[cfg['model_name']]['latent_size'], device=cfg['device'])
-        fake = model.generator(z, input['target'])
-        fake_validity = model.discriminator(fake, input['target'])
-        G_loss = models.generator_loss_fn(fake_validity)
-        G_loss.backward()
-        optimizer['generator'].step()
-        output = {'loss_D': D_loss, 'loss_G': G_loss}
-        evaluation = metric.evaluate(metric.metric_name['train'], input, output)
+        for _ in range(cfg['iter']['generator']):
+            optimizer['discriminator'].zero_grad()
+            optimizer['generator'].zero_grad()
+            z2 = torch.randn(input['img'].size(0), cfg['gan']['latent_size'], device=cfg['device'])
+            generated = model.generate(input[cfg['subset']], z2)
+            D_G_z2 = model.discriminate(generated, input[cfg['subset']])
+            if cfg['loss_type'] == 'BCE':
+                G_loss = torch.nn.functional.binary_cross_entropy_with_logits(
+                    D_G_z2, torch.ones((input['img'].size(0), 1), device=cfg['device']))
+            elif cfg['loss_type'] == 'Hinge':
+                G_loss = -D_G_z2.mean()
+            else:
+                raise ValueError('Not valid loss type')
+            G_loss.backward()
+            optimizer['generator'].step()
+        output = {'loss': abs(D_loss - G_loss), 'loss_D': D_loss, 'loss_G': G_loss}
+        evaluation = metric.evaluate(cfg['metric_name']['train'], input, output)
         logger.append(evaluation, 'train', n=input_size)
         if i % int((len(data_loader) * cfg['log_interval']) + 1) == 0:
             batch_time = (time.time() - start_time) / (i + 1)
@@ -131,41 +183,106 @@ def train(data_loader, model, optimizer, metric, logger, epoch):
                                              optimizer['discriminator'].param_groups[0]['lr']
             epoch_finished_time = datetime.timedelta(seconds=round(batch_time * (len(data_loader) - i - 1)))
             exp_finished_time = epoch_finished_time + datetime.timedelta(
-                seconds=round((cfg[cfg['model_name']]['num_epochs'] - epoch) * batch_time * len(data_loader)))
+                seconds=round((cfg['num_epochs'] - epoch) * batch_time * len(data_loader)))
             info = {'info': ['Model: {}'.format(cfg['model_tag']),
                              'Train Epoch: {}({:.0f}%)'.format(epoch, 100. * i / len(data_loader)),
-                             'Learning rate : (G: {:.6f}, D: {:.6f})'.format(generator_lr, discriminator_lr),
+                             'Learning rate : (G: {}, D: {})'.format(generator_lr, discriminator_lr),
                              'Epoch Finished Time: {}'.format(epoch_finished_time),
                              'Experiment Finished Time: {}'.format(exp_finished_time)]}
             logger.append(info, 'train', mean=False)
-            print(logger.write('train', metric.metric_name['train']))
+            logger.write('train', cfg['metric_name']['train'])
     return
 
 
-def test(model, metric, logger, epoch):
-    sample_per_iter = cfg[cfg['model_name']]['batch_size']['test']
-    generate_per_mode = 1000
+def test(model, logger, epoch):
+    sample_per_iter = cfg['batch_size']['test']
     with torch.no_grad():
+        metric = Metric()
         model.train(False)
-        C = torch.arange(cfg['target_size'])
-        C = C.repeat(generate_per_mode)
-        cfg['z'] = torch.randn([C.size(0), cfg[cfg['model_name']]['latent_size']]) if 'z' not in cfg else cfg['z']
-        z = torch.split(cfg['z'], sample_per_iter)
-        C = torch.split(C, sample_per_iter)
+        C = torch.arange(cfg['classes_size'])
+        C = C.repeat(cfg['generate_per_mode'])
+        cfg['z'] = torch.randn([C.size(0), cfg['gan']['latent_size']]) if 'z' not in cfg else cfg['z']
+        C_generated = torch.split(C, sample_per_iter)
+        z_generated = torch.split(cfg['z'], sample_per_iter)
         generated = []
-        for i in range(len(z)):
-            z_i = z[i].to(cfg['device'])
-            C_i = C[i].to(cfg['device'])
-            generated_i = model.generator(z_i, C_i)
+        for i in range(len(C_generated)):
+            C_generated_i = C_generated[i].to(cfg['device'])
+            z_generated_i = z_generated[i].to(cfg['device'])
+            generated_i = model.generate(C_generated_i, z_generated_i)
             generated.append(generated_i.cpu())
         generated = torch.cat(generated)
-        output = {'data': generated}
-        evaluation = metric.evaluate(metric.metric_name['test'], input, output)
+        output = {'img': generated}
+        evaluation = metric.evaluate(cfg['metric_name']['test'], None, output)
         logger.append(evaluation, 'test')
         info = {'info': ['Model: {}'.format(cfg['model_tag']), 'Test Epoch: {}({:.0f}%)'.format(epoch, 100.)]}
         logger.append(info, 'test', mean=False)
-        print(logger.write('test', metric.metric_name['test']))
+        logger.write('test', cfg['metric_name']['test'])
     return
+
+
+def make_optimizer(model, lr, betas):
+    if cfg['optimizer_name'] == 'SGD':
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=cfg['momentum'],
+                              weight_decay=cfg['weight_decay'])
+    elif cfg['optimizer_name'] == 'RMSprop':
+        optimizer = optim.RMSprop(model.parameters(), lr=lr, momentum=cfg['momentum'],
+                                  weight_decay=cfg['weight_decay'])
+    elif cfg['optimizer_name'] == 'Adam':
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=betas)
+    elif cfg['optimizer_name'] == 'Adamax':
+        optimizer = optim.Adamax(model.parameters(), lr=lr, weight_decay=cfg['weight_decay'], betas=betas)
+    else:
+        raise ValueError('Not valid optimizer name')
+    return optimizer
+
+
+def make_scheduler(optimizer):
+    if cfg['scheduler_name'] == 'None':
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[65535])
+    elif cfg['scheduler_name'] == 'StepLR':
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg['step_size'],
+                                              gamma=cfg['factor'])
+    elif cfg['scheduler_name'] == 'MultiStepLR':
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=cfg['milestones'],
+                                                   gamma=cfg['factor'])
+    elif cfg['scheduler_name'] == 'ExponentialLR':
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    elif cfg['scheduler_name'] == 'CosineAnnealingLR':
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg['num_epochs'])
+    elif cfg['scheduler_name'] == 'ReduceLROnPlateau':
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=cfg['factor'],
+                                                         patience=cfg['patience'], verbose=True,
+                                                         threshold=cfg['threshold'], threshold_mode='rel',
+                                                         min_lr=cfg['min_lr'])
+    elif cfg['scheduler_name'] == 'CyclicLR':
+        scheduler = optim.lr_scheduler.CyclicLR(optimizer, base_lr=cfg['lr'], max_lr=10 * cfg['lr'])
+    else:
+        raise ValueError('Not valid scheduler name')
+    return scheduler
+
+
+def resume(model, model_tag, optimizer=None, scheduler=None, load_tag='checkpoint'):
+    if os.path.exists('./output/model/{}_{}.pt'.format(model_tag, load_tag)):
+        checkpoint = load('./output/model/{}_{}.pt'.format(model_tag, load_tag))
+        last_epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['model_dict'])
+        if optimizer is not None:
+            optimizer['generator'].load_state_dict(checkpoint['optimizer_dict']['generator'])
+            optimizer['discriminator'].load_state_dict(checkpoint['optimizer_dict']['discriminator'])
+        if scheduler is not None:
+            scheduler['generator'].load_state_dict(checkpoint['scheduler_dict']['generator'])
+            scheduler['discriminator'].load_state_dict(checkpoint['scheduler_dict']['discriminator'])
+        logger = checkpoint['logger']
+        print('Resume from {}'.format(last_epoch))
+    else:
+        print('Not exists model tag: {}, start from scratch'.format(model_tag))
+        import datetime
+        from logger import Logger
+        last_epoch = 1
+        current_time = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+        logger_path = 'output/runs/train_{}_{}'.format(cfg['model_tag'], current_time)
+        logger = Logger(logger_path)
+    return last_epoch, model, optimizer, scheduler, logger
 
 
 if __name__ == "__main__":
