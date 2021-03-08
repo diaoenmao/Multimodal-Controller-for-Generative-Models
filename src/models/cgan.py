@@ -137,12 +137,11 @@ class Discriminator(nn.Module):
         self.data_shape = data_shape
         self.embedding = nn.Linear(num_mode, embedding_size, bias=False)
         blocks = [FirstDisResBlock(data_shape[0] + embedding_size, hidden_size[0])]
-        if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+        if cfg['data_name'] in ['CIFAR10']:
             for i in range(len(hidden_size) - 3):
                 blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], stride=2))
             blocks.extend([
                 DisResBlock(hidden_size[-3], hidden_size[-2], stride=1),
-                nn.ReLU(),
                 DisResBlock(hidden_size[-2], hidden_size[-1], stride=1),
                 nn.ReLU(),
                 GlobalSumPooling(),

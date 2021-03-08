@@ -31,7 +31,7 @@ def main():
     else:
         filename = '{}_{}'.format(run, model)
         script_name = [['{}.py'.format(run)]]
-    data_names = [['CIFAR10', 'CIFAR100', 'COIL100', 'Omniglot']]
+    data_names = [['CIFAR10', 'COIL100', 'Omniglot']]
     if model == 'vqvae':
         model_names = [['vqvae']]
     else:

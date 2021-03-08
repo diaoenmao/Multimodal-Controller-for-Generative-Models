@@ -11,22 +11,11 @@ def fetch_dataset(data_name, subset, verbose=True):
     if verbose:
         print('fetching data {}...'.format(data_name))
     root = './data/{}'.format(data_name)
-    if data_name in ['MNIST', 'FashionMNIST', 'SVHN']:
+    if data_name in ['MNIST']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        cfg['transform'] = {
-            'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
-                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-            'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
-                                      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        }
-    elif data_name == 'EMNIST':
-        dataset['train'] = datasets.EMNIST(root=root, split='train', subset=subset,
-                                           transform=datasets.Compose([transforms.ToTensor()]))
-        dataset['test'] = datasets.EMNIST(root=root, split='test', subset=subset,
-                                          transform=datasets.Compose([transforms.ToTensor()]))
         cfg['transform'] = {
             'train': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
@@ -37,15 +26,6 @@ def fetch_dataset(data_name, subset, verbose=True):
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'
-                               'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
-        cfg['transform'] = {
-            'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
-            'test': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        }
-    elif data_name in ['ImageNet']:
-        dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset, size=128,'
-                                'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
-        dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset, size=128,'
                                'transform=datasets.Compose([transforms.ToTensor()]))'.format(data_name))
         cfg['transform'] = {
             'train': datasets.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]),
@@ -62,7 +42,7 @@ def fetch_dataset(data_name, subset, verbose=True):
             'test': datasets.Compose([transforms.Resize((32, 32)), transforms.ToTensor(),
                                       transforms.Normalize((0.5,), (0.5,))])
         }
-    elif data_name in ['CUB200', 'Cars', 'Dogs', 'COIL100']:
+    elif data_name in ['COIL100']:
         dataset['train'] = eval('datasets.{}(root=root, split=\'train\', subset=subset,'
                                 'transform=datasets.Compose([''transforms.ToTensor()]))'.format(data_name))
         dataset['test'] = eval('datasets.{}(root=root, split=\'test\', subset=subset,'

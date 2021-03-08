@@ -9,7 +9,7 @@ model_path = './output/model'
 vis_path = './output/vis/lc'
 num_experiments = 1
 exp = [str(x) for x in list(range(num_experiments))]
-data_names = ['CIFAR10', 'CIFAR100', 'COIL100', 'Omniglot']
+data_names = ['CIFAR10', 'COIL100', 'Omniglot']
 colors = {'c': 'b', 'mc': 'r'}
 
 

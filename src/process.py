@@ -11,7 +11,7 @@ result_path = './output/result'
 backup_path = './output/backup'
 num_experiments = 12
 exp = [str(x) for x in list(range(num_experiments))]
-data_names = ['CIFAR10', 'CIFAR100', 'COIL100', 'Omniglot']
+data_names = ['CIFAR10', 'COIL100', 'Omniglot']
 base_metrics = {'cvae': 'test/BCE', 'mcvae': 'test/BCE', 'vqvae': 'test/MSE', 'cpixelcnn': 'test/NLL',
                 'mcpixelcnn': 'test/NLL', 'cglow': 'test/Loss', 'mcglow': 'test/Loss'}
 

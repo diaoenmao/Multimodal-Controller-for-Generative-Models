@@ -113,7 +113,7 @@ def process_control():
     elif cfg['data_name'] in ['SVHN', 'CIFAR10']:
         cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 1000
-    elif cfg['data_name'] in ['CIFAR100', 'Dogs', 'CUB200', 'Cars', 'COIL100']:
+    elif cfg['data_name'] in ['COIL100']:
         cfg['data_shape'] = [3, 32, 32]
         cfg['generate_per_mode'] = 100
     elif cfg['data_name'] in ['ImageNet32']:
@@ -157,7 +157,7 @@ def process_control():
         cfg['gan'] = {}
         cfg['gan']['latent_size'] = 128
         if cfg['data_shape'][1] == 32:
-            if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+            if cfg['data_name'] in ['CIFAR10']:
                 cfg['gan']['generator_hidden_size'] = [256, 256, 256, 256]
                 cfg['gan']['discriminator_hidden_size'] = [128, 128, 128, 128]
             else:

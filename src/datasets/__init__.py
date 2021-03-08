@@ -10,12 +10,7 @@ from .imagenet import ImageNet, ImageNet32, ImageNet64
 from .utils import *
 from .transforms import *
 
-__all__ = ('MNIST', 'EMNIST', 'FashionMNIST',
-           'CelebAHQ',
+__all__ = ('MNIST',
            'CIFAR10', 'CIFAR100',
-           'Cars',
            'COIL100',
-           'CUB200',
-           'Dogs',
-           'Omniglot',
-           'ImageNet', 'ImageNet32', 'ImageNet64')
+           'Omniglot')

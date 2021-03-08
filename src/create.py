@@ -85,7 +85,7 @@ def create(model, ae=None):
                 save_img(saved, './output/vis/created_{}.{}'.format(cfg['model_tag'], cfg['save_format']),
                          nrow=save_num_mode, range=(0, 255))
         else:
-            if 'glow' in cfg['model_name'] and cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+            if 'glow' in cfg['model_name'] and cfg['data_name'] in ['CIFAR10']:
                 save_per_mode = cfg['save_per_mode']
                 avoid_overflow = 1000
                 save_num_modes = [10, 50, 100]

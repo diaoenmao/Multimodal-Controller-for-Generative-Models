@@ -31,7 +31,7 @@ cfg['pivot'] = -float('inf')
 cfg['metric_name'] = {'train': ['Loss', 'Loss_D', 'Loss_G'], 'test': ['InceptionScore', 'FID']}
 cfg['optimizer_name'] = 'Adam'
 if cfg['model_name'] == 'cgan':
-    if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+    if cfg['data_name'] in ['CIFAR10']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
@@ -40,7 +40,7 @@ if cfg['model_name'] == 'cgan':
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0, 0.9), 'discriminator': (0, 0.9)}
 elif cfg['model_name'] == 'mcgan':
-    if cfg['data_name'] in ['CIFAR10', 'CIFAR100']:
+    if cfg['data_name'] in ['CIFAR10']:
         cfg['lr'] = {'generator': 2e-4, 'discriminator': 2e-4}
         cfg['iter'] = {'generator': 1, 'discriminator': 5}
         cfg['betas'] = {'generator': (0.5, 0.999), 'discriminator': (0.5, 0.999)}

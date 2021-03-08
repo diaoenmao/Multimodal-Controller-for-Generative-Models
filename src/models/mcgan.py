@@ -69,6 +69,30 @@ class Generator(nn.Module):
         return generated
 
 
+class FirstDisResBlock(nn.Module):
+    def __init__(self, input_size, output_size, num_mode, controller_rate):
+        super().__init__()
+        self.mc_1 = MultimodalController(output_size, num_mode, controller_rate)
+        self.conv = nn.Sequential(
+            Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
+            Wrapper(nn.ReLU()),
+            self.mc_1,
+            Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
+            Wrapper(nn.AvgPool2d(2)),
+        )
+        self.shortcut = nn.Sequential(
+            Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0)),
+            Wrapper(nn.AvgPool2d(2)),
+        )
+
+    def forward(self, input):
+        shortcut = self.shortcut(input)
+        x = self.conv(input)
+        x[0] = x[0] + shortcut[0]
+        output = x
+        return output
+
+
 class DisResBlock(nn.Module):
     def __init__(self, input_size, output_size, num_mode, controller_rate, stride):
         super().__init__()
@@ -114,30 +138,6 @@ class DisResBlock(nn.Module):
         return output
 
 
-class FirstDisResBlock(nn.Module):
-    def __init__(self, input_size, output_size, num_mode, controller_rate):
-        super().__init__()
-        self.mc_1 = MultimodalController(output_size, num_mode, controller_rate)
-        self.conv = nn.Sequential(
-            Wrapper(nn.Conv2d(input_size, output_size, 3, 1, 1)),
-            Wrapper(nn.ReLU()),
-            self.mc_1,
-            Wrapper(nn.Conv2d(output_size, output_size, 3, 1, 1)),
-            Wrapper(nn.AvgPool2d(2)),
-        )
-        self.shortcut = nn.Sequential(
-            Wrapper(nn.Conv2d(input_size, output_size, 1, 1, 0)),
-            Wrapper(nn.AvgPool2d(2)),
-        )
-
-    def forward(self, input):
-        shortcut = self.shortcut(input)
-        x = self.conv(input)
-        x[0] = x[0] + shortcut[0]
-        output = x
-        return output
-
-
 class GlobalSumPooling(nn.Module):
     def __init__(self):
         super().__init__()
@@ -157,7 +157,6 @@ class Discriminator(nn.Module):
                 blocks.append(DisResBlock(hidden_size[i], hidden_size[i + 1], num_mode, controller_rate, stride=2))
             blocks.extend([
                 DisResBlock(hidden_size[-3], hidden_size[-2], num_mode, controller_rate, stride=1),
-                Wrapper(nn.ReLU()),
                 DisResBlock(hidden_size[-2], hidden_size[-1], num_mode, controller_rate, stride=1),
                 Wrapper(nn.ReLU()),
                 MultimodalController(hidden_size[-1], num_mode, controller_rate),
