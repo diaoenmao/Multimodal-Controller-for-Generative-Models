@@ -70,19 +70,22 @@ def summarize_result(processed_result):
 
 
 def make_vis(processed_result):
+    fontsize = 16
     fig = {}
     vis(fig, [], processed_result)
     for k, v in fig.items():
         metric_name = k.split('_')[-1].split('/')
         save_fig_name = '_'.join(k.split('_')[:-1] + ['_'.join(metric_name)])
         fig[k] = plt.figure(k)
-        plt.xlabel('Epoch', fontsize=15)
-        plt.ylabel(metric_name[-1], fontsize=15)
+        plt.xlabel('Epoch', fontsize=fontsize)
+        plt.ylabel(metric_name[-1], fontsize=fontsize)
+        plt.xticks(fontsize=fontsize)
+        plt.yticks(fontsize=fontsize)
         plt.grid()
         if metric_name[-1] == 'FID':
-            plt.legend(loc='upper right', fontsize=15)
+            plt.legend(loc='upper right', fontsize=fontsize)
         else:
-            plt.legend(loc='lower right', fontsize=15)
+            plt.legend(loc='lower right', fontsize=fontsize)
         fig_path = '{}/{}.{}'.format(vis_path, save_fig_name, cfg['save_format'])
         makedir_exist_ok(vis_path)
         fig[k].savefig(fig_path, dpi=300, bbox_inches='tight', pad_inches=0)
@@ -98,16 +101,18 @@ def vis(fig, control, processed_result):
         if 'mc' in model_name:
             color = colors['mc']
             label = model_name[2:]
+            linestyle = '-'
         else:
             color = colors['c']
             label = model_name[1:]
+            linestyle = '--'
         model_name = model_name.upper()
         y_mean = processed_result['mean']
         x = np.arange(y_mean.shape[0])
         y_std = processed_result['std']
         fig_name = '{}_{}_{}'.format(data_name, label, metric)
         fig[fig_name] = plt.figure(fig_name)
-        plt.plot(x, y_mean, c=color, label=model_name)
+        plt.plot(x, y_mean, c=color, label=model_name, linestyle=linestyle)
     else:
         for k, v in processed_result.items():
             vis(fig, control + [k], v)

@@ -45,7 +45,6 @@ world_size: 1
 resume_mode: 0
 # other
 ae_name: vqvae
-create_mode: uniform
 show: False
 raw: False
 save_npy: False
