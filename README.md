@@ -1,7 +1,7 @@
 # Multimodal Controller for Generative Models
 This is an implementation of [Multimodal Controller for Generative Models](https://arxiv.org/abs/2002.02572)
 - Multimodal Controlled Neural Networks.
-<img src="/assest/mcL.png">
+<img src="/assest/mc.png">
 
 
 ## Requirements
