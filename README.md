@@ -1,5 +1,5 @@
 # Multimodal Controller for Generative Models
-This is an implementation of [Multimodal Controller for Generative Models](https://arxiv.org/abs/2002.02572)
+[CVMI 2022] This is an implementation of [Multimodal Controller for Generative Models](https://arxiv.org/abs/2002.02572)
 - Multimodal Controlled Neural Networks
 <img src="/assest/mc.png">
 
